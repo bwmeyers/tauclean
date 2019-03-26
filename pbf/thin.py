@@ -5,10 +5,10 @@ def thin_screen(x, tau, x0=0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).
 
-    :param x: time over which to evaluate the PBF [numpy array]
+    :param x: time over which to evaluate the PBF [array-like]
     :param tau: pulse broadening time scale [float]
     :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated thin screen PBF [numpy array]
+    :return: evaluated thin screen PBF [array-like]
     """
     t = x - x0
     h = (1 / tau) * np.exp(-t / tau)  # normalised to unit area

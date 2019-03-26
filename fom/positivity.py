@@ -5,7 +5,7 @@ def positivity(res, off_rms, m=1.0, x=1.5):
     """The positivity figure of merit used to help decide on the quality of the CLEAN procedure.
     Defined by Bhat et al. 2004 in their eqs. 10 and 11.
 
-    :param res: residuals after the CLEAN process has terminated [numpy array]
+    :param res: residuals after the CLEAN process has terminated [array-like]
     :param off_rms: off-pulse rms value to be used as a threshold [float]
     :param m: a scale-factor (or weight) that is of order unity [float]
     :param x: threshold (units of off_rms) defined to penalise the positivity if

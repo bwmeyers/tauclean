@@ -3,7 +3,7 @@ def consistence(residuals, off_rms, off_mean=0, onlims=(0, 1)):
     indicator of how well the CLEAN procedure has done.
     Defined in Bhat et al. (2004) in the third-last paragraph of Section 2.5.3
 
-    :param residuals: the residual profile after the CLEAN process has terminated [numpy array]
+    :param residuals: the residual profile after the CLEAN process has terminated [array-like]
     :param off_rms: the off-pulse rms noise [float]
     :param off_mean: the off-pulse mean value [float]
     :param onlims: a tuple containing the on-pulse region in terms of phase [(float, float) between 0 and 1 inclusive]

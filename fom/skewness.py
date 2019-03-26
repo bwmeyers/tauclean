@@ -9,8 +9,8 @@ def moment(a, t, n=1):
 
             <x^n> = sum{ a * (t - <t>)^n } / sum{ a }
 
-    :param a: clean component amplitudes [numpy array]
-    :param t: corresponding clean component times [numpy array]
+    :param a: clean component amplitudes [array-like]
+    :param t: corresponding clean component times [array-like]
     :param n: order [int]
     :return: moment of order n
     """
@@ -28,7 +28,7 @@ def skewness(ccs, dt=1.0):
     symmetric (Gaussian-like).
     Defined by Bhat et al. 2004 in their eqs. 12, 13 and 14.
 
-    :param ccs: a list of component (delta-function) amplitudes produced at the end of the CLEAN procedure [numpy array]
+    :param ccs: a list of component (delta-function) amplitudes produced at the end of the CLEAN procedure [array-like]
     :param dt: the time step per profile bin [float]
     :return: the skewness figure of merit [float]
     """
