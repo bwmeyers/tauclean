@@ -1,6 +1,3 @@
-import numpy as np
-
-
 def consistence(residuals, off_rms, off_mean=0, onlims=(0, 1)):
     """The number of residual points in the on-pulse region that are consistent with the off-pulse rms is another
     indicator of how well the CLEAN procedure has done.
