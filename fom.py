@@ -1,7 +1,9 @@
 import numpy as np
 
+__all__ = ["consistence", "positivity", "skewness"]
 
-def consistence(residuals, off_rms, off_mean=0, onlims=(0, 1)):
+
+def consistence(residuals, off_rms, off_mean=0, onlims=(0, 255)):
     """The number of residual points in the on-pulse region that are consistent with the off-pulse rms is another
     indicator of how well the CLEAN procedure has done.
     Defined in Bhat et al. (2004) in the third-last paragraph of Section 2.5.3
@@ -13,9 +15,8 @@ def consistence(residuals, off_rms, off_mean=0, onlims=(0, 1)):
     :return: the number of points in the cleaned on-pulse region that are consistent with the off-pulse noise [int]
     """
 
-    nbins = len(residuals)
-    start = int(onlims[0] * nbins)
-    end = int(onlims[1] * nbins)
+    start = onlims[0]
+    end = onlims[1]
 
     onpulse = residuals[start:end]
 

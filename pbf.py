@@ -1,5 +1,6 @@
 import numpy as np
 
+__all__ = ["thin", "thick", "uniform"]
 
 def thin(x, tau, x0=0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
@@ -10,7 +11,7 @@ def thin(x, tau, x0=0):
     :param x0: where the PBF turns on [float, in range of x]
     :return: evaluated thin screen PBF [array-like]
     """
-    t = x - x0
+    t = x
     h = (1 / tau) * np.exp(-t / tau)  # normalised to unit area
 
     # Turn on a unit step function at the given x0 offset.
