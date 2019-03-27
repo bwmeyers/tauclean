@@ -25,8 +25,52 @@ def keep_cleaning(on, off, threshold=3.0):
     return datamax > limit
 
 
+def gaussian(x, mu, sigma):
+    """A simple function that calculates a Gaussian shape over x
+
+    :param x: independent variable [array-like]
+    :param mu: the mean (position) of the Gaussian [float]
+    :param sigma: the standard deviation (width) of the Gaussian [float]
+    :return: a numerically evaluated Gaussian [array-like]
+    """
+
+    amp = 1.0 / (np.sqrt(2) * sigma)
+    g = amp * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+
+    return g
+
+
+def reconstruction(profile, ccs, dt=1.0, norm=True):
+    """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
+
+    :param profile: the initial pulse profile [array-like]
+    :param ccs: the clean components amplitudes [array-like]
+    :param dt: time sample duration (i.e. amount of time per bin) [float]
+    :param norm: whether to normalise the output to unit area [boolean]
+    :return: a reconstruction of the intrinsic pulse profile [array-like]
+    """
+    nbins = len(ccs)
+    x = dt * np.linspace(0, nbins, nbins)
+    width = 3 * dt  # TODO: need to evaluate the approximate instrumental response more robustly
+    impulse_response = gaussian(x, x[x.size // 2], width)
+    impulse_response /= impulse_response.max()
+
+    # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
+    recon = np.convolve(ccs, impulse_response, mode="full")[:nbins]
+
+    # Roll this such that the maximum value corresponds to the maximum value of the initial profile
+    offset = np.argmax(profile) - np.argmax(recon)
+    recon = np.roll(recon, offset)
+
+    if norm:
+        # Normalise the reconstructed profile such that it has unit area
+        return recon / simps(y=recon, x=x)
+    else:
+        return recon
+
+
 def clean(data, tau, results,
-          on_start=0.0, on_end=1.0, dt=1.0, gain=0.01, threshold=3.0,
+          on_start=0, on_end=255, dt=1.0, gain=0.01, threshold=3.0,
           pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
 
@@ -34,8 +78,8 @@ def clean(data, tau, results,
     :param tau: scattering time scale to use when calculating the PBF [float]
     :param results: a list that is defined globally such that it can be written to by this function and remain available
     after completion (in the case of multiple processes, this will be a multiprocessing.Manager list object) [list]
-    :param on_start: start of the on-pulse region (in turns, between 0 and 1) [float]
-    :param on_end: end of the on-pulse region (in turns, between 0 and 1) [float]
+    :param on_start: starting bin of the on-pulse region [int]
+    :param on_end: end bin of the on-pulse region [int]
     :param dt: time sample duration (i.e. amount of time per bin) [float]
     :param gain: a "loop gain" that is sued to scale the clean component amplitudes (usually 0.01-0.05) [float]
     :param threshold: threshold defining when to terminate the clean procedure [float]
@@ -45,8 +89,6 @@ def clean(data, tau, results,
     """
     nbins = len(data)
     nrot = 10
-    on_bin_start = int(on_start * nbins)
-    on_bin_end = int(on_end * nbins)
 
     # Create an x-range that is much larger than the nominal pulsar period, so that the full effect of the PBF can be
     # modelled by evaluating  over the extended range and then folding the result on the pulsar period.
@@ -65,8 +107,8 @@ def clean(data, tau, results,
 
     # Copy data into profile so that data is never actually touched in the process
     profile = np.copy(data)
-    on_pulse = profile[on_bin_start:on_bin_end]
-    off_pulse = np.concatenate((profile[:on_bin_start], profile[on_bin_end:]))
+    on_pulse = profile[on_start:on_end]
+    off_pulse = np.concatenate((profile[:on_start], profile[on_end:]))
 
     # Pre-allocate an array the same size as profile where the clean component locations and amplitudes will be stored
     clean_components = np.zeros_like(profile)
@@ -90,7 +132,7 @@ def clean(data, tau, results,
             niter += 1
 
         # Identify the location and value of the maximum data point in the profile
-        imax = np.argmax(profile[on_bin_start:on_bin_end]) + on_bin_start
+        imax = np.argmax(profile[on_start:on_end]) + on_start
         dmax = profile[imax]
 
         # Construct a clean component on the same scale as profile and assign its location and value
@@ -123,8 +165,8 @@ def clean(data, tau, results,
 
         # Calculate the on- and off-pulse regions and use them with the user-defined cleaning threshold to determine
         # whether the clean procedure should be terminated
-        on_pulse = cleaned[on_bin_start:on_bin_end]
-        off_pulse = np.concatenate((cleaned[:on_bin_start], cleaned[on_bin_end:]))
+        on_pulse = cleaned[on_start:on_end]
+        off_pulse = np.concatenate((cleaned[:on_start], cleaned[on_end:]))
         loop = keep_cleaning(on_pulse, off_pulse, threshold=threshold)
 
         # Now replace the profile with the newly cleaned profile for the next iteration
@@ -137,56 +179,16 @@ def clean(data, tau, results,
     on_rms = np.std(on_pulse)
     nf = fom.consistence(profile, off_rms, off_mean=off_mean, onlims=(on_start, on_end))
     fr = fom.positivity(profile, off_rms)
-    gamma = fom.skewness(clean_components, nbins, dt=dt)
+    gamma = fom.skewness(clean_components, dt=dt)
+    recon = reconstruction(data, clean_components, dt=dt)
 
     results.append(
         dict(
             profile=profile, tau=tau, niter=niter, cc=clean_components,
             ncc=n_unique, nf=nf, off_rms=off_rms, on_rms=on_rms, fr=fr,
-            gamma=gamma
+            gamma=gamma, recon=recon
         )
     )
 
 
-def gaussian(x, mu, sigma):
-    """A simple function that calculates a Gaussian shape over x
 
-    :param x: independent variable [array-like]
-    :param mu: the mean (position) of the Gaussian [float]
-    :param sigma: the standard deviation (width) of the Gaussian [float]
-    :return: a numerically evaluated Gaussian [array-like]
-    """
-
-    amp = 1.0 / (np.sqrt(2) * sigma)
-    g = amp * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
-
-    return g
-
-
-def reconstruction(profile, ccs, dt=1.0, norm=True):
-    """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
-
-    :param profile: the initial pulse profile [array-like]
-    :param ccs: the clean components amplitudes [array-like]
-    :param dt: time sample duration (i.e. amount of time per bin) [float]
-    :param norm: whether to normalise the output to unit area [boolean]
-    :return: a reconstruction of the intrinsic pulse profile [array-like]
-    """
-    nbins = len(ccs)
-    x = dt * np.linspace(0, 1, nbins)
-    width = 0.002  # TODO: need to evaluate the approximate instrumental response more robustly
-    impulse_response = gaussian(x, x[x.size // 2], width)
-    impulse_response /= impulse_response.max()
-
-    # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
-    recon = np.convolve(ccs, impulse_response, mode="full")[:nbins]
-
-    # Roll this such that the maximum value corresponds to the maximum value of the initial profile
-    offset = np.argmax(profile) - np.argmax(recon)
-    recon = np.roll(recon, offset)
-
-    if norm:
-        # Normalise the reconstructed profile such that it has unit area
-        return recon / simps(y=recon, x=x)
-    else:
-        return recon
