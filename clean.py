@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import simps
-from . import pbf
-from . import fom
+import pbf
+import fom
 
 
 def keep_cleaning(on, off, threshold=3.0):
