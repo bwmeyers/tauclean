@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import multiprocessing as mp
 import pbf
+import plotting
 import clean
 
 import matplotlib.pyplot as plt
@@ -17,8 +18,8 @@ if __name__ == "__main__":
     tau_group.add_argument("-t", "--tau", metavar="tau", type=float, default=None,
                            help="tau value (in ms) to use when deconvolving")
 
-    tau_group.add_argument("-s", "--search", metavar=("min", "max", "N"), nargs=3, type=float, default=None,
-                           help="search parameters to use: minimum tau (in ms), maximum tau (in ms), number of trials")
+    tau_group.add_argument("-s", "--search", metavar=("min", "max", "step"), nargs=3, type=float, default=None,
+                           help="search parameters to use: minimum tau (in ms), maximum tau (in ms), step (in ms)")
 
     parser.add_argument("-k", "--kernel", metavar="pbf", default="thin", choices=pbf.__all__,
                         help="type of PBF kernel to use during the deconvolution")
@@ -45,18 +46,18 @@ if __name__ == "__main__":
     data = np.loadtxt(args.profile)
 
     if args.tau is None:
-        tau_min = float(args.search[0])
-        tau_max = float(args.search[1])
-        ntrials = int(args.search[2])
+        tau_min = args.search[0]
+        tau_max = args.search[1]
+        step = args.search[2]
 
         if tau_max <= tau_min:
             sys.exit("Maximum tau is <= minimum tau")
         elif tau_min <= 0:
-            sys.exit("Minimum tau is <= 0")
-        elif ntrials <= 1:
-            sys.exit("Require >= 2 trial values")
+            sys.exit("Minimum tau is <= 0 ms")
+        elif step <= 0:
+            sys.exit("Step size must be >= 0 ms")
         else:
-            taus = np.linspace(tau_min, tau_max, ntrials)
+            taus = np.arange(tau_min, tau_max + step, step)
     else:
         taus = [args.tau]
 
@@ -87,7 +88,8 @@ if __name__ == "__main__":
         sorted_results = sorted(results, key=lambda r: r['tau'])
         print("Done")
 
-    plt.plot(data)
-    plt.plot(sorted_results[0]["profile"])
-    plt.plot(sorted_results[0]["recon"])
-    plt.show()
+    plotting.plot_figures_of_merit(sorted_results)
+    plotting.plot_clean_residuals(data, sorted_results, dt=args.dt)
+    plotting.plot_clean_components(sorted_results, dt=args.dt)
+
+

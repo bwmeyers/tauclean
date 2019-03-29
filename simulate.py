@@ -135,6 +135,7 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt
     ax_obs.grid(True)
     ax_obs.set_xlabel(xlab)
 
+    plt.subplots_adjust(wspace=0.25)
     if save:
         plt.savefig("simulated-profile_{0}-tau{1:g}.png".format(pbftype, tau), dpi=300, bbox_inches="tight")
     else:
