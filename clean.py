@@ -109,6 +109,7 @@ def clean(data, tau, results,
     profile = np.copy(data)
     on_pulse = profile[on_start:on_end]
     off_pulse = np.concatenate((profile[:on_start], profile[on_end:]))
+    init_rms = np.std(off_pulse)
 
     # Pre-allocate an array the same size as profile where the clean component locations and amplitudes will be stored
     clean_components = np.zeros_like(profile)
@@ -184,11 +185,11 @@ def clean(data, tau, results,
 
     results.append(
         dict(
-            profile=profile, tau=tau, niter=niter, cc=clean_components,
-            ncc=n_unique, nf=nf, off_rms=off_rms, on_rms=on_rms, fr=fr,
-            gamma=gamma, recon=recon
+            profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
+            niter=niter, cc=clean_components, ncc=n_unique,
+            nf=nf, off_rms=off_rms, off_mean=off_mean, on_rms=on_rms, fr=fr, gamma=gamma,
+            recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
         )
     )
-
 
 
