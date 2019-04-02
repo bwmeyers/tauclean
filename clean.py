@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.integrate import simps
 import pbf
 import fom
 
@@ -40,33 +39,29 @@ def gaussian(x, mu, sigma):
     return g
 
 
-def reconstruction(profile, ccs, dt=1.0, norm=True):
+def reconstruction(profile, ccs, dt=1.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
     :param profile: the initial pulse profile [array-like]
     :param ccs: the clean components amplitudes [array-like]
     :param dt: time sample duration (i.e. amount of time per bin) [float]
-    :param norm: whether to normalise the output to unit area [boolean]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
     nbins = len(ccs)
     x = dt * np.linspace(0, nbins, nbins)
     width = 3 * dt  # TODO: need to evaluate the approximate instrumental response more robustly
     impulse_response = gaussian(x, x[x.size // 2], width)
-    impulse_response /= impulse_response.max()
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
-    recon = np.convolve(ccs, impulse_response, mode="full")[:nbins]
+    # The impulse response has unit area, thus the fluence of the pulse should be conserved
+    recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
+    recon = recon[:nbins]
 
     # Roll this such that the maximum value corresponds to the maximum value of the initial profile
     offset = np.argmax(profile) - np.argmax(recon)
     recon = np.roll(recon, offset)
 
-    if norm:
-        # Normalise the reconstructed profile such that it has unit area
-        return recon / simps(y=recon, x=x)
-    else:
-        return recon
+    return recon
 
 
 def clean(data, tau, results,
@@ -136,28 +131,25 @@ def clean(data, tau, results,
         imax = np.argmax(profile[on_start:on_end]) + on_start
         dmax = profile[imax]
 
-        # Construct a clean component on the same scale as profile and assign its location and value
+        # Construct a single clean component on the same scale as the profile and assign its location and value
         temp_clean_comp = np.zeros_like(clean_components)
         temp_clean_comp[imax] = dmax * gain
 
-        # Also add this component to the total list of clean components
+        # Also add this component to the total list of clean components which will be used in the profile reconstruction
         clean_components[imax] += dmax * gain
 
-        # Create a restoring function with which to construct a model PBF to remove
-        rest_func = np.convolve(temp_clean_comp, delta, mode="same")  # TODO: is this actually doing anything?
-        rest_func = np.convolve(rest_func, filter_guess, mode="full")
+        # Create a profile component from the model PBF and the clean component
+        component = np.convolve(temp_clean_comp, delta, mode="same")  # TODO: is this actually doing anything?
+        component = np.convolve(component, filter_guess, mode="full") / np.sum(filter_guess)
 
-        # Normalise restoring function so that we can ensure its amplitude is the same as the newest clean component.
-        # We also calculate an offset (introduced by the convolution) that will re-align the component to the clean
-        # component position.
-        rest_func = rest_func / np.max(rest_func)
-        component = rest_func * temp_clean_comp[imax]
-        offset = np.argmax(temp_clean_comp) - np.argmax(rest_func)
+        # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
+        # profile the constructed component is removed
+        offset = np.argmax(temp_clean_comp) - np.argmax(component)
         component = np.roll(component, offset)
 
         # In this case, we have done the full convolution to accurately capture the shape of the PBF
         # and here we fold that so that it matches the profile data size and will better represent the effect of the
-        # PBF on the folded data.
+        # PBF on the folded data
         component = component[:nrot * nbins]
         component = np.sum(np.split(component, nrot), axis=0)
 
@@ -165,7 +157,7 @@ def clean(data, tau, results,
         cleaned = profile - component
 
         # Calculate the on- and off-pulse regions and use them with the user-defined cleaning threshold to determine
-        # whether the clean procedure should be terminated
+        # whether the clean procedure should be terminated at this point
         on_pulse = cleaned[on_start:on_end]
         off_pulse = np.concatenate((cleaned[:on_start], cleaned[on_end:]))
         loop = keep_cleaning(on_pulse, off_pulse, threshold=threshold)
@@ -183,6 +175,8 @@ def clean(data, tau, results,
     gamma = fom.skewness(clean_components, dt=dt)
     recon = reconstruction(data, clean_components, dt=dt)
 
+    # Append a dictionary of all the necessary information to the results list (which is global and accessible across
+    # multiple processes in the case of a search
     results.append(
         dict(
             profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
@@ -191,5 +185,3 @@ def clean(data, tau, results,
             recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
         )
     )
-
-
