@@ -3,15 +3,22 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import pbf
-from scipy.integrate import simps
 from clean import gaussian
 
 # Set the seed for numpy's random functions so that the same result can be retrieved each time
 np.random.seed(12345)
 
 
-def create_intrinsic_pulse(position, width, amps, nbins=2048, dt=1.0):
-    x = dt * np.linspace(0, nbins, nbins)
+def create_intrinsic_pulse(position, width, amps, nbins=2048):
+    """Simulate an intrinsic pulse shape (made of Gaussian components)
+
+    :param position: where the centroid (mean) of the Gaussian is to be placed (units: bins) [array-like]
+    :param width: width (standard deviation) of the Gaussian (units: bins) [array-like]
+    :param amps: peak amplitudes of the Gaussian [array-like]
+    :param nbins: desired number of bins in the profile
+    :return: the intrinsic emission profile [array-like]
+    """
+    x = np.linspace(0, nbins, nbins)
 
     f = np.zeros_like(x)
 
@@ -21,23 +28,33 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048, dt=1.0):
         print("Will use same width for each component")
         width = np.repeat(width, len(position))
 
+    # Similarly for the amplitudes
     if isinstance(position, list) and (not isinstance(amps, list) or len(amps) == 1):
         print("Will use same amplitude for each component")
         amps = np.repeat(amps, len(position))
 
-    # For each position and width pair, add these components to the intrinsic pulse profile
+    # For each (position, width, amplitude) set, create and add a component to the intrinsic pulse profile
     for p, w, a in zip(position, width, amps):
         print("added gaussian comp.")
-        g = gaussian(x, p * dt, w * dt)
+        g = gaussian(x, float(p), float(w))
         f += a * (g / g.max())
 
     return f
 
 
 def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, snr=500.0):
+    """
+
+    :param intrinsic: intrinsic emission profile [array-like]
+    :param tau: desired pulse broadening time scale (units: ms) [float]
+    :param pbftype: the type of PBF to use [string]
+    :param dt: time resolution (units: ms)
+    :param nrot: number of rotations over which to simulate PBF [int]
+    :param snr: nominal desired signal-to-noise ration
+    :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
+    """
     nbins = len(intrinsic)
 
-    x = dt * np.linspace(0, nbins, nbins)
     pbf_x = dt * np.linspace(0, nrot, nrot * nbins)
 
     # Decide which PBF model to use
@@ -81,7 +98,20 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
 
 
 def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt=1.0, xunit="time", save=False):
+    """Plot the simulated data in teh desired units
 
+    :param intrinsic: intrinsic emission profile [array-like]
+    :param kernel: scattering kernel (PBF) used [array-like]
+    :param scattered: scattered profile (convolution of intrinsic and kernel) [array-like]
+    :param observed: a scattered profile with noise added (i.e. the observed profile) [array-like]
+    :param tau: pulse broadening time scale (units: ms) [float]
+    :param pbftype: pulse broadening function type [string]
+    :param snr: nominal signal-to-noise ratio of observed profile [float]
+    :param dt: tiem resolution per bin (units: ms) [float]
+    :param xunit: what units to plot along the x-axis [string]
+    :param save: whether to save the plot to disk or note [boolean]
+    :return: None
+    """
     nbins = len(intrinsic)
 
     if xunit == "phase":
@@ -139,6 +169,16 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt
 
 
 def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
+    """Small function to just write all of the simulated results to text files
+
+    :param intrinsic: intrinsic emission profile [array-like]
+    :param kernel: scattering kernel (PBF) used [array-like]
+    :param scattered: scattered profile (convolution of intrinsic and kernel) [array-like]
+    :param observed: a scattered profile with noise added (i.e. the observed profile) [array-like]
+    :param pbftype: pulse broadening function type [string]
+    :param tau: pulse broadening time scale (units: ms) [float]
+    :return: None
+    """
 
     np.savetxt("sim-intrinsic_{0}-tau{1:g}.txt".format(pbftype, tau), intrinsic)
     np.savetxt("sim-kernel_{0}-tau{1:g}.txt".format(pbftype, tau), kernel)
@@ -175,7 +215,7 @@ if __name__ == "__main__":
         print("Provided different number of amplitudes than positions, selecting first amplitude")
         args.a = args.a[0]
 
-    i = create_intrinsic_pulse(args.p, args.w, args.a, nbins=args.n, dt=args.dt)
+    i = create_intrinsic_pulse(args.p, args.w, args.a, nbins=args.n)
     k, s, o = create_scattered_profile(i, args.t, pbftype=args.k, dt=args.dt, nrot=10, snr=args.s)
 
     plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, dt=args.dt, xunit=args.x, save=args.saveplot)
