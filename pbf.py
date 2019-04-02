@@ -2,6 +2,7 @@ import numpy as np
 
 __all__ = ["thin", "thick", "uniform"]
 
+
 def thin(x, tau, x0=0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).

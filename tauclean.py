@@ -88,8 +88,18 @@ if __name__ == "__main__":
         sorted_results = sorted(results, key=lambda r: r['tau'])
         print("Done")
 
-    plotting.plot_figures_of_merit(sorted_results)
+    if len(taus) > 1:
+        print("Plotting figures of merit")
+        plotting.plot_figures_of_merit(sorted_results)
+
+    print("Plotting clean residuals")
     plotting.plot_clean_residuals(data, sorted_results, dt=args.dt)
+
+    print("Plotting clean components")
     plotting.plot_clean_components(sorted_results, dt=args.dt)
+
+    print("Plotting profile reconstruction")
+    plotting.plot_reconstruction(sorted_results, dt=args.dt)
+
 
 
