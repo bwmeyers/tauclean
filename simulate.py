@@ -31,9 +31,6 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048, dt=1.0):
         g = gaussian(x, p * dt, w * dt)
         f += a * (g / g.max())
 
-    # Normalise the output to have a maximum value of unity
-    f = f / f.max()
-
     return f
 
 
@@ -55,6 +52,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
         print("Defaulting to thin screen...")
         h = pbf.thin(pbf_x, tau)
 
+    # Roll the PBF by 5% of the profile length just so that the rising edge is visible
     h = np.roll(h, int(0.05 * nbins))
 
     # The observed pulse shape is the convolution of:
@@ -63,7 +61,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
     # - some Gaussian radiometer noise
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    scattered = np.convolve(intrinsic, h, mode="full")
+    scattered = np.convolve(intrinsic, h, mode="full") / np.sum(h)
 
     offset = np.argmax(intrinsic) - np.argmax(scattered)
     scattered = np.roll(scattered, offset)[:nrot*nbins]
@@ -72,11 +70,9 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
     # This effectively mimics the idea of folding a pulse profile where the scattering kernel is not necessarily
     # contained within one pulsar rotation.
     scattered = np.sum(np.split(scattered, nrot), axis=0)
-    scattered = scattered / simps(y=scattered, x=x)
 
     # And do the same for the PBF
     h = np.sum(np.split(h, nrot), axis=0)
-    h = h / simps(y=h, x=x)  # re-normalise to unit area
 
     # Add noise to produce a profile with approximately the signal-to-noise ratio desired
     observed = np.copy(scattered) + np.random.normal(0, scattered.max() / snr, scattered.size)
@@ -147,7 +143,7 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     np.savetxt("sim-intrinsic_{0}-tau{1:g}.txt".format(pbftype, tau), intrinsic)
     np.savetxt("sim-kernel_{0}-tau{1:g}.txt".format(pbftype, tau), kernel)
     np.savetxt("sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered)
-    np.savetxt("sim-noisy_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
+    np.savetxt("sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
 
 
 if __name__ == "__main__":
@@ -157,7 +153,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", nargs="+", type=int, help="centre positions of gaussian components (in bins)")
     parser.add_argument("-w", nargs="+", type=float, help="widths (std. dev.) of gaussian components (in bins)")
     parser.add_argument("-a", nargs="+", type=float,
-                        help="amplitudes of gaussian components (will be normalised so that the maximum value is 1)")
+                        help="amplitudes of gaussian components")
     parser.add_argument("-k", default="thin",
                         help="PBF kernel type", choices=pbf.__all__)
     parser.add_argument("-t", type=float, default=0.05, help="scattering time scale (in ms)")
