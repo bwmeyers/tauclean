@@ -77,6 +77,7 @@ def plot_clean_residuals(initial_data, results, dt=1.0):
         ax2.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
         ax2.axvline(on_start[i] * dt, color="k")
         ax2.axvline(on_end[i] * dt, color="k")
+        ax2.axhline(0, color="k", ls=":", lw=1)
         ax2.set_xlabel("Time (ms)")
         ax2.legend()
         ax2.set_ylim(-10 * off_rms[i], 10 * off_rms[i])
@@ -102,7 +103,31 @@ def plot_clean_components(results, dt=1.0):
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Clean component amplitude")
         title = r"""$\rm \tau = {0:g}\ ms$
-        total components added = {1}, unique components = {2}""".format(t, ntotal[i], nunique[i])
+total components added = {1}, unique components = {2}""".format(t, ntotal[i], nunique[i])
         ax.set_title(title)
 
         plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+
+
+def plot_reconstruction(results, dt=1.0):
+
+    taus = np.array([a["tau"] for a in results])
+    recons = np.array([a["recon"] for a in results])
+    pbftype = np.array([a["pbftype"] for a in results])
+
+    nbins = len(recons[0])
+    x = dt * np.linspace(0, nbins, nbins)
+
+    for i, t in enumerate(taus):
+        fig, ax = plt.subplots(1, 1)
+
+        ax.plot(x, recons[i], color="k")
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("Intensity")
+        ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
+
+        plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+
+        # Also write the reconstructed profile
+        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
+
