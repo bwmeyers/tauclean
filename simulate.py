@@ -19,6 +19,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     :param nbins: desired number of bins in the profile
     :return: the intrinsic emission profile [array-like]
     """
+
     x = np.linspace(0, nbins, nbins)
 
     f = np.zeros_like(x)
@@ -54,6 +55,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
     :param snr: nominal desired signal-to-noise ration
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
     """
+
     nbins = len(intrinsic)
 
     pbf_x = dt * np.linspace(0, nrot, nrot * nbins)
@@ -109,11 +111,12 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt
     :param tau: pulse broadening time scale (units: ms) [float]
     :param pbftype: pulse broadening function type [string]
     :param snr: nominal signal-to-noise ratio of observed profile [float]
-    :param dt: tiem resolution per bin (units: ms) [float]
+    :param dt: time resolution per bin (units: ms) [float]
     :param xunit: what units to plot along the x-axis [string]
     :param save: whether to save the plot to disk or note [boolean]
     :return: None
     """
+
     nbins = len(intrinsic)
 
     if xunit == "phase":

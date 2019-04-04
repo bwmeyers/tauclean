@@ -6,8 +6,6 @@ import pbf
 import plotting
 import clean
 
-import matplotlib.pyplot as plt
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
