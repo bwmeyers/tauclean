@@ -24,12 +24,12 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
 
     # If a list of positions have been given, but only one value for the width, then create an array of widths that
     # are all the same
-    if isinstance(position, list) and (not isinstance(width, list) or len(width) == 1):
+    if len(position) > 1 and len(width) == 1:
         print("Will use same width for each component")
         width = np.repeat(width, len(position))
 
     # Similarly for the amplitudes
-    if isinstance(position, list) and (not isinstance(amps, list) or len(amps) == 1):
+    if len(position) > 1 and len(amps) == 1:
         print("Will use same amplitude for each component")
         amps = np.repeat(amps, len(position))
 
