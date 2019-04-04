@@ -1,6 +1,7 @@
 import argparse
 import sys
 import numpy as np
+from scipy.integrate import simps
 import matplotlib.pyplot as plt
 import pbf
 from clean import gaussian
@@ -43,7 +44,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
 
 
 def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, snr=500.0):
-    """
+    """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
     :param intrinsic: intrinsic emission profile [array-like]
     :param tau: desired pulse broadening time scale (units: ms) [float]
@@ -88,8 +89,9 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
     # contained within one pulsar rotation.
     scattered = np.sum(np.split(scattered, nrot), axis=0)
 
-    # And do the same for the PBF
+    # And do the same for the PBF, then re-normalise it to unit area
     h = np.sum(np.split(h, nrot), axis=0)
+    h = h / simps(x=pbf_x[:nbins], y=h)
 
     # Add noise to produce a profile with approximately the signal-to-noise ratio desired
     observed = np.copy(scattered) + np.random.normal(0, scattered.max() / snr, scattered.size)
@@ -98,7 +100,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
 
 
 def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt=1.0, xunit="time", save=False):
-    """Plot the simulated data in teh desired units
+    """Plot the simulated data in the desired units
 
     :param intrinsic: intrinsic emission profile [array-like]
     :param kernel: scattering kernel (PBF) used [array-like]
