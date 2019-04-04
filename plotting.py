@@ -108,6 +108,9 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
 
         plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
 
+        # Also write the clean components to disk
+        np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
+
 
 def plot_reconstruction(results, dt=1.0):
 
@@ -128,6 +131,6 @@ def plot_reconstruction(results, dt=1.0):
 
         plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
 
-        # Also write the reconstructed profile
+        # Also write the reconstructed profile to disk
         np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
 
