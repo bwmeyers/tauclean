@@ -12,6 +12,7 @@ def thin(x, tau, x0=0):
     :param x0: where the PBF turns on [float, in range of x]
     :return: evaluated thin screen PBF [array-like]
     """
+
     t = x - x0
     h = (1 / tau) * np.exp(-t / tau)  # normalised to unit area
 
@@ -29,6 +30,7 @@ def thick(x, tau, x0=0):
     :param x0: where the PBF turns on [float, in range of x]
     :return: evaluated thick screen PBF [array-like]
     """
+
     t = x - x0
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
@@ -55,6 +57,7 @@ def uniform(x, tau, x0=0):
     :param x0: where the PBF turns on [float, in range of x]
     :return: evaluated PBF for a uniform scattering medium [array-like]
     """
+
     t = x - x0
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing

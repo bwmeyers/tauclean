@@ -42,6 +42,7 @@ def plot_figures_of_merit(results):
 
     plt.subplots_adjust(hspace=0.1, wspace=0.25)
     plt.savefig("tauclean_fom.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 
 def plot_clean_residuals(initial_data, results, dt=1.0):
@@ -83,6 +84,7 @@ def plot_clean_residuals(initial_data, results, dt=1.0):
         ax2.set_ylim(-10 * off_rms[i], 10 * off_rms[i])
 
         plt.savefig("clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.close(fig)
 
 
 def plot_clean_components(results, dt=1.0):
@@ -107,6 +109,7 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
         ax.set_title(title)
 
         plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.close(fig)
 
         # Also write the clean components to disk
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
@@ -130,6 +133,7 @@ def plot_reconstruction(results, dt=1.0):
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
 
         plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.close(fig)
 
         # Also write the reconstructed profile to disk
         np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])

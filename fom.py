@@ -1,7 +1,7 @@
 import numpy as np
 
 
-__all__ = ["consistence", "positivity", "skewness"]
+__all__ = ["consistence", "positivity", "skewness", "moment"]
 
 
 def consistence(residuals, off_rms, off_mean=0, onlims=(0, 255)):
@@ -38,6 +38,7 @@ def positivity(res, off_rms, m=1.0, x=1.5):
     there residuals more negative than this [float]
     :return: the positivity figure of merit [float]
     """
+
     u = np.zeros_like(res)
     # When the residual is less than x * rms, turn on the step-function.
     # This means that only those points that have been over subtracted (due to a poor choice in PBF)
@@ -62,6 +63,7 @@ def moment(a, t, n=1):
     :param n: order [int]
     :return: moment of order n
     """
+
     first = np.sum(a * t) / np.sum(a)
 
     if n == 1:
@@ -84,9 +86,6 @@ def skewness(ccs, dt=1.0):
     # Compute the times for each clean components based on the assumption that the clean component array is the
     # same shape as the CLEANED profile
     cc_times = dt * np.linspace(0, 1, len(ccs))
-
-    # The first moment, <t> = sum{ti * Ci} / sum{Ci}, is required to calculate others
-    moment_1 = moment(ccs, cc_times, n=1)
 
     # Second and third moments defined by: <x^n> = sum{ (ti - <t>)^n * Ci } / sum{ Ci }
     moment_2 = moment(ccs, cc_times, n=2)

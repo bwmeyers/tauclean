@@ -47,6 +47,7 @@ def reconstruction(profile, ccs, dt=1.0):
     :param dt: time sample duration (i.e. amount of time per bin) [float]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
+
     nbins = len(ccs)
     x = dt * np.linspace(0, nbins, nbins)
     width = 3 * dt  # TODO: need to evaluate the approximate instrumental response more robustly
@@ -82,6 +83,7 @@ def clean(data, tau, results,
     :param iter_limit: number of iterations after which to terminate the clean procedure regardless of convergence [int]
     :return:
     """
+
     nbins = len(data)
     nrot = 10
 
