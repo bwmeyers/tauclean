@@ -1,6 +1,6 @@
 from setuptools import setup
 
-reqs = ['numpy']
+reqs = ['numpy>=1.16.2', 'matplotlib>=3.0.3', 'scipy>=1.2.1']
 
 setup(
     name='tauclean',
@@ -11,5 +11,7 @@ setup(
     author_email='bradley.meyers1993@gmail.com',
     description='A package to deconvolve scattered pulsar profiles',
     install_requires=reqs,
-    scripts=['tauclean.py', 'simulate.py']
+    scripts=['scripts/tauclean', 'scripts/simulate'],
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest', 'nose']
 )

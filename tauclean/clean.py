@@ -1,6 +1,6 @@
 import numpy as np
-import pbf
-import fom
+from . import pbf
+from . import fom
 
 
 def keep_cleaning(on, off, threshold=3.0):
