@@ -56,7 +56,7 @@ def reconstruction(profile, ccs, dt=1.0):
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
     recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
-    recon = recon[:nbins]
+    recon = recon[nbins//2:-nbins//2]  # actually just want the middle bit of this
 
     # Roll this such that the maximum value corresponds to the maximum value of the initial profile
     offset = np.argmax(profile) - np.argmax(recon)
@@ -141,8 +141,9 @@ def clean(data, tau, results,
         clean_components[imax] += dmax * gain
 
         # Create a profile component from the model PBF and the clean component
-        component = np.convolve(temp_clean_comp, delta, mode="same")  # TODO: is this actually doing anything?
-        component = np.convolve(component, filter_guess, mode="full") / np.sum(filter_guess)
+        #component = np.convolve(temp_clean_comp, delta, mode="full")[:nrot]  # TODO: is this actually doing anything?
+        #component = np.convolve(component, filter_guess, mode="full") / np.sum(filter_guess)
+        component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(filter_guess)
 
         # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
         # profile the constructed component is removed
@@ -152,7 +153,7 @@ def clean(data, tau, results,
         # In this case, we have done the full convolution to accurately capture the shape of the PBF
         # and here we fold that so that it matches the profile data size and will better represent the effect of the
         # PBF on the folded data
-        component = component[:nrot * nbins]
+        component = component[:nrot * nbins]  # this is ok because we moved to be back in the correct position already
         component = np.sum(np.split(component, nrot), axis=0)
 
         # Finally, subtract the component from the profile
