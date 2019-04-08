@@ -110,10 +110,11 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
 
 
-def plot_reconstruction(results, period=100.0):
+def plot_reconstruction(results, original, period=100.0):
 
     taus = np.array([a["tau"] for a in results])
     recons = np.array([a["recon"] for a in results])
+    residuals = np.array([a["profile"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
     nbins = len(recons[0])
@@ -122,7 +123,8 @@ def plot_reconstruction(results, period=100.0):
     for i, t in enumerate(taus):
         fig, ax = plt.subplots(1, 1)
 
-        ax.plot(x, recons[i], color="k")
+        ax.plot(x, recons[i] + residuals[i], color="k")
+        ax.plot(x, original, color="C1", alpha=0.6)
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Intensity")
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
