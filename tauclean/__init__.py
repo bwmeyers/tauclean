@@ -17,7 +17,7 @@ If you make use of tauclean please cite the following paper as appropriate:
 @ARTICLE{2003ApJ...584..782B,
        author = {{Bhat}, N.~D.~R. and {Cordes}, J.~M. and {Chatterjee}, S.},
         title = "{A CLEAN-based Method for Deconvolving Interstellar Pulse Broadening from Radio Pulses}",
-      journal = {\apj},
+      journal = {The Astrophysical Journal},
      keywords = {ISM: Structure, Methods: Data Analysis, Stars: Pulsars: General, 
                 Radio Continuum: General, Scattering, Astrophysics},
          year = "2003",
@@ -31,6 +31,5 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
-
 """
 
