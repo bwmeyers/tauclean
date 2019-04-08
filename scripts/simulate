@@ -45,13 +45,13 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     return f
 
 
-def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, snr=500.0):
+def create_scattered_profile(intrinsic, tau, pbftype="thin", period=100.0, nrot=10, snr=500.0):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
     :param intrinsic: intrinsic emission profile [array-like]
     :param tau: desired pulse broadening time scale (units: ms) [float]
     :param pbftype: the type of PBF to use [string]
-    :param dt: time resolution (units: ms)
+    :param period: pulsar period (units: ms)
     :param nrot: number of rotations over which to simulate PBF [int]
     :param snr: nominal desired signal-to-noise ration
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
@@ -59,7 +59,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
 
     nbins = len(intrinsic)
 
-    pbf_x = dt * np.linspace(0, nrot, nrot * nbins)
+    pbf_x = period * np.linspace(0, nrot, nrot * nbins)
 
     # Decide which PBF model to use
     if pbftype == "thin":
@@ -102,7 +102,7 @@ def create_scattered_profile(intrinsic, tau, pbftype="thin", dt=1.0, nrot=10, sn
     return h, scattered, observed
 
 
-def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt=1.0, xunit="time", save=False):
+def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, period=100.0, xunit="time", save=False):
     """Plot the simulated data in the desired units
 
     :param intrinsic: intrinsic emission profile [array-like]
@@ -112,7 +112,7 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt
     :param tau: pulse broadening time scale (units: ms) [float]
     :param pbftype: pulse broadening function type [string]
     :param snr: nominal signal-to-noise ratio of observed profile [float]
-    :param dt: time resolution per bin (units: ms) [float]
+    :param period: pulsar period (units: ms) [float]
     :param xunit: what units to plot along the x-axis [string]
     :param save: whether to save the plot to disk or note [boolean]
     :return: None
@@ -124,7 +124,7 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, dt
         x = np.linspace(0, 1, nbins)
         xlab = "Phase"
     elif xunit == "time":
-        x = dt * np.linspace(0, nbins, nbins)
+        x = period * np.linspace(0, 1, nbins)
         xlab = "Time (ms)"
     elif xunit == "bins":
         x = np.linspace(0, nbins, nbins).astype(int)
@@ -191,19 +191,21 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     np.savetxt("sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered)
     np.savetxt("sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
 
+    print("Wrote final scattered profile to: sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument("-n", type=int, default=2048, help="number of profile bins")
-    parser.add_argument("-p", nargs="+", type=int, help="centre positions of gaussian components (in bins)")
+    parser.add_argument("-m", nargs="+", type=int, help="centre positions of gaussian components (in bins)")
     parser.add_argument("-w", nargs="+", type=float, help="widths (std. dev.) of gaussian components (in bins)")
     parser.add_argument("-a", nargs="+", type=float,
                         help="amplitudes of gaussian components")
     parser.add_argument("-k", default="thin",
                         help="PBF kernel type", choices=pbf.__all__)
-    parser.add_argument("-t", type=float, default=0.05, help="scattering time scale (in ms)")
-    parser.add_argument("--dt", type=float, default=1.0, help="time sample per bin (in ms)")
+    parser.add_argument("-t", type=float, default=5.0, help="scattering time scale (in ms)")
+    parser.add_argument("-p", type=float, default=100.0, help="pulsar period (in ms)")
     parser.add_argument("-s", type=float, default=500.0, help="Desired signal-to-noise ratio")
     parser.add_argument("-x", default="bins", choices=["time", "phase", "bins"], help="plot x-axis units")
     parser.add_argument("--saveplot", action="store_true", default=False,
@@ -213,18 +215,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if len(args.w) != len(args.p):
+    if len(args.w) != len(args.m):
         print("Provided different number of widths than positions, selecting first width")
         args.w = args.w[0]
 
-    if len(args.a) != len(args.p):
+    if len(args.a) != len(args.m):
         print("Provided different number of amplitudes than positions, selecting first amplitude")
         args.a = args.a[0]
 
-    i = create_intrinsic_pulse(args.p, args.w, args.a, nbins=args.n)
-    k, s, o = create_scattered_profile(i, args.t, pbftype=args.k, dt=args.dt, nrot=10, snr=args.s)
+    i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
+    k, s, o = create_scattered_profile(i, args.t, pbftype=args.k, period=args.p, nrot=10, snr=args.s)
 
-    plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, dt=args.dt, xunit=args.x, save=args.saveplot)
+    plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, period=args.p, xunit=args.x, save=args.saveplot)
 
     if args.write:
         write_data(i, k, s, o, args.k, args.t)

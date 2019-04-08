@@ -39,18 +39,18 @@ def gaussian(x, mu, sigma):
     return g
 
 
-def reconstruction(profile, ccs, dt=1.0):
+def reconstruction(profile, ccs, period=100.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
     :param profile: the initial pulse profile [array-like]
     :param ccs: the clean components amplitudes [array-like]
-    :param dt: time sample duration (i.e. amount of time per bin) [float]
+    :param period: pulsar period (in ms) [float]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
 
     nbins = len(ccs)
-    x = dt * np.linspace(0, nbins, nbins)
-    width = 3 * dt  # TODO: need to evaluate the approximate instrumental response more robustly
+    x = period * np.linspace(0, 1, nbins)
+    width = 3 * (period / nbins)  # TODO: need to evaluate the approximate instrumental response more robustly
     impulse_response = gaussian(x, x[x.size // 2], width)
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
@@ -66,7 +66,7 @@ def reconstruction(profile, ccs, dt=1.0):
 
 
 def clean(data, tau, results,
-          on_start=0, on_end=255, dt=1.0, gain=0.01, threshold=3.0,
+          on_start=0, on_end=255, period=100.0, gain=0.01, threshold=3.0,
           pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
 
@@ -76,7 +76,7 @@ def clean(data, tau, results,
     after completion (in the case of multiple processes, this will be a multiprocessing.Manager list object) [list]
     :param on_start: starting bin of the on-pulse region [int]
     :param on_end: end bin of the on-pulse region [int]
-    :param dt: time sample duration (i.e. amount of time per bin) [float]
+    :param period: pulsar period (in ms) [float]
     :param gain: a "loop gain" that is sued to scale the clean component amplitudes (usually 0.01-0.05) [float]
     :param threshold: threshold defining when to terminate the clean procedure [float]
     :param pbftype: type of pbf to use in the deconvolution [str]
@@ -89,7 +89,7 @@ def clean(data, tau, results,
 
     # Create an x-range that is much larger than the nominal pulsar period, so that the full effect of the PBF can be
     # modelled by evaluating  over the extended range and then folding the result on the pulsar period.
-    pbf_x = np.linspace(0, nrot, nrot * nbins) * dt
+    pbf_x = np.linspace(0, nrot, nrot * nbins) * period
 
     # Decide which PBF model to use based on the user input
     if pbftype == "thin":
@@ -141,8 +141,6 @@ def clean(data, tau, results,
         clean_components[imax] += dmax * gain
 
         # Create a profile component from the model PBF and the clean component
-        #component = np.convolve(temp_clean_comp, delta, mode="full")[:nrot]  # TODO: is this actually doing anything?
-        #component = np.convolve(component, filter_guess, mode="full") / np.sum(filter_guess)
         component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(filter_guess)
 
         # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
@@ -175,8 +173,8 @@ def clean(data, tau, results,
     on_rms = np.std(on_pulse)
     nf = fom.consistence(profile, off_rms, off_mean=off_mean, onlims=(on_start, on_end))
     fr = fom.positivity(profile, off_rms)
-    gamma = fom.skewness(clean_components, dt=dt)
-    recon = reconstruction(data, clean_components, dt=dt)
+    gamma = fom.skewness(clean_components, period=period)
+    recon = reconstruction(data, clean_components, period=period)
 
     # Append a dictionary of all the necessary information to the results list (which is global and accessible across
     # multiple processes in the case of a search

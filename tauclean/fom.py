@@ -72,20 +72,20 @@ def moment(a, t, n=1):
         return np.sum(a * (t - first) ** n) / np.sum(a)
 
 
-def skewness(ccs, dt=1.0):
+def skewness(ccs, period=100.0):
     """The skewness of the clean components gives a figure of merit that describes how asymmetric the clean profile is.
     For a well-matched PBF and high signal-to-noise data, the clean component distribution should be approximately
     symmetric (Gaussian-like).
     Defined by Bhat et al. 2004 in their eqs. 12, 13 and 14.
 
     :param ccs: a list of component (delta-function) amplitudes produced at the end of the CLEAN procedure [array-like]
-    :param dt: the time step per profile bin [float]
+    :param period: pulsar period (in ms) [float]
     :return: the skewness figure of merit [float]
     """
 
     # Compute the times for each clean components based on the assumption that the clean component array is the
     # same shape as the CLEANED profile
-    cc_times = dt * np.linspace(0, 1, len(ccs))
+    cc_times = period * np.linspace(0, 1, len(ccs))
 
     # Second and third moments defined by: <x^n> = sum{ (ti - <t>)^n * Ci } / sum{ Ci }
     moment_2 = moment(ccs, cc_times, n=2)

@@ -5,12 +5,6 @@ import numpy as np
 def plot_figures_of_merit(results):
 
     taus = np.array([a["tau"] for a in results])
-    if any(taus < 1.0e-3):
-        units = 1.0e6  # change to nanoseconds
-    elif all(taus >= 1.0e-3) and any(taus < 1.0):
-        units = 1.0e3  # change to microseconds
-    else:
-        units = 1.0  # leave it as milliseconds
 
     params = [np.array([a["fr"] for a in results]),
               np.array([a["gamma"] for a in results]),
@@ -27,7 +21,7 @@ def plot_figures_of_merit(results):
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
 
     for y, ylab, ax in zip(params, labels, axs.flatten()):
-        ax.plot(taus * units, y, marker="o")
+        ax.plot(taus, y, marker="o")
         ax.set_ylabel(ylab, fontsize=20)
 
         if min(y) < 0:
@@ -37,18 +31,19 @@ def plot_figures_of_merit(results):
             ax.set_yscale("symlog")
 
     for ax in axs.flatten()[3:]:
-        ax.set_xlabel(r"$\rm \tau\ (\mu s)$", fontsize=20)
-        ax.set_xlim(0.9*min(taus * units), 1.1*max(taus * units))
+        ax.set_xlabel(r"$\rm \tau\ (ms)$", fontsize=20)
+        ax.set_xlim(0.9*min(taus), 1.1*max(taus))
 
     plt.subplots_adjust(hspace=0.1, wspace=0.25)
     plt.savefig("tauclean_fom.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
-def plot_clean_residuals(initial_data, results, dt=1.0):
+def plot_clean_residuals(initial_data, results, period=100.0):
 
     nbins = len(initial_data)
-    x = dt * np.linspace(0, nbins, nbins)
+    x = period * np.linspace(0, 1, nbins)
+    dt = period / nbins
     taus = np.array([a["tau"] for a in results])
     residuals = np.array([a["profile"] for a in results])
     off_rms = np.array([a["off_rms"] for a in results])
@@ -87,7 +82,7 @@ def plot_clean_residuals(initial_data, results, dt=1.0):
         plt.close(fig)
 
 
-def plot_clean_components(results, dt=1.0):
+def plot_clean_components(results, period=100.0):
 
     taus = np.array([a["tau"] for a in results])
     clean_components = np.array([a["cc"] for a in results])
@@ -96,7 +91,7 @@ def plot_clean_components(results, dt=1.0):
     pbftype = np.array([a["pbftype"] for a in results])
 
     nbins = len(clean_components[0])
-    x = dt * np.linspace(0, nbins, nbins)
+    x = period * np.linspace(0, 1, nbins)
 
     for i, t in enumerate(taus):
         fig, ax = plt.subplots(1, 1)
@@ -115,14 +110,14 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
 
 
-def plot_reconstruction(results, dt=1.0):
+def plot_reconstruction(results, period=100.0):
 
     taus = np.array([a["tau"] for a in results])
     recons = np.array([a["recon"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
     nbins = len(recons[0])
-    x = dt * np.linspace(0, nbins, nbins)
+    x = period * np.linspace(0, 1, nbins)
 
     for i, t in enumerate(taus):
         fig, ax = plt.subplots(1, 1)

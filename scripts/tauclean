@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--end", metavar="E", type=int, default=255,
                         help="end phase bin of on-pulse region")
 
-    parser.add_argument("--dt", metavar="dt", type=float, default=1.0, help="Time resolution (in ms) of profile")
+    parser.add_argument("-p", metavar="period", type=float, default=100.0, help="Pulsar period (in ms)")
 
     parser.add_argument("--thresh", metavar="sigma", type=float, default=3.0,
                         help="on-pulse data threshold (units of off-pulse rms noise) to stop cleaning")
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     else:
         taus = [args.tau]
 
-    clean_kwargs = dict(dt=args.dt, gain=args.loop_gain, pbftype=args.kernel, iter_limit=args.iterlim,
+    clean_kwargs = dict(period=args.p, gain=args.loop_gain, pbftype=args.kernel, iter_limit=args.iterlim,
                         threshold=args.thresh, on_start=args.begin, on_end=args.end)
 
     with mp.Manager() as manager:
@@ -90,13 +90,13 @@ if __name__ == "__main__":
         plotting.plot_figures_of_merit(sorted_results)
 
     print("Plotting clean residuals")
-    plotting.plot_clean_residuals(data, sorted_results, dt=args.dt)
+    plotting.plot_clean_residuals(data, sorted_results, period=args.p)
 
     print("Plotting clean components")
-    plotting.plot_clean_components(sorted_results, dt=args.dt)
+    plotting.plot_clean_components(sorted_results, period=args.p)
 
     print("Plotting profile reconstruction")
-    plotting.plot_reconstruction(sorted_results, dt=args.dt)
+    plotting.plot_reconstruction(sorted_results, period=args.p)
 
 
 
