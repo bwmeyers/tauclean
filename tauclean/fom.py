@@ -1,7 +1,7 @@
 import numpy as np
 
 
-__all__ = ["consistence", "positivity", "skewness", "moment"]
+__all__ = ["consistence", "positivity", "skewness"]
 
 
 def consistence(residuals, off_rms, off_mean=0, onlims=(0, 255)):
@@ -54,28 +54,6 @@ def positivity(res, off_rms, m=1.0, x=1.5):
     return f_r
 
 
-def moment(a, t, n=1):
-    """Calculate the moment of clean components as:
-            <x> = sum{ a * t } / sum{ a }
-
-            or
-
-            <x^n> = sum{ a * (t - <t>)^n } / sum{ a }
-
-    :param a: clean component amplitudes [array-like]
-    :param t: corresponding clean component times [array-like]
-    :param n: order [int]
-    :return: moment of order n
-    """
-
-    first = np.sum(a * t) / np.sum(a)
-
-    if n == 1:
-        return first
-    else:
-        return np.sum(a * (t - first) ** n) / np.sum(a)
-
-
 def skewness(ccs, period=100.0):
     """The skewness of the clean components gives a figure of merit that describes how asymmetric the clean profile is.
     For a well-matched PBF and high signal-to-noise data, the clean component distribution should be approximately
@@ -91,11 +69,16 @@ def skewness(ccs, period=100.0):
     # same shape as the CLEANED profile
     cc_times = period * np.linspace(0, 1, len(ccs))
 
-    # Second and third moments defined by: <x^n> = sum{ (ti - <t>)^n * Ci } / sum{ Ci }
-    moment_2 = moment(ccs, cc_times, n=2)
-    moment_3 = moment(ccs, cc_times, n=3)
+    # The moments defined are the equivalent to a weighted average, thus
+    moment_1 = np.average(cc_times, weights=ccs)
+    moment_2 = np.average((cc_times - moment_1) ** 2, weights=ccs)
+    moment_3 = np.average((cc_times - moment_1) ** 3, weights=ccs)
 
-    # Absolute value doesn't really matter in this case as we are just trying to minimise the skewness
-    gamma = moment_3 / (moment_2 ** 1.5)
+    if np.count_nonzero(ccs) == 1:
+        # The function is symmetric by definition at this stage, but moment_2 = 0 so we'll get an error if we try to
+        # calculate the skewness in the usual way
+        gamma = 0
+    else:
+        gamma = moment_3 / (moment_2 ** 1.5)
 
     return gamma
