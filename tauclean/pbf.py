@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.integrate import simps
 
 
 __all__ = ["thin", "thick", "uniform"]
@@ -14,11 +15,13 @@ def thin(x, tau, x0=0):
     :return: evaluated thin screen PBF [array-like]
     """
 
-    t = x - x0
+    t = x
     h = (1 / tau) * np.exp(-t / tau)  # normalised to unit area
 
     # Turn on a unit step function at the given x0 offset, and turn nans into 0
-    h[np.where((x <= x0) & np.isnan(h))] = 0
+    h = np.roll(h, x0)
+    h[np.where((x <= x0) | np.isnan(h))] = 0
+    h = h / simps(x=t, y=h)  # enforce normalisation of PBF
 
     return h
 
@@ -45,7 +48,8 @@ def thick(x, tau, x0=0):
     # In some cases (for negative t), h will not be well-defined (nan).
     # However, this is not important in this case, thus we can simply
     # replace those values with 0.
-    h[np.where((x <= x0) & np.isnan(h))] = 0
+    h[np.where((x <= x0) | np.isnan(h))] = 0
+    h = h / simps(x=t, y=h)  # enforce normalisation of PBF
 
     return h
 
@@ -72,6 +76,7 @@ def uniform(x, tau, x0=0):
     # In some cases (for negative t), h will not be well-defined (nan).
     # However, this is not important in this case, thus we can simply
     # replace those values with 0.
-    h[np.where((x <= x0) & np.isnan(h))] = 0
+    h[np.where((x <= x0) | np.isnan(h))] = 0
+    h = h / simps(x=t, y=h)  # enforce normalisation of PBF
 
     return h
