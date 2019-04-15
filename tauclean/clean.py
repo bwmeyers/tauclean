@@ -54,13 +54,13 @@ def dm_delay(dm, lo, hi):
     return delay
 
 
-def reconstruct(profile, ccs, period=100.0, dmdelay=0.0):
+def reconstruct(profile, ccs, period=100.0, rest_width=0.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
     :param profile: the initial pulse profile [array-like]
     :param ccs: the clean components amplitudes [array-like]
     :param period: pulsar period (in ms) [float]
-    :param dmdelay: dispersion delay in lowest frequency channel (in ms) [float]
+    :param rest_width: telescope restoring function width (in ms) [float]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
 
@@ -68,8 +68,7 @@ def reconstruct(profile, ccs, period=100.0, dmdelay=0.0):
     x = period * np.linspace(0, 1, nbins)
 
     # Calculate the nominal effective time sampling, including effects of dispersion smearing in channels
-    width = np.sqrt((period / nbins)**2 + dmdelay**2)
-    impulse_response = gaussian(x, x[x.size // 2], width)
+    impulse_response = gaussian(x, x[x.size // 2], rest_width)
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
@@ -84,7 +83,7 @@ def reconstruct(profile, ccs, period=100.0, dmdelay=0.0):
 
 
 def clean(data, tau, results,
-          on_start=0, on_end=255, period=100.0, dmdelay=0.0,
+          on_start=0, on_end=255, period=100.0, rest_width=1.0,
           gain=0.01, threshold=3.0, pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
 
@@ -95,7 +94,7 @@ def clean(data, tau, results,
     :param on_start: starting bin of the on-pulse region [int]
     :param on_end: end bin of the on-pulse region [int]
     :param period: pulsar period (in ms) [float]
-    :param dmdelay: dispersion smearing in lowest frequency channel (in ms) [float]
+    :param rest_width: telescope restoring function width (in ms) [float]
     :param gain: a "loop gain" that is sued to scale the clean component amplitudes (usually 0.01-0.05) [float]
     :param threshold: threshold defining when to terminate the clean procedure [float]
     :param pbftype: type of pbf to use in the deconvolution [str]
@@ -193,7 +192,7 @@ def clean(data, tau, results,
     nf = fom.consistence(profile, off_rms, off_mean=off_mean, onlims=(on_start, on_end))
     fr = fom.positivity(profile, off_rms)
     gamma = fom.skewness(clean_components, period=period)
-    recon = reconstruct(data, clean_components, period=period, dmdelay=dmdelay)
+    recon = reconstruct(data, clean_components, period=period, rest_width=rest_width)
 
     # Append a dictionary of all the necessary information to the results list (which is global and accessible across
     # multiple processes in the case of a search

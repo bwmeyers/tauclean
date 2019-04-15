@@ -8,28 +8,26 @@ from tauclean import pbf, plotting, clean
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("profile", help="The data file containing the folder pulse profile (single column)")
+    obs_group = parser.add_argument_group("Observing and de-dispersion details")
 
-    # Option group for observation details
-    obs_group = parser.add_argument_group("Observing details")
-    dedisp_group = obs_group.add_mutually_exclusive_group(required=True)
-    inco_group = dedisp_group.add_argument_group()
+    parser.add_argument("profile", help="the data file containing the folder pulse profile (single column)")
 
-    obs_group.add_argument("-p", "--period", metavar="period", type=float, default=100.0, help="pulsar period (in ms)")
+    # Option group for observation and processing details
+    obs_group.add_argument("-p", "--period", metavar="P", type=float, default=100.0, help="pulsar period (in ms)")
 
-    dedisp_group.add_argument("--coherent", action="store_true", default=False,
+    obs_group.add_argument("--coherent", action="store_true", default=False,
                            help="whether the data are coherently de-dispersed (affects calculation of effective time "
-                                "sampling for reconstruction)")
+                                "sampling for reconstruction). If yes, DM and frequency options are not required.")
 
-    inco_group.add_argument("-d", "--dm", metavar="DM", type=float, default=0.0,
+    obs_group.add_argument("-d", "--dm", metavar="DM", type=float, default=0.0,
                            help="pulsar dispersion measure (in pc/cm^3)")
 
-    inco_group.add_argument("-f", "--freq", metavar="freq", type=float, default=1.4,
+    obs_group.add_argument("-f", "--freq", metavar="freq", type=float, default=1.4,
                            help="centre observing frequency (in GHz)")
 
-    inco_group.add_argument("-b", "--bw", metavar="BW", type=float, default=0.256, help="observing bandwidth (in GHz)")
+    obs_group.add_argument("-b", "--bw", metavar="BW", type=float, default=0.256, help="observing bandwidth (in GHz)")
 
-    inco_group.add_argument("--nchan", type=int, default=1024, help="number of frequency channels")
+    obs_group.add_argument("--nchan", type=int, default=1024, help="number of frequency channels")
 
     # Option group specifying configuration of deconvolution, and how to perform it (i.e. to search or not)
     clean_group = parser.add_argument_group("Deconvolution options")
@@ -81,21 +79,30 @@ if __name__ == "__main__":
     else:
         taus = [args.tau]
 
-    # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the nominal
-    # width of the restoring function
-    chan_bw = args.bw / args.nchan
-    if args.verbose:
-        print("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
-    lochan = args.freq - (args.bw / 2)
-    hichan = lochan + chan_bw
-    if args.verbose:
-        print("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
-    dmdelay = clean.dm_delay(args.dm, lochan, hichan)
+    # If coherently de-dispersed, then there will be no smearing component to the response function
     time_sample = args.period / len(data)
+    if args.coherent:
+        dmdelay = 0.0
+    else:
+        # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
+        # nominal width of the restoring function
+        chan_bw = args.bw / args.nchan
+        if args.verbose:
+            print("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
+        lochan = args.freq - (args.bw / 2)
+        hichan = lochan + chan_bw
+        if args.verbose:
+            print("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
+        dmdelay = clean.dm_delay(args.dm, lochan, hichan)
+
     restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
+
     if args.verbose:
         print("Time sampling: {0:g} ms".format(time_sample))
-        print("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
+        if args.coherent:
+            print("Coherently de-dispersed data - no dispersive smearing")
+        else:
+            print("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
         print("Restoring function width: {0:g} ms".format(restoring_width))
 
     # Check the on-pulse boundaries
@@ -106,7 +113,7 @@ if __name__ == "__main__":
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(period=args.period, gain=args.gain, pbftype=args.kernel, iter_limit=args.iterlim,
-                        threshold=args.thresh, on_start=onpulse_start, on_end=onpulse_end, dmdelay=dmdelay)
+                        threshold=args.thresh, on_start=onpulse_start, on_end=onpulse_end, rest_width=restoring_width)
 
     with mp.Manager() as manager:
         # Create a list that can be seen by all processes
