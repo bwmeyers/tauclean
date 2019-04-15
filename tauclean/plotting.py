@@ -125,6 +125,7 @@ def plot_reconstruction(results, original, period=100.0):
 
         ax.plot(x, recons[i] + residuals[i], color="k")
         ax.plot(x, original, color="C1", alpha=0.6)
+        ax.axhline(0, ls=":", lw=1, color="k")
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Intensity")
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))

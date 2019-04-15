@@ -19,7 +19,7 @@ def thin(x, tau, x0=0):
     h = (1 / tau) * np.exp(-t / tau)  # normalised to unit area
 
     # Turn on a unit step function at the given x0 offset, and turn nans into 0
-    h = np.roll(h, x0)
+    h = np.roll(h, int(len(x) * (x0 / x.max())))
     h[np.where((x <= x0) | np.isnan(h))] = 0
     h = h / simps(x=t, y=h)  # enforce normalisation of PBF
 
