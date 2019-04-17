@@ -33,7 +33,7 @@ def gaussian(x, mu, sigma):
     :return: a numerically evaluated Gaussian [array-like]
     """
 
-    amp = 1.0 / (np.sqrt(2) * sigma)
+    amp = 1.0 / (np.sqrt(2 * np.pi) * sigma)
     g = amp * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
 
     return g
