@@ -19,9 +19,16 @@ def test_consistence_zeros():
 def test_consistence_random():
     nbins = 256
     residuals = np.random.normal(size=nbins)
-    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150))
+
+    # With 256 elements, we would expect << 1 sample to be greater than 10-sigma
+    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=10)
     assert not np.isnan(nf)
     assert nf == 50
+
+    # With 256 elements, we would expect ~1 sample to be greater than 3-sigma
+    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=3)
+    assert not np.isnan(nf)
+    assert 49 <= nf <= 50
 
 
 def test_consistence_random_offset():
@@ -120,3 +127,8 @@ def test_skewness_cluster_left_skew():
     # gamma should be a negative number less than -1
     gamma = skewness(cc_amps, period=period)
     assert gamma < -1
+
+
+
+if __name__ == "__main__":
+    test_consistence_random_offset()
