@@ -60,10 +60,6 @@ def test_gaussian_normalised():
     assert simps(y=g, x=x) == 1.0
 
 
+# TODO: implement some tests for reconstruction and deconvolution functions
 
-if __name__ == "__main__":
-    test_keep_cleaning_true()
-    test_keep_cleaning_false()
-    test_dm_delay_100()
-    test_gaussian_normalised()
 
