@@ -1,7 +1,11 @@
 #! /usr/bin/env python
 """
+Copyright 2019 Bradley Meyers
+Licensed under the Academic Free License version 3.0
+
 Test pbf.py
 """
+
 from tauclean.pbf import thin, thick, uniform
 import numpy as np
 from scipy.integrate import simps

@@ -1,7 +1,11 @@
 #! /usr/bin/env python
 """
+Copyright 2019 Bradley Meyers
+Licensed under the Academic Free License version 3.0
+
 Test fom.py
 """
+
 from tauclean.fom import consistence, positivity, skewness
 import numpy as np
 np.random.seed(12345)

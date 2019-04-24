@@ -1,3 +1,8 @@
+"""
+Copyright 2019 Bradley Meyers
+Licensed under the Academic Free License version 3.0
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 

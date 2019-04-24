@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 """
+Copyright 2019 Bradley Meyers
+Licensed under the Academic Free License version 3.0
+
 ----------------
 tauclean module.
 ----------------

@@ -1,7 +1,11 @@
 #! /usr/bin/env python
 """
+Copyright 2019 Bradley Meyers
+Licensed under the Academic Free License version 3.0
+
 Test clean.py
 """
+
 from tauclean.clean import keep_cleaning, dm_delay, gaussian, reconstruct, clean
 import numpy as np
 from scipy.integrate import simps
