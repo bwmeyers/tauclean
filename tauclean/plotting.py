@@ -43,6 +43,9 @@ def plot_figures_of_merit(results):
     plt.savefig("tauclean_fom.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
+    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    return not plt.fignum_exists(fig.number)
+
 
 def plot_clean_residuals(initial_data, results, period=100.0):
 
@@ -86,6 +89,9 @@ def plot_clean_residuals(initial_data, results, period=100.0):
         plt.savefig("clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
         plt.close(fig)
 
+    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    return not plt.fignum_exists(fig.number)
+
 
 def plot_clean_components(results, period=100.0):
 
@@ -114,6 +120,9 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
         # Also write the clean components to disk
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
 
+    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    return not plt.fignum_exists(fig.number)
+
 
 def plot_reconstruction(results, original, period=100.0):
 
@@ -141,3 +150,5 @@ def plot_reconstruction(results, original, period=100.0):
         # Also write the reconstructed profile to disk
         np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
 
+    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    return not plt.fignum_exists(fig.number)
