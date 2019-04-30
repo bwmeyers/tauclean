@@ -1,18 +1,22 @@
-# tauclean
+# tauclean: pulse broadening deconvolution
 [![Build Status](https://travis-ci.com/bwmeyers/tauclean.svg?branch=master)](https://travis-ci.com/bwmeyers/tauclean) 
 [![Coverage Status](https://coveralls.io/repos/github/bwmeyers/tauclean/badge.svg?branch=master)](https://coveralls.io/github/bwmeyers/tauclean?branch=master)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/88e59f4131734fbd92abb9d475fce1dd)](https://www.codacy.com/app/bwmeyers/tauclean?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bwmeyers/tauclean&amp;utm_campaign=Badge_Grade)
 
 Python 3 implementation of the pulse profile scattering deconvolution (CLEAN) code described by 
 [Bhat et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Description paper").
 The technique is based on the extensively used CLEAN algorithms used for synthesis image reconstruction. 
 
 Included in package are two scripts:
-* `simulate` - A simulation tool to artificially create scattered pulse profiles
-* `tauclean` - The deconvolution program which will attempt to reconstruct the intrinsic, unscattered pulse 
+  * `simulate` - A simulation tool to artificially create scattered pulse profiles
+  
+  * `tauclean` - The deconvolution program which will attempt to reconstruct the intrinsic, unscattered pulse 
 profile. It can: 
-   * search the pulse broadening time scale (tau) parameter space and provide metrics to judge the best 
+
+    * search the pulse broadening time scale (tau) parameter space and provide metrics to judge the best 
    model, or 
-   * deconvolve a specified PBF model (with a known tau) from the data
+   
+    * deconvolve a specified PBF model (with a known tau) from the data
  
 
 ## Usage
@@ -36,9 +40,11 @@ thus there will be no residual smearing).
 The `tauclean` script is the user interface to the deconvolution code. The primary output of this script is the 
 reconstructed ("intrinsic") pulse profile. It follows the method laid out in Bhat et al. (2003). `tauclean` can operate 
 in two modes:
-* search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate the range 
+
+  * search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate the range 
 of possibilty. 
-* deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the profile to 
+
+  * deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the profile to 
 reconstruct the intrinsic pulse profile.
 
 An example, where the user knows that the pulse broadening time scale is 20 ms, and has good evidence that the thin 
