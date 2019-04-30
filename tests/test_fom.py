@@ -6,8 +6,10 @@ Licensed under the Academic Free License version 3.0
 Test fom.py
 """
 
-from tauclean.fom import consistence, positivity, skewness
 import numpy as np
+
+from tauclean.fom import consistence, positivity, skewness
+
 np.random.seed(12345)
 
 

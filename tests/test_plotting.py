@@ -6,9 +6,11 @@ Licensed under the Academic Free License version 3.0
 Test plotting.py
 """
 
-import numpy as np
 import os
 import pickle
+
+import numpy as np
+
 from tauclean.plotting import plot_figures_of_merit, plot_clean_components, plot_clean_residuals, plot_reconstruction
 
 np.random.seed(12345)

@@ -4,8 +4,9 @@ Licensed under the Academic Free License version 3.0
 """
 
 import numpy as np
-from . import pbf
+
 from . import fom
+from . import pbf
 
 
 def keep_cleaning(on, off, threshold=3.0):

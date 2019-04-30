@@ -6,11 +6,13 @@ Licensed under the Academic Free License version 3.0
 Test clean.py
 """
 
-from tauclean.clean import keep_cleaning, dm_delay, gaussian, reconstruct, clean
+import multiprocessing as mp
+import os
+
 import numpy as np
 from scipy.integrate import simps
-import os
-import multiprocessing as mp
+
+from tauclean.clean import keep_cleaning, dm_delay, gaussian, reconstruct, clean
 
 np.random.seed(12345)
 TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])

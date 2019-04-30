@@ -6,9 +6,10 @@ Licensed under the Academic Free License version 3.0
 Test pbf.py
 """
 
-from tauclean.pbf import thin, thick, uniform
 import numpy as np
 from scipy.integrate import simps
+
+from tauclean.pbf import thin, thick, uniform
 
 np.random.seed(12345)
 

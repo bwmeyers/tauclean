@@ -6,9 +6,11 @@ Licensed under the Academic Free License version 3.0
 
 import argparse
 import sys
+
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simps
-import matplotlib.pyplot as plt
+
 from tauclean import pbf
 from tauclean.clean import gaussian, dm_delay
 

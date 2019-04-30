@@ -5,11 +5,12 @@ Licensed under the Academic Free License version 3.0
 """
 
 import argparse
-import sys
-import numpy as np
 import multiprocessing as mp
-from tauclean import pbf, plotting, clean
+import sys
 
+import numpy as np
+
+from tauclean import pbf, plotting, clean
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
