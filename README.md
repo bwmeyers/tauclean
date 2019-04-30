@@ -1,4 +1,6 @@
 # tauclean
+[![Build Status](https://travis-ci.com/bwmeyers/tauclean.svg?branch=master)](https://travis-ci.com/bwmeyers/tauclean) 
+[![Coverage Status](https://coveralls.io/repos/github/bwmeyers/tauclean/badge.svg?branch=master)](https://coveralls.io/github/bwmeyers/tauclean?branch=master)
 
 Python 3 implementation of the pulse profile scattering deconvolution (CLEAN) code described by 
 [Bhat et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Description paper").
