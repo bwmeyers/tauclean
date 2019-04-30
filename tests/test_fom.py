@@ -131,8 +131,3 @@ def test_skewness_cluster_left_skew():
     # gamma should be a negative number less than -1
     gamma = skewness(cc_amps, period=period)
     assert gamma < -1
-
-
-
-if __name__ == "__main__":
-    test_consistence_random_offset()

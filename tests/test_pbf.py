@@ -47,4 +47,3 @@ def test_uniform_normalised():
 
     # seeing as integration can sometimes cause rounding errors, use approx-equal method to 7 decimal places
     np.testing.assert_almost_equal(simps(x=x, y=h), 1)
-
