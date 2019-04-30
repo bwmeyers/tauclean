@@ -10,11 +10,14 @@ python:
 install:
   - pip install .
   - pip install coveralls
+  - pip install codacy-coverage
 
 # command to run tests
 script:
   - coverage run setup.py test
   - coverage combine
+  - coverage xml
 
 after_success:
   - coveralls
+  - python-codacy-coverage -r coverage.xml
