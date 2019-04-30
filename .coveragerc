@@ -1,7 +1,12 @@
 [run]
+include = tauclean/*.py
 concurrency = multiprocessing
 parallel = True
 
 [report]
 exclude_lines =
-    if __name__ == __main__:
+    pragma: no cover
+    # Debug-only blocks
+    if debug_on:
+    # don't count the default run state
+    if __name__ == "__main__":
