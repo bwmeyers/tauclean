@@ -1,5 +1,5 @@
 language: python
-dist: trusty
+dist: xenial
 cache: pip
 python:
   - "3.5"
@@ -15,7 +15,6 @@ install:
 # command to run tests
 script:
   - coverage run setup.py test
-  - coverage combine
 
 after_success:
   - coveralls
