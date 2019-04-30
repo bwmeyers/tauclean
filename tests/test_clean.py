@@ -27,7 +27,8 @@ def test_keep_cleaning_true():
     off = np.concatenate((ts[:40], ts[60:]))
 
     k = keep_cleaning(on, off)
-    assert k == True
+
+    np.testing.assert_equal(k, True)
 
 
 def test_keep_cleaning_false():
@@ -38,7 +39,8 @@ def test_keep_cleaning_false():
     off = np.concatenate((ts[:40], ts[60:]))
 
     k = keep_cleaning(on, off)
-    assert k == False
+
+    np.testing.assert_equal(k, False)
 
 
 def test_dm_delay_zero():
@@ -46,7 +48,8 @@ def test_dm_delay_zero():
     flo = 1.4
     fhi = 1.6
     dt = dm_delay(dm, flo, fhi)
-    assert dt == 0
+
+    np.testing.assert_equal(dt, 0)
 
 
 def test_dm_delay_100():
@@ -62,7 +65,7 @@ def test_gaussian_normalised():
     x = np.linspace(0, 10, 1000)
     g = gaussian(x, 5, 0.5)
 
-    assert simps(y=g, x=x) == 1.0
+    np.testing.assert_array_almost_equal(simps(y=g, x=x), 1)
 
 
 def test_reconstruction_simple_delta():
@@ -150,18 +153,12 @@ def test_reconstruction_multiple_delta_offset():
 
 
 def test_clean_invalid_pbf():
-    nbins = 1024
-    period = 500.0
-    tau = 3.0
-
-    x = np.linspace(0, 1, nbins) * period
-
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(TEST_DIR=TEST_DIR))
 
     ret_val = clean(data, 20, [], pbftype="unknown")
-    print(ret_val)
-    assert ret_val == None
+
+    np.testing.assert_equal([ret_val], [None])
 
 
 def test_clean_iteration_limit():
@@ -187,8 +184,10 @@ def test_clean_iteration_limit():
 
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
-    assert isinstance(sorted_results, list)
-    assert sorted_results[0]["niter"] == ilim
+    if not isinstance(sorted_results, list):
+        raise AssertionError()
+    if not sorted_results[0]["niter"] == ilim:
+        raise AssertionError()
 
 
 def test_clean_thin():
@@ -213,12 +212,17 @@ def test_clean_thin():
 
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
-    assert isinstance(sorted_results, list)
-    assert np.isfinite(sorted_results[0]["init_rms"])
-    assert np.isfinite(sorted_results[0]["off_rms"])
-    assert np.isfinite(sorted_results[0]["off_mean"])
+    if not isinstance(sorted_results, list):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["init_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_mean"]):
+        raise AssertionError()
     # allow 5% error in amplitude of reconstruction
-    assert abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
+    if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
+        raise AssertionError()
 
 
 def test_clean_thick():
@@ -243,18 +247,23 @@ def test_clean_thick():
 
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
-    assert isinstance(sorted_results, list)
-    assert np.isfinite(sorted_results[0]["init_rms"])
-    assert np.isfinite(sorted_results[0]["off_rms"])
-    assert np.isfinite(sorted_results[0]["off_mean"])
+    if not isinstance(sorted_results, list):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["init_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_mean"]):
+        raise AssertionError()
     # allow 5% error in amplitude of reconstruction
-    assert abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
+    if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
+        raise AssertionError()
 
 
 def test_clean_uniform():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k uniform -t 3.0 -p 500
     data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
-    intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
+    #intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
     taus = [3.0]
 
     clean_kwargs = dict(period=500, gain=0.05, pbftype="uniform", on_start=128, on_end=400, rest_width=500 / len(data))
@@ -273,11 +282,16 @@ def test_clean_uniform():
 
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
-    assert isinstance(sorted_results, list)
-    assert np.isfinite(sorted_results[0]["init_rms"])
-    assert np.isfinite(sorted_results[0]["off_rms"])
-    assert np.isfinite(sorted_results[0]["off_mean"])
+    if not isinstance(sorted_results, list):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["init_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_mean"]):
+        raise AssertionError()
     # allow 5% error in amplitude of reconstruction
     # TODO currently the "uniform" PBF produces weird amplitudes in the reconstruction that I don't full understand...
     #print(intrinsic.max(), sorted_results[0]["recon"].max(), abs(intrinsic.max() - sorted_results[0]["recon"].max()))
-    #assert abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
+    #if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
+    #    raise AssertionError()

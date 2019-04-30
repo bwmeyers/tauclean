@@ -18,8 +18,10 @@ def test_consistence_zeros():
 
     residuals = np.zeros(nbins)
     nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150))
-    assert not np.isnan(nf)
-    assert nf == 50
+    if np.isnan(nf):
+        raise AssertionError()
+    if not nf == 50:
+        raise AssertionError()
 
 
 def test_consistence_random():
@@ -28,13 +30,17 @@ def test_consistence_random():
 
     # With 256 elements, we would expect << 1 sample to be greater than 10-sigma
     nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=10)
-    assert not np.isnan(nf)
-    assert nf == 50
+    if np.isnan(nf):
+        raise AssertionError()
+    if not nf == 50:
+        raise AssertionError()
 
     # With 256 elements, we would expect ~1 sample to be greater than 3-sigma
     nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=3)
-    assert not np.isnan(nf)
-    assert 49 <= nf <= 50
+    if np.isnan(nf):
+        raise AssertionError()
+    if not (49 <= nf <= 50):
+        raise AssertionError()
 
 
 def test_consistence_random_offset():
@@ -44,8 +50,11 @@ def test_consistence_random_offset():
     offmean = np.mean(residuals)
     residuals[100:150] += 1000  # make sure on-pulse region is well above 3-sigma threshold
     nf = consistence(residuals, offrms, offmean, onlims=(100, 150))
-    assert not np.isnan(nf)
-    assert nf == 0
+
+    if np.isnan(nf):
+        raise AssertionError()
+    if not nf == 0:
+        raise AssertionError()
 
 
 def test_positivity_zeros():
@@ -54,7 +63,9 @@ def test_positivity_zeros():
     offrms = np.std(residuals)
 
     f_r = positivity(residuals, offrms)  # should be NaN as np.all(residuals) == 0 is true
-    assert np.isnan(f_r)
+
+    if not np.isnan(f_r):
+        raise AssertionError()
 
 
 def test_positivity_random():
@@ -63,16 +74,24 @@ def test_positivity_random():
     offrms = np.std(residuals)
 
     f_r = positivity(residuals, offrms, x=10)
-    assert not np.isnan(f_r)
-    assert f_r == 0  # there should be no points more negative than 10-sigma, thus f_r should be zero
+    if np.isnan(f_r):
+        raise AssertionError()
+    if not f_r == 0:
+        # there should be no points more negative than 10-sigma, thus f_r should be zero
+        raise AssertionError()
 
     f_r = positivity(residuals, offrms, x=5)
-    assert not np.isnan(f_r)
-    assert f_r == 0  # similarly, for this sample size
+    if np.isnan(f_r):
+        raise AssertionError()
+    if not f_r == 0:
+        # similarly, for this sample size
+        raise AssertionError()
 
     f_r = positivity(residuals, offrms, x=1.5)
-    assert not np.isnan(f_r)
-    assert f_r > 0
+    if np.isnan(f_r):
+        raise AssertionError()
+    if not f_r > 0:
+        raise AssertionError()
 
 
 def test_skewness_ones():
@@ -82,7 +101,9 @@ def test_skewness_ones():
 
     # gamma should be a very small, negative number in this case
     gamma = skewness(cc_amps, period=period)
-    assert -1.0e-10 < gamma < 0
+
+    if not -1.0e-10 < gamma < 0:
+        raise AssertionError()
 
 
 def test_skewness_single():
@@ -92,7 +113,10 @@ def test_skewness_single():
     cc_amps[nbins//2] = 50
 
     gamma = skewness(cc_amps, period=period)
-    assert gamma == 0  # a completely symmetric deconvolution means gamma should be identically 0
+
+    # a completely symmetric deconvolution means gamma should be identically 0
+    if not gamma == 0:
+        raise AssertionError()
 
 
 def test_skewness_cluster_symmetric():
@@ -104,7 +128,9 @@ def test_skewness_cluster_symmetric():
 
     # gamma should be a number very close to zero
     gamma = skewness(cc_amps, period=period)
-    assert abs(gamma) < 1.0e-8
+
+    if not abs(gamma) < 1.0e-8:
+        raise AssertionError()
 
 
 def test_skewness_cluster_right_skew():
@@ -118,7 +144,9 @@ def test_skewness_cluster_right_skew():
 
     # gamma should be a positive number greater than 1
     gamma = skewness(cc_amps, period=period)
-    assert gamma > 1
+
+    if not gamma > 1:
+        raise AssertionError()
 
 
 def test_skewness_cluster_left_skew():
@@ -132,4 +160,6 @@ def test_skewness_cluster_left_skew():
 
     # gamma should be a negative number less than -1
     gamma = skewness(cc_amps, period=period)
-    assert gamma < -1
+
+    if not gamma < -1:
+        raise AssertionError()

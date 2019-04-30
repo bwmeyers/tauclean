@@ -22,17 +22,20 @@ results[-1]["fr"] = 100  # fake one fo the FoM to ensure that testing covers all
 
 
 def test_plot_fom():
-    assert plot_figures_of_merit(results)
+    if not plot_figures_of_merit(results):
+        raise AssertionError()
 
 
 def test_plot_clean_residuals():
-    assert plot_clean_residuals(init_data, results, period=500.0)
+    if not plot_clean_residuals(init_data, results, period=500.0):
+        raise AssertionError()
 
 
 def test_plot_clean_comps():
-    assert plot_clean_components(results, period=500.0)
+    if not plot_clean_components(results, period=500.0):
+        raise AssertionError()
 
 
 def test_plot_reconstruction():
-    assert plot_reconstruction(results, init_data, period=500.0)
-
+    if not plot_reconstruction(results, init_data, period=500.0):
+        raise AssertionError()
