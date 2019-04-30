@@ -16,6 +16,7 @@ TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
 
 init_data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(TEST_DIR=TEST_DIR))
 results = pickle.load(open("{TEST_DIR}/test_sample.p".format(TEST_DIR=TEST_DIR), "rb"))
+results[-1]["fr"] = 100  # fake one fo the FoM to ensure that testing covers all code
 
 
 def test_plot_fom():
