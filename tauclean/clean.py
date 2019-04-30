@@ -59,7 +59,7 @@ def dm_delay(dm, lo, hi):
     return delay
 
 
-def reconstruct(profile, ccs, period=100.0, rest_width=0.0):
+def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
     :param profile: the initial pulse profile [array-like]
@@ -89,7 +89,7 @@ def reconstruct(profile, ccs, period=100.0, rest_width=0.0):
 
 def clean(data, tau, results,
           on_start=0, on_end=255, period=100.0, rest_width=1.0,
-          gain=0.01, threshold=3.0, pbftype="thin", iter_limit=None):
+          gain=0.05, threshold=3.0, pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
 
     :param data: original pulse profile [array-like]
@@ -108,7 +108,7 @@ def clean(data, tau, results,
     """
 
     nbins = len(data)
-    nrot = 10
+    nrot = 3
 
     # Create an x-range that is much larger than the nominal pulsar period, so that the full effect of the PBF can be
     # modelled by evaluating  over the extended range and then folding the result on the pulsar period.
@@ -171,11 +171,9 @@ def clean(data, tau, results,
         offset = np.argmax(temp_clean_comp) - np.argmax(component)
         component = np.roll(component, offset)
 
-        # In this case, we have done the full convolution to accurately capture the shape of the PBF
-        # and here we fold that so that it matches the profile data size and will better represent the effect of the
-        # PBF on the folded data
-        component = component[:nrot * nbins]  # this is ok because we moved to be back in the correct position already
-        component = np.sum(np.split(component, nrot), axis=0)
+        # In this case, we have done the full convolution to accurately capture the shape of the PBF, now just grab
+        # the profile-length
+        component = component[:nbins]  # this is ok because we moved to be back in the correct position already
 
         # Finally, subtract the component from the profile
         cleaned = profile - component

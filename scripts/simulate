@@ -99,11 +99,7 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
 
     offset = np.argmax(intrinsic) - np.argmax(scattered)
     scattered = np.roll(scattered, offset)[:nrot*nbins]
-
-    # Now, split the convolved pulse into 'nrot' profiles of 'nbins' and sum them to create the pulse profile.
-    # This effectively mimics the idea of folding a pulse profile where the scattering kernel is not necessarily
-    # contained within one pulsar rotation.
-    scattered = np.sum(np.split(scattered, nrot), axis=0)
+    scattered = scattered[:nbins]
 
     # And do the same for the PBF, then re-normalise it to unit area
     h = np.sum(np.split(h, nrot), axis=0)
