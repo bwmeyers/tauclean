@@ -8,15 +8,14 @@ Python 3 implementation of the pulse profile scattering deconvolution (CLEAN) co
 The technique is based on the extensively used CLEAN algorithms used for synthesis image reconstruction. 
 
 Included in package are two scripts:
-  * `simulate` - A simulation tool to artificially create scattered pulse profiles
-  
-  * `tauclean` - The deconvolution program which will attempt to reconstruct the intrinsic, unscattered pulse 
-profile. It can: 
+* `simulate` - A simulation tool to artificially create scattered pulse profiles
 
-    * search the pulse broadening time scale (tau) parameter space and provide metrics to judge the best 
-   model, or 
-   
-    * deconvolve a specified PBF model (with a known tau) from the data
+* `tauclean` - The deconvolution program which will attempt to reconstruct the intrinsic, unscattered pulse profile. 
+  It can: 
+
+  * search the pulse broadening time scale (tau) parameter space and provide metrics to judge the best model; or
+  
+  * deconvolve a specified PBF model (with a known tau) from the data
  
 
 ## Usage
@@ -41,11 +40,11 @@ The `tauclean` script is the user interface to the deconvolution code. The prima
 reconstructed ("intrinsic") pulse profile. It follows the method laid out in Bhat et al. (2003). `tauclean` can operate 
 in two modes:
 
-  * search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate the range 
-of possibilty. 
+* search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate the
+  range of possibilty. 
 
-  * deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the profile to 
-reconstruct the intrinsic pulse profile.
+* deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the profile
+  to reconstruct the intrinsic pulse profile.
 
 An example, where the user knows that the pulse broadening time scale is 20 ms, and has good evidence that the thin 
 scattering screen is suitable, would be something like:
