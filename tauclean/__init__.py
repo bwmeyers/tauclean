@@ -11,8 +11,8 @@ This module contains the functionality required by the 'tauclean' and 'simulate'
 """
 
 __all__ = ['fom', 'pbf', 'clean', 'plotting']
-__author__ = 'Bradley Meyers'
-__version__ = 1.0
+__author__ = 'Bradley W. Meyers'
+__version__ = "0.9"
 __citation__ = """
 If you make use of tauclean please cite the following paper as appropriate:
 
