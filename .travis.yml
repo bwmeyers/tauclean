@@ -1,0 +1,22 @@
+language: python
+dist: trusty
+cache: pip
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+
+# command to install dependencies
+install:
+  - pip install .
+  - pip install coveralls
+  - pip install codacy-coverage
+
+# command to run tests
+script:
+  - coverage run setup.py test
+  - coverage combine
+
+after_success:
+  - coveralls
+  - python-codacy-coverage -r coverage.xml
