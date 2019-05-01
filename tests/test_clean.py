@@ -18,6 +18,43 @@ np.random.seed(12345)
 TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
 
 
+def run_clean(taus, data, clean_kwargs):
+    """
+    Utility function that just runs the clean algorithm using the multiprocessing module, as done in the `tauclean`
+    script
+    """
+
+    with mp.Manager() as manager:
+        results = manager.list()
+        processes = []
+
+        for t in taus:
+            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join()
+
+        sorted_results = sorted(results, key=lambda r: r['tau'])
+
+    return sorted_results
+
+
+def check_clean_finite(sorted_results):
+    """Utility function to test whether the results (specifically the off-pulse rms before and after) from clean are
+    finite, and that the correct object was returned by the function
+    """
+    if not isinstance(sorted_results, list):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["init_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_rms"]):
+        raise AssertionError()
+    if not np.isfinite(sorted_results[0]["off_mean"]):
+        raise AssertionError()
+
+
 def test_keep_cleaning_true():
     nbins = 256
     ts = np.random.normal(size=nbins)
@@ -68,7 +105,7 @@ def test_gaussian_normalised():
     np.testing.assert_array_almost_equal(simps(y=g, x=x), 1)
 
 
-def test_reconstruction_simple_delta():
+def test_reconstruction_simple():
     nbins = 1024
     period = 500.0
     rest_width = 0.1
@@ -77,36 +114,28 @@ def test_reconstruction_simple_delta():
     profile = np.exp(-(x - x[500])**2/(2 * rest_width ** 2))
     profile = profile / profile.max()
 
+    # test when clean component is aligned with peak of the profile
     ccs = np.zeros_like(x)
     ccs[500] = 1.0
 
     recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
-
     diff = recon - profile
+
     # check that the difference is 0 to within 4 decimal places (0.1%)
     np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
-
-def test_reconstruction_simple_delta_offset():
-    nbins = 1024
-    period = 500.0
-    rest_width = 0.1
-
-    x = np.linspace(0, 1, nbins) * period
-    profile = np.exp(-(x - x[500])**2/(2 * rest_width ** 2))
-    profile = profile / profile.max()
-
+    # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
     ccs[400] = 1.0
 
     recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
-
     diff = recon - profile
+
     # check that the difference is 0 to within 4 decimal places (0.1%)
     np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
 
-def test_reconstruction_multiple_delta():
+def test_reconstruction_multiple():
     nbins = 1024
     period = 500.0
     rest_width = 0.1
@@ -116,40 +145,31 @@ def test_reconstruction_multiple_delta():
     profile += np.exp(-(x - x[650]) ** 2 / (2 * rest_width ** 2))
     profile = profile / profile.max()
 
+    # test when clean component is aligned with peak of the profile
     ccs = np.zeros_like(x)
     ccs[500] = 1.0
     ccs[650] = 1.0
 
     recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
-
     diff = recon - profile
+
     # check that the difference is 0 to within 4 decimal places (0.1%)
     np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
-
-def test_reconstruction_multiple_delta_offset():
-    nbins = 1024
-    period = 500.0
-    rest_width = 0.1
-
-    x = np.linspace(0, 1, nbins) * period
-    profile = np.exp(-(x - x[500]) ** 2 / (2 * rest_width ** 2))
-    profile += np.exp(-(x - x[650]) ** 2 / (2 * rest_width ** 2))
-    profile = profile / profile.max()
-
+    # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
     ccs[450] = 1.0
     ccs[600] = 1.0
 
     recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
-
     diff = recon - profile
+
     # check that the difference is 0 to within 4 decimal places (0.1%)
     np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
 
 # TODO: should nominally also test when profile width is NOT equal to the restoring function width, but for now this
-#  at least tests that the convolution and offset correction is working
+#       at least tests that the convolution and offset correction is working
 
 
 def test_clean_invalid_pbf():
@@ -170,19 +190,7 @@ def test_clean_iteration_limit():
     clean_kwargs = dict(period=500, gain=0.05, pbftype="thin", on_start=440, on_end=900, rest_width=500 / len(data),
                         iter_limit=ilim)
 
-    with mp.Manager() as manager:
-        results = manager.list()
-        processes = []
-
-        for t in taus:
-            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
-        sorted_results = sorted(results, key=lambda r: r['tau'])
+    sorted_results = run_clean(taus, data, clean_kwargs)
 
     if not isinstance(sorted_results, list):
         raise AssertionError()
@@ -198,28 +206,9 @@ def test_clean_thin():
 
     clean_kwargs = dict(period=500, gain=0.05, pbftype="thin", on_start=440, on_end=900, rest_width=500 / len(data))
 
-    with mp.Manager() as manager:
-        results = manager.list()
-        processes = []
+    sorted_results = run_clean(taus, data, clean_kwargs)
 
-        for t in taus:
-            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
-        sorted_results = sorted(results, key=lambda r: r['tau'])
-
-    if not isinstance(sorted_results, list):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["init_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_mean"]):
-        raise AssertionError()
+    check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
         raise AssertionError()
@@ -233,28 +222,9 @@ def test_clean_thick():
 
     clean_kwargs = dict(period=500, gain=0.05, pbftype="thick", on_start=128, on_end=700, rest_width=500 / len(data))
 
-    with mp.Manager() as manager:
-        results = manager.list()
-        processes = []
+    sorted_results = run_clean(taus, data, clean_kwargs)
 
-        for t in taus:
-            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
-        sorted_results = sorted(results, key=lambda r: r['tau'])
-
-    if not isinstance(sorted_results, list):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["init_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_mean"]):
-        raise AssertionError()
+    check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
         raise AssertionError()
@@ -266,30 +236,11 @@ def test_clean_uniform():
     #intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
     taus = [3.0]
 
-    clean_kwargs = dict(period=500, gain=0.05, pbftype="uniform", on_start=128, on_end=400, rest_width=500 / len(data))
+    clean_kwargs = dict(period=500, gain=0.05, pbftype="uniform", on_start=128, on_end=700, rest_width=500 / len(data))
 
-    with mp.Manager() as manager:
-        results = manager.list()
-        processes = []
+    sorted_results = run_clean(taus, data, clean_kwargs)
 
-        for t in taus:
-            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
-        sorted_results = sorted(results, key=lambda r: r['tau'])
-
-    if not isinstance(sorted_results, list):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["init_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_rms"]):
-        raise AssertionError()
-    if not np.isfinite(sorted_results[0]["off_mean"]):
-        raise AssertionError()
+    check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     # TODO currently the "uniform" PBF produces weird amplitudes in the reconstruction that I don't full understand...
     #print(intrinsic.max(), sorted_results[0]["recon"].max(), abs(intrinsic.max() - sorted_results[0]["recon"].max()))
