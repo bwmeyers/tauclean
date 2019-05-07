@@ -117,9 +117,6 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
         plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
         plt.close(fig)
 
-        # Also write the clean components to disk
-        np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
-
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
@@ -147,8 +144,17 @@ def plot_reconstruction(results, original, period=100.0):
         plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
         plt.close(fig)
 
-        # Also write the reconstructed profile to disk
-        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
-
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
+
+
+def write_output(results):
+
+    taus = np.array([a["tau"] for a in results])
+    clean_components = np.array([a["cc"] for a in results])
+    pbftype = np.array([a["pbftype"] for a in results])
+    recons = np.array([a["recon"] for a in results])
+
+    for i, t in enumerate(taus):
+        np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
+        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
