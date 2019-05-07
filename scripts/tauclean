@@ -7,12 +7,16 @@ Licensed under the Academic Free License version 3.0
 import argparse
 import multiprocessing as mp
 import sys
+import logging
 
 import numpy as np
 
 from tauclean import pbf, plotting, clean
 
+logger = logging.getLogger(__name__)
+
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     obs_group = parser.add_argument_group("Observing and de-dispersion details")
 
@@ -47,23 +51,39 @@ if __name__ == "__main__":
                                 "minimum tau (in ms), maximum tau (in ms), step (in ms)")
 
     clean_group.add_argument("-k", "--kernel", metavar="pbf", default="thin", choices=pbf.__all__,
-                        help="type of PBF kernel to use during the deconvolution")
+                             help="type of PBF kernel to use during the deconvolution")
 
     clean_group.add_argument("-o", "--onpulse", nargs=2, metavar=("start", "end"), type=int, default=(0, 255),
                              help="boundaries of the on-pulse region")
 
     clean_group.add_argument("--thresh", metavar="sigma", type=float, default=3.0,
-                        help="on-pulse data threshold (units of off-pulse rms noise) to stop cleaning")
+                             help="on-pulse data threshold (units of off-pulse rms noise) to stop cleaning")
 
     clean_group.add_argument("-g", "--gain", metavar="gain", type=float, default=0.05,
-                        help="loop gain (scaling factor << 1) used to weight component subtraction")
+                             help="loop gain (scaling factor << 1) used to weight component subtraction")
 
     clean_group.add_argument("--iterlim", metavar="N", type=int, default=None,
-                        help="limit the number of iterations for each trial value, regardless of convergence")
+                             help="limit the number of iterations for each trial value, regardless of convergence")
 
-    parser.add_argument("-v", "--verbose", action="store_true", default=False, help="increase verbosity")
+    other_group = parser.add_argument_group("Other options")
+    other_group.add_argument("--debug", action="store_true", default=False,
+                             help="increase verbosity and print DEBUG info")
+    other_group.add_argument("--nowrite", action="store_true", default=False,
+                             help="do not write reconstruction or clean component list to files")
+    other_group.add_argument("--noplot", action="store_true", default=False,
+                             help="do not produce any plots")
 
     args = parser.parse_args()
+
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    if args.debug:
+        ch.setLevel(logging.DEBUG)
+    else:
+        ch.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s :: %(name)s :: %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
     # Load the data (assumes single column, 1 bin per line)
     data = np.loadtxt(args.profile)
@@ -75,11 +95,14 @@ if __name__ == "__main__":
         step = args.search[2]
 
         if tau_max <= tau_min:
-            sys.exit("Maximum tau is <= minimum tau")
+            logger.error("Maximum tau is <= minimum tau")
+            sys.exit()
         elif tau_min <= 0:
-            sys.exit("Minimum tau is <= 0 ms")
+            logger.error("Minimum tau is <= 0 ms")
+            sys.exit()
         elif step <= 0:
-            sys.exit("Step size must be >= 0 ms")
+            logger.error("Step size must be >= 0 ms")
+            sys.exit()
         else:
             taus = np.arange(tau_min, tau_max + step, step)
     else:
@@ -87,35 +110,34 @@ if __name__ == "__main__":
 
     # If coherently de-dispersed, then there will be no smearing component to the response function
     time_sample = args.period / len(data)
+    logger.info("Time sampling: {0:g} ms".format(time_sample))
+
     if args.coherent:
         dmdelay = 0.0
     else:
         # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
         # nominal width of the restoring function
         chan_bw = args.bw / args.nchan
-        if args.verbose:
-            print("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
+        logger.info("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
         lochan = args.freq - (args.bw / 2)
         hichan = lochan + chan_bw
-        if args.verbose:
-            print("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
+        logger.info("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
+
         dmdelay = clean.dm_delay(args.dm, lochan, hichan)
+        if args.coherent:
+            logger.debug("Coherently de-dispersed data - no dispersive smearing")
+        else:
+            logger.info("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
 
     restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
-
-    if args.verbose:
-        print("Time sampling: {0:g} ms".format(time_sample))
-        if args.coherent:
-            print("Coherently de-dispersed data - no dispersive smearing")
-        else:
-            print("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
-        print("Restoring function width: {0:g} ms".format(restoring_width))
+    logger.info("Restoring function width: {0:g} ms".format(restoring_width))
 
     # Check the on-pulse boundaries
     onpulse_start = args.onpulse[0]
     onpulse_end = args.onpulse[1]
     if onpulse_end <= onpulse_start:
-        sys.exit("On-pulse end boundary must be > start boundary")
+        logger.error("On-pulse end boundary must be > start boundary")
+        sys.exit()
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(period=args.period, gain=args.gain, pbftype=args.kernel, iter_limit=args.iterlim,
@@ -128,40 +150,35 @@ if __name__ == "__main__":
 
         # Spawn processes, one per trial value of tau
         for t in taus:
-            if args.verbose:
-                print("Spawning process to clean with tau={0:g} ms".format(t))
+            logger.debug("Spawning process to clean with tau={0:g} ms".format(t))
             p = mp.Process(target=clean.clean, args=(data, t, results), kwargs=clean_kwargs)
             p.start()
             processes.append(p)
 
         # Wait for processes to finish and rejoin the master process
-        if args.verbose:
-            print("Waiting for {0} process(es) to finish...".format(len(processes)))
+        logger.debug("Waiting for {0} process(es) to finish...".format(len(processes)))
         for p in processes:
             p.join()
 
         # Sort the results based on the trial value of tau
-        if args.verbose:
-            print("Sorting output...")
+        logger.debug("Sorting output...")
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
     # Make all of the diagnostic plots and write relevant files to disk
-    if len(taus) > 1:
-        if args.verbose:
-            print("Plotting figures of merit...")
-        plotting.plot_figures_of_merit(sorted_results)
+    if not args.noplot:
+        if len(taus) > 1:
+            logger.debug("Plotting figures of merit...")
+            plotting.plot_figures_of_merit(sorted_results)
 
-    if args.verbose:
-        print("Plotting clean residuals...")
-    plotting.plot_clean_residuals(data, sorted_results, period=args.period)
+        logger.debug("Plotting clean residuals...")
+        plotting.plot_clean_residuals(data, sorted_results, period=args.period)
 
-    if args.verbose:
-        print("Plotting clean components...")
-    plotting.plot_clean_components(sorted_results, period=args.period)
+        logger.debug("Plotting clean components...")
+        plotting.plot_clean_components(sorted_results, period=args.period)
 
-    if args.verbose:
-        print("Plotting profile reconstruction...")
-    plotting.plot_reconstruction(sorted_results, data, period=args.period)
+        logger.debug("Plotting profile reconstruction...")
+        plotting.plot_reconstruction(sorted_results, data, period=args.period)
 
-
-
+    if not args.nowrite:
+        logger.debug("Writing output products (reconstruction + clean component list")
+        plotting.write_output(sorted_results)
