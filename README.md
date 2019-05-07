@@ -46,11 +46,11 @@ The `tauclean` script is the user interface to the deconvolution code. The prima
 reconstructed ("intrinsic") pulse profile. It follows the method laid out in Bhat et al. (2003). `tauclean` can operate 
 in two modes:
 
--   search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate the
-    range of possibilty. 
+-   search (`-s`) - where the used does not _a priori_ know what the pulse broadening time scale is, but can estimate 
+    the range of possibilty. 
 
--   deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the profile
-    to reconstruct the intrinsic pulse profile.
+-   deconvolve (`-t`) - where the user does know the pulse broadening time scale and just wants to deconvolve the 
+    profile to reconstruct the intrinsic pulse profile.
 
 An example, where the user knows that the pulse broadening time scale is 20 ms, and has good evidence that the thin 
 scattering screen is suitable, would be something like:
@@ -72,3 +72,12 @@ where now the code will trial tau values from 15 ms to 25 ms in steps of 1 ms, p
 (plus other diagnostics) for each trial. Only in this case are the "figures of merit" produced, which can be used 
 determine which of the trial values are a better representation of the data. `tauclean` will invoke multiple processes 
 (with the `multiprocessing` module) when searching.
+
+## Credit
+
+If you made use of `tauclean` for your research, please give credit by
+
+-   Citing the original technique description paper: [Bhat et al. 2003, ApJ, 584, 2](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Description paper")
+
+-   Linking [this](https://github.com/bwmeyers/tauclean) GitHub page as a footnote and/or in the acknowledgments (and, until a citable DOI is acquired, 
+    consider adding me as a co-author)
