@@ -10,16 +10,17 @@ import numpy as np
 def plot_figures_of_merit(results):
 
     taus = np.array([a["tau"] for a in results])
+    f_r = [a["fr"] for a in results]
+    gamma = [a["gamma"] for a in results]
+    ncomps = [a["niter"] for a in results]
+    nuniq = [a["ncc"] for a in results]
+    on_rms = [a["on_rms"] for a in results]
+    sigma_c = np.array([a["off_rms"] for a in results]) / np.array([a["init_rms"] for a in results])
+    nf_frac = np.array([a["nf"] for a in results]) / np.array([a["nbins"] for a in results])
 
-    params = [np.array([a["fr"] for a in results]),
-              np.array([a["gamma"] for a in results]),
-              np.array([a["ncc"] for a in results]),
-              np.array([a["on_rms"] for a in results]),
-              np.array([a["off_rms"] for a in results]) / np.array([a["init_rms"] for a in results]),
-              np.array([a["nf"] for a in results]) / np.array([a["nbins"] for a in results])
-              ]
+    params = [f_r, gamma, nuniq, on_rms, sigma_c, nf_frac]
 
-    labels = [r"$f_r$", r"$\Gamma$", r"$N_{cc}$", r"$\sigma_{\rm on}$",
+    labels = [r"$f_r$", r"$\Gamma$", r"$N_{unique}$", r"$\sigma_{\rm on}$",
               r"$\sigma_{\rm offc}/\sigma_{\rm off}$", r"$N_f / N_{\rm total}$"
               ]
 
@@ -42,6 +43,14 @@ def plot_figures_of_merit(results):
     plt.subplots_adjust(hspace=0.1, wspace=0.25)
     plt.savefig("tauclean_fom.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
+
+    # In this case, also write the figures of merit to a file
+    with open("tauclean_fom.txt", "w") as f:
+        f.write("{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<5}  {5:<10}  {6:<10} {7:<7}\n".format(
+                "#tau", "f_r", "gamma", "ncomps", "nuniq", "on_rms", "sigma_c", "nf_frac"))
+        for i, t in enumerate(taus):
+            f.write("{0:7.5f} {1: 8.6f} {2: 8.6f} {3:<8d} {4:<5d} {5: 10.8f} {6: 10.8f} {7:7.5f}\n".format(
+                t, f_r[i], gamma[i], ncomps[i], nuniq[i], on_rms[i], sigma_c[i], nf_frac[i]))
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
