@@ -22,5 +22,5 @@ or
 python setup.py install
 ```
 
-Assuming you have th correct permissions, the module is now installed and the `tauclean` and `simulate` scripts should
+Assuming you have the correct permissions, the module is now installed and the `tauclean` and `simulate` scripts should
 be available on your PATH.
