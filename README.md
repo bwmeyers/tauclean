@@ -79,5 +79,5 @@ If you made use of `tauclean` for your research, please give credit by
 
 -   Citing the original technique description paper: [Bhat et al. 2003, ApJ, 584, 2](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Description paper")
 
--   Linking [this](https://github.com/bwmeyers/tauclean) GitHub page as a footnote and/or in the acknowledgments (and, until a citable DOI is acquired, 
-    consider adding me as a co-author)
+-   Linking [this](https://github.com/bwmeyers/tauclean) GitHub page as a footnote or in the acknowledgments (and 
+    you could consider adding me as a co-author)
