@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from tauclean import pbf, plotting, clean
+from tauclean import pbf, plotting, clean, fom
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +167,11 @@ if __name__ == "__main__":
     # Make all of the diagnostic plots and write relevant files to disk
     if not args.noplot:
         if len(taus) > 1:
+            frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
+            logger.info("Best fit tau")
+            logger.info("   based on f_r: {0:.3f} +/- {1:.3f} ms".format(frbest, frerr))
+            logger.info("   based on f_c: {0:.3f} +/- {1:.3f} ms".format(fcbest, fcerr))
+
             logger.debug("Plotting figures of merit...")
             plotting.plot_figures_of_merit(sorted_results)
 
