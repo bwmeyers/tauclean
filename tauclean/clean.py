@@ -109,19 +109,22 @@ def clean(data, tau, results,
     """
 
     nbins = len(data)
-    nrot = 3
 
     # Create an x-range that is much larger than the nominal pulsar period, so that the full effect of the PBF can be
     # modelled by evaluating  over the extended range and then folding the result on the pulsar period.
-    pbf_x = np.linspace(0, nrot, nrot * nbins) * period
+    x = np.linspace(0, 1, nbins) * period
 
     # Decide which PBF model to use based on the user input
     if pbftype == "thin":
-        filter_guess = pbf.thin(pbf_x, tau)
+        filter_guess = pbf.thin(x, tau)
     elif pbftype == "thick":
-        filter_guess = pbf.thick(pbf_x, tau)
+        filter_guess = pbf.thick(x, tau)
     elif pbftype == "uniform":
-        filter_guess = pbf.uniform(pbf_x, tau)
+        filter_guess = pbf.uniform(x, tau)
+    elif pbftype == "thick_exp":
+        filter_guess = pbf.thick_exp(x, tau)
+    elif pbftype == "uniform_exp":
+        filter_guess = pbf.uniform_exp(x, tau)
     else:
         print("Invalid PBF type requested ({0})".format(pbftype))
         return None

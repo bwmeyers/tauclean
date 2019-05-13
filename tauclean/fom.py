@@ -114,9 +114,11 @@ def get_error(results, dchi=1.0, plot=False):
     gamma = np.array([a["gamma"] for a in results])
     fc = (fr + gamma) / 2.0
 
+    min_tau_step = min(np.diff(taus))
+
     # rather than the minimum of fr, work out the point of greatest inflection using finite differences
-    d2 = [(fr[i] - 2 * fr[i - 1] + fr[i - 2]) for i in range(2, len(taus) - 1)]  # backwards 2nd order difference
-    imin = np.argmax(d2) - 2  # i.e. we don't actually want the max, we want i-2 which will be the "minimum point"
+    d2 = [(fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    imin = np.argmax(d2) - 1
     imax = np.argmax(fr)
 
     # estimate the slope and intercept of the linear line drawn between the min and max values of fr
@@ -130,8 +132,11 @@ def get_error(results, dchi=1.0, plot=False):
     fr_tau = taus[imin]
 
     # Also try to get error estimates from fc
-    d2 = [(fc[i] - 2 * fc[i - 1] + fc[i - 2]) for i in range(2, len(taus) - 1)]  # backwards 2nd order difference
-    imin = np.argmax(d2) - 2  # ie we don't actually want the max, we want i-2 which will be the "minimum point"
+    d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    #d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
+    #d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
+    imin = np.argmax(d2) - 1
+    #imin = np.argmin(fc)
     imax = np.argmax(fc)
 
     # estimate the slope and intercept of the linear line drawn between the min and max values of fc
