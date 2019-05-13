@@ -60,6 +60,39 @@ def dm_delay(dm, lo, hi):
     return delay
 
 
+def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=0.0, coherent=False):
+    """Estimate the restoring function width in milliseconds based on the time sampling and (possible) residual DM
+    delay in channels
+
+    :param nbins: number of bins in profile [int]
+    :param period: pulsar rotation period in ms [float]
+    :param freq: centre observing frequency in GHz [float]
+    :param bw: observing bandwidth in GHz [float]
+    :param nchan: number of frequency channels [int]
+    :param dm: dispersion measure of pulsar (in cm^-3 pc) [float]
+    :param coherent: boolean switch as to whether coherent dedispersion was used [boolean]
+    :return: restoring function width in milliseconds [float]
+    """
+    time_sample = float(period) / nbins
+
+    if coherent:
+        # If coherently de-dispersed, then there will be no DM-smearing component to the response function
+        dmdelay = 0.0
+    else:
+        # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
+        # nominal width of the restoring function
+        chan_bw = float(bw) / nchan
+        lochan = freq - (bw / 2.0)
+        hichan = lochan + chan_bw
+
+        dmdelay = dm_delay(dm, lochan, hichan)
+
+    # Restoring width in milliseconds
+    restoring_width = np.sqrt(time_sample ** 2 + dmdelay ** 2)
+
+    return restoring_width
+
+
 def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
@@ -88,7 +121,7 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     return recon
 
 
-def clean(data, tau, results,
+def clean(data, tau,
           on_start=0, on_end=255, period=100.0, rest_width=1.0,
           gain=0.05, threshold=3.0, pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
@@ -105,7 +138,7 @@ def clean(data, tau, results,
     :param threshold: threshold defining when to terminate the clean procedure [float]
     :param pbftype: type of pbf to use in the deconvolution [str]
     :param iter_limit: number of iterations after which to terminate the clean procedure regardless of convergence [int]
-    :return:
+    :return: a dictionary containing various parameters and output of the cleaning process [dictionary]
     """
 
     nbins = len(data)
@@ -201,13 +234,9 @@ def clean(data, tau, results,
     gamma = fom.skewness(clean_components, period=period)
     recon = reconstruct(data, clean_components, period=period, rest_width=rest_width)
 
-    # Append a dictionary of all the necessary information to the results list (which is global and accessible across
-    # multiple processes in the case of a search
-    results.append(
-        dict(
+    return dict(
             profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
             niter=niter, cc=clean_components, ncc=n_unique,
             nf=nf, off_rms=off_rms, off_mean=off_mean, on_rms=on_rms, fr=fr, gamma=gamma,
             recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
         )
-    )

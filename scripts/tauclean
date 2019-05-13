@@ -42,7 +42,6 @@ if __name__ == "__main__":
     # Option group specifying configuration of deconvolution, and how to perform it (i.e. to search or not)
     clean_group = parser.add_argument_group("Deconvolution options")
     tau_group = clean_group.add_mutually_exclusive_group(required=True)
-
     tau_group.add_argument("-t", "--tau", metavar="tau", type=float, default=None,
                            help="pulse broadening time scale, tau, to use when deconvolving (in ms)")
 
@@ -65,13 +64,19 @@ if __name__ == "__main__":
     clean_group.add_argument("--iterlim", metavar="N", type=int, default=None,
                              help="limit the number of iterations for each trial value, regardless of convergence")
 
+    clean_group.add_argument("--ncpus", type=int, default=mp.cpu_count(),
+                             help="Number of CPUs to use for parallel trial deconvolution")
+
     other_group = parser.add_argument_group("Other options")
     other_group.add_argument("--debug", action="store_true", default=False,
                              help="increase verbosity and print DEBUG info")
+
     other_group.add_argument("--nowrite", action="store_true", default=False,
                              help="do not write reconstruction or clean component list to files")
+
     other_group.add_argument("--noplot", action="store_true", default=False,
                              help="do not produce any plots")
+
     other_group.add_argument("--truth", type=float, default=None,
                              help="true tau value (for debugging)")
 
@@ -110,28 +115,9 @@ if __name__ == "__main__":
     else:
         taus = [args.tau]
 
-    # If coherently de-dispersed, then there will be no smearing component to the response function
-    time_sample = args.period / len(data)
-    logger.info("Time sampling: {0:g} ms".format(time_sample))
-
-    if args.coherent:
-        dmdelay = 0.0
-    else:
-        # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
-        # nominal width of the restoring function
-        chan_bw = args.bw / args.nchan
-        logger.info("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
-        lochan = args.freq - (args.bw / 2)
-        hichan = lochan + chan_bw
-        logger.info("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
-
-        dmdelay = clean.dm_delay(args.dm, lochan, hichan)
-        if args.coherent:
-            logger.debug("Coherently de-dispersed data - no dispersive smearing")
-        else:
-            logger.info("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
-
-    restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
+    # Calculate the restoring function width
+    restoring_width = clean.get_restoring_width(len(data), period=args.period, freq=args.freq, bw=args.bw,
+                                                nchan=args.nchan, dm=args.dm, coherent=False)
     logger.info("Restoring function width: {0:g} ms".format(restoring_width))
 
     # Check the on-pulse boundaries
@@ -145,29 +131,27 @@ if __name__ == "__main__":
     clean_kwargs = dict(period=args.period, gain=args.gain, pbftype=args.kernel, iter_limit=args.iterlim,
                         threshold=args.thresh, on_start=onpulse_start, on_end=onpulse_end, rest_width=restoring_width)
 
-    with mp.Manager() as manager:
-        # Create a list that can be seen by all processes
-        results = manager.list()
-        processes = []
+    # Create a master list that will contain the output for each trial
+    result_list = []
 
-        # Spawn processes, one per trial value of tau
-        for t in taus:
-            logger.debug("Spawning process to clean with tau={0:g} ms".format(t))
-            p = mp.Process(target=clean.clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
+    # Define a small callback function that simply appends output from Pool workers to "master" list
+    def log_results(worker_results):
+        result_list.append(worker_results)
 
-        # Wait for processes to finish and rejoin the master process
-        logger.debug("Waiting for {0} process(es) to finish...".format(len(processes)))
-        for p in processes:
-            p.join()
+    # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
+    pool = mp.Pool(processes=args.ncpus)
+    logger.info("Created pool of {0} workers".format(args.ncpus))
 
-        # Sort the results based on the trial value of tau
-        logger.debug("Sorting output...")
-        sorted_results = sorted(results, key=lambda r: r['tau'])
+    for t in taus:
+        logger.debug("Started async. job for tau={0:g} ms".format(t))
+        results = pool.apply_async(clean.clean, (data, t), clean_kwargs, callback=log_results)
 
-    import pickle
-    pickle.dump(sorted_results, open("large_test_sample.p", "wb"))
+    pool.close()
+    pool.join()
+
+    # Sort the results based on the trial value of tau
+    logger.debug("Sorting output...")
+    sorted_results = sorted(result_list, key=lambda r: r['tau'])
 
     frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
     logger.info("Attempting to estimate best fit tau and errors")
