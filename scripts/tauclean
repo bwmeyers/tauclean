@@ -72,6 +72,8 @@ if __name__ == "__main__":
                              help="do not write reconstruction or clean component list to files")
     other_group.add_argument("--noplot", action="store_true", default=False,
                              help="do not produce any plots")
+    other_group.add_argument("--truth", type=float, default=None,
+                             help="true tau value (for debugging)")
 
     args = parser.parse_args()
 
@@ -164,16 +166,29 @@ if __name__ == "__main__":
         logger.debug("Sorting output...")
         sorted_results = sorted(results, key=lambda r: r['tau'])
 
+    import pickle
+    pickle.dump(sorted_results, open("large_test_sample.p", "wb"))
+
+    frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
+    logger.info("Attempting to estimate best fit tau and errors")
+    logger.info("   based on f_r: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
+        frbest, frerr, 100 * frerr / frbest))
+    logger.info("   based on f_c: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
+        fcbest, fcerr, 100 * fcerr / fcbest))
+
+    if np.isnan(frerr) or np.isnan(fcerr):
+        logger.warning("Undefined uncertainties. "
+                       "Review figures of merit - perhaps expand your search bounds?")
+
+    if (frerr > frbest) or (fcerr > fcbest):
+        logger.warning("Uncertainties are larger than nominal values. "
+                       "Review figures of merit - perhaps expand your search bounds?")
+
     # Make all of the diagnostic plots and write relevant files to disk
     if not args.noplot:
         if len(taus) > 1:
-            frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
-            logger.info("Best fit tau")
-            logger.info("   based on f_r: {0:.3f} +/- {1:.3f} ms".format(frbest, frerr))
-            logger.info("   based on f_c: {0:.3f} +/- {1:.3f} ms".format(fcbest, fcerr))
-
             logger.debug("Plotting figures of merit...")
-            plotting.plot_figures_of_merit(sorted_results)
+            plotting.plot_figures_of_merit(sorted_results, args.truth)
 
         logger.debug("Plotting clean residuals...")
         plotting.plot_clean_residuals(data, sorted_results, period=args.period)
