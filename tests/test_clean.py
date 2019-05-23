@@ -191,6 +191,7 @@ def test_clean_iteration_limit():
                         iter_limit=ilim)
 
     sorted_results = run_clean(taus, data, clean_kwargs)
+    print(sorted_results)
 
     if not isinstance(sorted_results, list):
         raise AssertionError()
@@ -246,3 +247,6 @@ def test_clean_uniform():
     #print(intrinsic.max(), sorted_results[0]["recon"].max(), abs(intrinsic.max() - sorted_results[0]["recon"].max()))
     #if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
     #    raise AssertionError()
+
+if __name__ == "__main__":
+    test_clean_iteration_limit()
