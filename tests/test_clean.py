@@ -23,20 +23,19 @@ def run_clean(taus, data, clean_kwargs):
     Utility function that just runs the clean algorithm using the multiprocessing module, as done in the `tauclean`
     script
     """
+    result_list = []
 
-    with mp.Manager() as manager:
-        results = manager.list()
-        processes = []
+    def log_results(worker_results):
+        result_list.append(worker_results)
 
-        for t in taus:
-            p = mp.Process(target=clean, args=(data, t, results), kwargs=clean_kwargs)
-            p.start()
-            processes.append(p)
+    pool = mp.Pool(processes=1)
+    for t in taus:
+        results = pool.apply_async(clean, (data, t), clean_kwargs, callback=log_results)
 
-        for p in processes:
-            p.join()
+    pool.close()
+    pool.join()
 
-        sorted_results = sorted(results, key=lambda r: r['tau'])
+    sorted_results = sorted(result_list, key=lambda r: r['tau'])
 
     return sorted_results
 
