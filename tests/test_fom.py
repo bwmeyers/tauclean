@@ -169,3 +169,5 @@ def test_skewness_cluster_left_skew():
 
     if not gamma < -1:
         raise AssertionError()
+
+# TODO: write tests for error estimation
