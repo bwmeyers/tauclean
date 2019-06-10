@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_figures_of_merit(results):
+def plot_figures_of_merit(results, true_tau=None):
 
     taus = np.array([a["tau"] for a in results])
     f_r = np.array([a["fr"] for a in results])
@@ -24,6 +24,7 @@ def plot_figures_of_merit(results):
     labels = [r"$f_r$", r"$\Gamma$", r"$f_c$", r"$\sigma_{\rm offc}/\sigma_{\rm off}$", r"$N_{unique}$",
               r"$N_f / N_{\rm total}$"
               ]
+    min_tau_step = min(np.diff(taus))
 
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
 
@@ -37,12 +38,15 @@ def plot_figures_of_merit(results):
         if abs(min(y)) > 0 and abs(max(y)/min(y)) > 100:
             ax.set_yscale("symlog")
 
+        if true_tau is not None:
+            ax.axvline(true_tau)
+
     for ax in axs.flatten()[3:]:
         ax.set_xlabel(r"$\rm \tau\ (ms)$", fontsize=20)
-        ax.set_xlim(0.9*min(taus), 1.1*max(taus))
+        ax.set_xlim(min(taus) - min_tau_step, max(taus) + min_tau_step)
 
     plt.subplots_adjust(hspace=0.1, wspace=0.25)
-    plt.savefig("tauclean_fom.png", dpi=300, bbox_inches="tight")
+    plt.savefig("tauclean_fom.png", bbox_inches="tight")
     plt.close(fig)
 
     # In this case, also write the figures of merit to a file
@@ -96,7 +100,7 @@ def plot_clean_residuals(initial_data, results, period=100.0):
         ax2.legend()
         ax2.set_ylim(-10 * off_rms[i], 10 * off_rms[i])
 
-        plt.savefig("clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.savefig("clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
@@ -124,7 +128,7 @@ def plot_clean_components(results, period=100.0):
 total components added = {1}, unique components = {2}""".format(t, ntotal[i], nunique[i])
         ax.set_title(title)
 
-        plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
@@ -151,7 +155,7 @@ def plot_reconstruction(results, original, period=100.0):
         ax.set_ylabel("Intensity")
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
 
-        plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), dpi=300, bbox_inches="tight")
+        plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)

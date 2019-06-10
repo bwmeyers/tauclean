@@ -54,7 +54,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     return f
 
 
-def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=100.0, nrot=10, snr=500.0):
+def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
     :param intrinsic: intrinsic emission profile [array-like]
@@ -62,30 +62,29 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
     :param rest_width: width of the telescope restoring function/impulse response (units: ms) [float]
     :param pbftype: the type of PBF to use [string]
     :param period: pulsar period (units: ms)
-    :param nrot: number of rotations over which to simulate PBF [int]
     :param snr: nominal desired signal-to-noise ration
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
     """
 
     nbins = len(intrinsic)
 
-    pbf_x = period * np.linspace(0, nrot, nrot * nbins)
     x = period * np.linspace(0, 1, nbins)
 
     # Decide which PBF model to use
     if pbftype == "thin":
-        h = pbf.thin(pbf_x, tau)
+        h = pbf.thin(x, tau)
     elif pbftype == "thick":
-        h = pbf.thick(pbf_x, tau)
+        h = pbf.thick(x, tau)
     elif pbftype == "uniform":
-        h = pbf.uniform(pbf_x, tau)
+        h = pbf.uniform(x, tau)
+    elif pbftype == "thick_exp":
+        h = pbf.thick_exp(x, tau)
+    elif pbftype == "uniform_exp":
+        h = pbf.uniform_exp(x, tau)
     else:
         logger.error("Invalid PBF type requested ({0})".format(pbftype))
         logger.warning("Defaulting to thin screen...")
-        h = pbf.thin(pbf_x, tau)
-
-    # Roll the PBF by 5% of the profile length just so that the rising edge is visible
-    h = np.roll(h, int(0.05 * nbins))
+        h = pbf.thin(x, tau)
 
     restoring_function = gaussian(x, x[x.size // 2], rest_width)
 
@@ -97,17 +96,16 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
     response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(restoring_function)
-    response = response[nbins//2:-nbins//2+1]
+    response = response[nbins // 2:-(nbins // 2) + 1]
 
     scattered = np.convolve(response, h, mode="full") / np.sum(h)
 
     offset = np.argmax(intrinsic) - np.argmax(scattered)
-    scattered = np.roll(scattered, offset)[:nrot*nbins]
+    scattered = np.roll(scattered, offset)[:nbins]
     scattered = scattered[:nbins]
 
     # And do the same for the PBF, then re-normalise it to unit area
-    h = np.sum(np.split(h, nrot), axis=0)
-    h = h / simps(x=pbf_x[:nbins], y=h)
+    h = h / simps(x=x, y=h)
 
     # Add noise to produce a profile with approximately the signal-to-noise ratio desired
     observed = np.copy(scattered) + np.random.normal(0, scattered.max() / snr, scattered.size)
@@ -174,9 +172,9 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, pe
     ax_obs.plot(x, observed, color="k")
     ax_obs.set_title(r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(snr))
     ax_obs.axhline(0, ls="--", color="r", lw=1)
-    ax_obs.set_xlim(0, x.max())
     step = x.max() / 16.0
     ax_obs.set_xticks(np.arange(0, x.max() + step, step))
+    ax_obs.set_xlim(0, x.max())
     ax_obs.grid(True)
     ax_obs.set_xlabel(xlab)
 
@@ -265,7 +263,7 @@ if __name__ == "__main__":
     logger.info("Restoring function width: {0:g} ms".format(restoring_width))
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
-    k, s, o = create_scattered_profile(i, args.t, restoring_width, pbftype=args.k, period=args.p, nrot=10, snr=args.s)
+    k, s, o = create_scattered_profile(i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s)
 
     plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, period=args.p, xunit=args.x, save=args.saveplot)
 

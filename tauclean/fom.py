@@ -4,6 +4,7 @@ Licensed under the Academic Free License version 3.0
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 __all__ = ["consistence", "positivity", "skewness"]
@@ -87,3 +88,86 @@ def skewness(ccs, period=100.0):
         gamma = moment_3 / (moment_2 ** 1.5)
 
     return gamma
+
+
+def get_error(results, dchi=1.0, plot=False):
+    """Estimate the uncertainty of each tau trial value by determining the value of tau that results in an increase
+    in f_c of unity (or in this case, by whatever value is specified in `dchi` (typically we would expect 1). This is
+    basically equivalent to a reduced chi-square approach.
+
+    Here, we use a second-order finite difference in an attempt to figure out where the maximum inflection begins, which
+    nominally corresponds to the best-fitting tau.
+
+    :param results: a list of dictionaries, one per trial tau [array-like]
+    :param dchi: the offset from the minimum of either fr or fc that is used to constrain the error [float]
+    :param plot: switch that will produce a diagnostic plot of how the errors were calculated if True [boolean]
+    :returns tuple (fr_tau, fr_err, fc_tau, fc_err)
+            WHERE
+            fr_tau: the best-fitting tau estimated from the fr figure of merit [float]
+            fr_err: the error based on fr [float]
+            fc_tau: the best-fitting tau estimated from the fc figure of merit [float]
+            fc_err: the error based on fc [float]
+    """
+
+    taus = np.array([a["tau"] for a in results])
+    fr = np.array([a["fr"] for a in results])
+    gamma = np.array([a["gamma"] for a in results])
+    fc = (fr + gamma) / 2.0
+
+    min_tau_step = min(np.diff(taus))
+
+    # rather than the minimum of fr, work out the point of greatest inflection using finite differences
+    d2 = [(fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    imin = np.argmax(d2) - 1
+    imax = np.argmax(fr)
+
+    # estimate the slope and intercept of the linear line drawn between the min and max values of fr
+    frm = (fr[imax] - fr[imin]) / (taus[imax] - taus[imin])
+    frc = fr[imin] - frm * taus[imin]
+
+    fr_tauval = ((fr[imin] + dchi) - frc) / frm
+
+    # the nominal uncertainty is then the difference between this and the best-fit tau
+    fr_err = abs(fr_tauval - taus[imin])
+    fr_tau = taus[imin]
+
+    # Also try to get error estimates from fc
+    d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    #d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
+    #d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
+    imin = np.argmax(d2) - 1
+    #imin = np.argmin(fc)
+    imax = np.argmax(fc)
+
+    # estimate the slope and intercept of the linear line drawn between the min and max values of fc
+    fcm = (fc[imax] - fc[imin]) / (taus[imax] - taus[imin])
+    fcc = fc[imin] - fcm * taus[imin]
+
+    fc_tauval = ((fc[imin] + dchi) - fcc) / fcm
+
+    # the nominal uncertainty is then the difference between this and the best-fit tau
+    fc_err = abs(fc_tauval - taus[imin])
+    fc_tau = taus[imin]
+
+    if plot:
+        fig, (ax, ax2) = plt.subplots(1, 2)
+        ax.plot(taus, fr, ls="none", marker="o")
+        x = np.linspace(0.9 * taus[imin], 1.5 * fr_tauval, 10)
+        ax.plot(x, frm * x + frc, ls=":")
+        ax.axhline(fr[imin] + dchi)
+        ax.axvline(fr_tauval)
+        ax.set_title("fr")
+        ax.set_ylim(None, 1.1*fr.max())
+
+        ax2.plot(taus, fc, ls="none", marker="o")
+        x = np.linspace(0.9 * taus[imin], 1.5 * fc_tauval, 10)
+        ax2.plot(x, fcm * x + fcc, ls=":")
+        ax2.axhline(fc[imin] + dchi)
+        ax2.axvline(fc_tauval)
+        ax2.set_title("fc")
+        ax2.set_ylim(None, 1.1*fc.max())
+
+        plt.savefig("tauclean_err_diag.png")
+        plt.close(fig)
+
+    return fr_tau, fr_err, fc_tau, fc_err

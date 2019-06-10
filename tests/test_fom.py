@@ -7,10 +7,16 @@ Test fom.py
 """
 
 import numpy as np
+import os
+import pickle
 
-from tauclean.fom import consistence, positivity, skewness
+from tauclean.fom import consistence, positivity, skewness, get_error
 
 np.random.seed(12345)
+
+TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
+
+results = pickle.load(open("{TEST_DIR}/test_sample.p".format(TEST_DIR=TEST_DIR), "rb"))
 
 
 def test_consistence_zeros():
@@ -163,3 +169,5 @@ def test_skewness_cluster_left_skew():
 
     if not gamma < -1:
         raise AssertionError()
+
+# TODO: write tests for error estimation
