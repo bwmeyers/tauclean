@@ -4,6 +4,7 @@ Licensed under the Academic Free License version 3.0
 """
 
 import numpy as np
+from scipy.integrate import simps
 
 from . import fom
 from . import pbf
@@ -60,7 +61,7 @@ def dm_delay(dm, lo, hi):
     return delay
 
 
-def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=0.0, coherent=False):
+def get_response(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=0.0, coherent=False):
     """Estimate the restoring function width in milliseconds based on the time sampling and (possible) residual DM
     delay in channels
 
@@ -71,7 +72,10 @@ def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=
     :param nchan: number of frequency channels [int]
     :param dm: dispersion measure of pulsar (in cm^-3 pc) [float]
     :param coherent: boolean switch as to whether coherent dedispersion was used [boolean]
-    :return: restoring function width in milliseconds [float]
+    :return: (rest_width, inst_resp) [tuple]
+            WHERE
+            rest_width: equivalent restoring function width in ms [float]
+            inst_resp: the instrumental response [array-like]
     """
     time_sample = float(period) / nbins
 
@@ -90,7 +94,47 @@ def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=
     # Restoring width in milliseconds
     restoring_width = np.sqrt(time_sample ** 2 + dmdelay ** 2)
 
-    return restoring_width
+    if dmdelay == 0:
+        # Don't bother doing anything else, the instrumental response is identical to the time sampling
+        instrumental_response = np.zeros(nbins)
+        instrumental_response[nbins // 2] = 1.0
+    else:
+        # Of the two time scales, figure out which is smaller so that we can upsample to ensure that it is resolved
+        narrowest_factor = min([time_sample, dmdelay])
+
+        desired_tres = 10.0e-3  # 10 us (since we're operating in ms)
+
+        if narrowest_factor < desired_tres:
+            # The narrowest factor is less than 10 microseconds, so just increase resolution by a factor of 16
+            ratio = 16
+        else:
+            # Determine the up/down sampling ration such that the convolution happens at a time resolution
+            # of < 10 microseconds
+            ratio = 1 << (int(np.ceil(time_sample / desired_tres)) - 1).bit_length()
+
+        # Figure out how many upsampled bins (rounding up) each time scale corresponds to
+        upsampled_tsamp_bins = int(np.ceil(ratio * (time_sample / narrowest_factor)))
+        upsampled_tdisp_bins = int(np.ceil(ratio * (dmdelay / narrowest_factor)))
+
+        # Make rectangular functions for each of these time scales
+        length = ratio * nbins
+        tpb = np.zeros(length)
+        tdm = np.zeros_like(tpb)
+
+        offset = length // 2  # offset the "signal" to roughly the centre
+
+        tpb[offset:offset + upsampled_tsamp_bins] = 1.0
+        tdm[offset:offset + upsampled_tdisp_bins] = 1.0
+
+        # Convolve the above response functions to form the total instrument response
+        r = np.convolve(tpb, tdm, mode="full")
+        r = r[offset:-offset + 1]
+        r = r / simps(y=r, dx=1)  # normalise to unit area
+
+        # Re-sample the outcome to have the same shape as the input data
+        instrumental_response = r[::ratio]
+
+    return restoring_width, instrumental_response
 
 
 def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
@@ -121,15 +165,14 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     return recon
 
 
-def clean(data, tau,
+def clean(data, tau, inst_resp,
           on_start=0, on_end=255, period=100.0, rest_width=1.0,
           gain=0.05, threshold=3.0, pbftype="thin", iter_limit=None):
     """The primary function of tauclean that actually does the deconvolution.
 
     :param data: original pulse profile [array-like]
     :param tau: scattering time scale to use when calculating the PBF [float]
-    :param results: a list that is defined globally such that it can be written to by this function and remain available
-    after completion (in the case of multiple processes, this will be a multiprocessing.Manager list object) [list]
+    :param inst_resp: the instrumental response with the same shape as the data [array-like]
     :param on_start: starting bin of the on-pulse region [int]
     :param on_end: end bin of the on-pulse region [int]
     :param period: pulsar period (in ms) [float]
@@ -171,10 +214,6 @@ def clean(data, tau,
     # Pre-allocate an array the same size as profile where the clean component locations and amplitudes will be stored
     clean_components = np.zeros_like(profile)
 
-    # Pre-calculate a delta-function
-    delta = np.zeros_like(profile)
-    delta[delta.size // 2] = 1.0
-
     # Initialise counters and boolean checks
     loop = True
     niter = 0
@@ -200,8 +239,9 @@ def clean(data, tau,
         # Also add this component to the total list of clean components which will be used in the profile reconstruction
         clean_components[imax] += dmax * gain
 
-        # Create a profile component from the model PBF and the clean component
-        component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(filter_guess)
+        # Create a profile component from the model PBF, the instrumental response, and the clean component
+        component = np.convolve(temp_clean_comp, inst_resp, mode="full") / np.sum(inst_resp)
+        component = np.convolve(component, filter_guess, mode="full") / np.sum(filter_guess)
 
         # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
         # profile the constructed component is removed
@@ -236,7 +276,7 @@ def clean(data, tau,
 
     return dict(
             profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
-            niter=niter, cc=clean_components, ncc=n_unique,
+            niter=niter, cc=clean_components, ncc=n_unique, inst_resp=inst_resp,
             nf=nf, off_rms=off_rms, off_mean=off_mean, on_rms=on_rms, fr=fr, gamma=gamma,
             recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
         )

@@ -116,8 +116,9 @@ if __name__ == "__main__":
         taus = [args.tau]
 
     # Calculate the restoring function width
-    restoring_width = clean.get_restoring_width(len(data), period=args.period, freq=args.freq, bw=args.bw,
-                                                nchan=args.nchan, dm=args.dm, coherent=False)
+    logger.debug("Pre-calculating the instrument response function and restoring function width")
+    restoring_width, inst_resp = clean.get_response(len(data), period=args.period, freq=args.freq, bw=args.bw,
+                                                    nchan=args.nchan, dm=args.dm, coherent=False)
     logger.info("Restoring function width: {0:g} ms".format(restoring_width))
 
     # Check the on-pulse boundaries
@@ -184,5 +185,5 @@ if __name__ == "__main__":
         plotting.plot_reconstruction(sorted_results, data, period=args.period)
 
     if not args.nowrite:
-        logger.debug("Writing output products (reconstruction + clean component list")
+        logger.debug("Writing output products (reconstruction + clean component list)")
         plotting.write_output(sorted_results)
