@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simps
 
-from tauclean import pbf
-from tauclean.clean import gaussian, dm_delay
+from tauclean import pbf, clean
 
 logger = logging.getLogger(__name__)
 # Set the seed for numpy's random functions so that the same result can be retrieved each time
@@ -48,18 +47,18 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     # For each (position, width, amplitude) set, create and add a component to the intrinsic pulse profile
     for p, w, a in zip(position, width, amps):
         logger.debug("added gaussian comp.")
-        g = gaussian(x, float(p), float(w))
+        g = clean.gaussian(x, float(p), float(w))
         f += a * (g / g.max())
 
     return f
 
 
-def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0):
+def create_scattered_profile(intrinsic, tau, inst_resp, pbftype="thin", period=100.0, snr=500.0):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
     :param intrinsic: intrinsic emission profile [array-like]
     :param tau: desired pulse broadening time scale (units: ms) [float]
-    :param rest_width: width of the telescope restoring function/impulse response (units: ms) [float]
+    :param inst_resp: instrumental response function [array-like]
     :param pbftype: the type of PBF to use [string]
     :param period: pulsar period (units: ms)
     :param snr: nominal desired signal-to-noise ration
@@ -86,7 +85,6 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
         logger.warning("Defaulting to thin screen...")
         h = pbf.thin(x, tau)
 
-    restoring_function = gaussian(x, x[x.size // 2], rest_width)
 
     # The observed pulse shape is the convolution of:
     # - the true signal,
@@ -95,7 +93,7 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
     # - some Gaussian radiometer noise
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(restoring_function)
+    response = np.convolve(intrinsic, inst_resp, mode="full") / np.sum(inst_resp)
     response = response[nbins // 2:-(nbins // 2) + 1]
 
     scattered = np.convolve(response, h, mode="full") / np.sum(h)
@@ -245,6 +243,9 @@ if __name__ == "__main__":
         logger.warning("Provided different number of amplitudes than positions, selecting first amplitude")
         args.a = [args.a[0]]
 
+    restoring_width, inst_resp = clean.get_response(args.n, period=args.p, freq=args.freq, bw=args.bw,
+                                                    nchan=args.nchan, dm=args.dm, coherent=False)
+
     time_sample = args.p / args.n
     logger.info("Time sample: {0:g} ms".format(time_sample))
     # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
@@ -256,14 +257,11 @@ if __name__ == "__main__":
     hichan = lochan + chan_bw
 
     logger.debug("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
-    dmdelay = dm_delay(args.dm, lochan, hichan)
+    dmdelay = clean.dm_delay(args.dm, lochan, hichan)
     logger.info("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
 
-    restoring_width = np.sqrt(time_sample ** 2 + dmdelay ** 2)
-    logger.info("Restoring function width: {0:g} ms".format(restoring_width))
-
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
-    k, s, o = create_scattered_profile(i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s)
+    k, s, o = create_scattered_profile(i, args.t, inst_resp, pbftype=args.k, period=args.p, snr=args.s)
 
     plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, period=args.p, xunit=args.x, save=args.saveplot)
 

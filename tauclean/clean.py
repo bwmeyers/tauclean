@@ -151,18 +151,18 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     x = period * np.linspace(0, 1, nbins)
 
     # Calculate the nominal effective time sampling, including effects of dispersion smearing in channels
-    impulse_response = gaussian(x, x[x.size // 2], rest_width)
+    restoring_func = gaussian(x, x[x.size // 2], rest_width)
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
-    recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
-    recon = recon[nbins//2:-nbins//2+1]  # actually just want the middle bit of this
+    recon = np.convolve(ccs, restoring_func, mode="full") / np.sum(restoring_func)
+    recon = recon[nbins // 2:-(nbins // 2) + 1]  # actually just want the middle bit of this
 
     # Roll this such that the maximum value corresponds to the maximum value of the initial profile
     offset = np.argmax(profile) - np.argmax(recon)
     recon = np.roll(recon, offset)
 
-    return recon
+    return recon, restoring_func
 
 
 def clean(data, tau, inst_resp,
@@ -272,11 +272,11 @@ def clean(data, tau, inst_resp,
     nf = fom.consistence(profile, off_rms, off_mean=off_mean, onlims=(on_start, on_end))
     fr = fom.positivity(profile, off_rms)
     gamma = fom.skewness(clean_components, period=period)
-    recon = reconstruct(data, clean_components, period=period, rest_width=rest_width)
+    recon, rest_func = reconstruct(data, clean_components, period=period, rest_width=rest_width)
 
     return dict(
             profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
-            niter=niter, cc=clean_components, ncc=n_unique, inst_resp=inst_resp,
+            niter=niter, cc=clean_components, ncc=n_unique, inst_resp=inst_resp, rest_func=rest_func,
             nf=nf, off_rms=off_rms, off_mean=off_mean, on_rms=on_rms, fr=fr, gamma=gamma,
             recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
         )

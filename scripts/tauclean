@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     for t in taus:
         logger.debug("Started async. job for tau={0:g} ms".format(t))
-        results = pool.apply_async(clean.clean, (data, t), clean_kwargs, callback=log_results)
+        results = pool.apply_async(clean.clean, (data, t, inst_resp), clean_kwargs, callback=log_results)
 
     pool.close()
     pool.join()
