@@ -172,4 +172,4 @@ def write_output(results):
 
     for i, t in enumerate(taus):
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
-        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recon_resid[i], header="# Recon Residuals")
+        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recon_resid[i], header="Recon Residuals")
