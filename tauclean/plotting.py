@@ -167,8 +167,9 @@ def write_output(results):
     taus = np.array([a["tau"] for a in results])
     clean_components = np.array([a["cc"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
-    recons = np.array([a["recon"] for a in results])
+    # stack the reconstructed profile with the residuals
+    recon_resid = np.array([np.column_stack((a["recon"], a["profile"])) for a in results])
 
     for i, t in enumerate(taus):
         np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
-        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recons[i])
+        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recon_resid[i], header="# Recon Residuals")
