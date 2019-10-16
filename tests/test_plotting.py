@@ -73,10 +73,11 @@ def test_write_output():
     np.testing.assert_array_equal(lines, results[2]['cc'])
 
     try:
-        lines = np.loadtxt("reconstruction_thin-tau20.txt")
+        lines = np.genfromtxt("reconstruction_thin-tau20.txt")
     except FileNotFoundError:
         raise AssertionError()
 
-    np.testing.assert_array_equal(lines, results[2]['recon'])
+    np.testing.assert_array_equal(lines[:, 0], results[2]['recon'])
+    np.testing.assert_array_equal(lines[:, 1], results[2]['profile'])
 
     remove_files("*.txt")
