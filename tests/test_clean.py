@@ -12,7 +12,7 @@ import os
 import numpy as np
 from scipy.integrate import simps
 
-from tauclean.clean import keep_cleaning, dm_delay, gaussian, reconstruct, clean
+from tauclean.clean import keep_cleaning, dm_delay, gaussian, reconstruct, clean, get_response
 
 np.random.seed(12345)
 TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
@@ -117,7 +117,7 @@ def test_reconstruction_simple():
     ccs = np.zeros_like(x)
     ccs[500] = 1.0
 
-    recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
+    recon, _ = reconstruct(profile, ccs, period=period, rest_width=rest_width)
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
@@ -127,7 +127,7 @@ def test_reconstruction_simple():
     ccs = np.zeros_like(x)
     ccs[400] = 1.0
 
-    recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
+    recon, _ = reconstruct(profile, ccs, period=period, rest_width=rest_width)
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
@@ -149,7 +149,7 @@ def test_reconstruction_multiple():
     ccs[500] = 1.0
     ccs[650] = 1.0
 
-    recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
+    recon, _ = reconstruct(profile, ccs, period=period, rest_width=rest_width)
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
@@ -160,7 +160,7 @@ def test_reconstruction_multiple():
     ccs[450] = 1.0
     ccs[600] = 1.0
 
-    recon = reconstruct(profile, ccs, period=period, rest_width=rest_width)
+    recon, _ = reconstruct(profile, ccs, period=period, rest_width=rest_width)
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
@@ -183,6 +183,8 @@ def test_clean_invalid_pbf():
 def test_clean_iteration_limit():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(TEST_DIR=TEST_DIR))
+    restoring_width, inst_resp = get_response(data.size, period=500, freq=args.freq, bw=args.bw,
+                                                    nchan=args.nchan, dm=args.dm, coherent=False)
     taus = [20.0]
     ilim = 1000
 
