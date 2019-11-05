@@ -23,7 +23,7 @@ Included in package are two scripts:
 
 ### `simulate`
 
-Primarily for testing purposes, the `simulate` script will got through the nominal steps taken in the CLEAN code itself 
+Primarily for testing purposes, the `simulate` script will go through the nominal steps taken in the CLEAN code itself 
 to produce a scattered pulsar profile by convolving the user-described intrinsic pulse profile with a specified 
 scattering kernel. 
 
