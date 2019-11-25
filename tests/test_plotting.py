@@ -39,6 +39,13 @@ def test_plot_fom():
     remove_files("*.png")
 
 
+def test_plot_fom_truth():
+    if not plot_figures_of_merit(results, true_tau=20.0):
+        raise AssertionError()
+
+    remove_files("*.png")
+
+
 def test_plot_clean_residuals():
     if not plot_clean_residuals(init_data, results, period=500.0):
         raise AssertionError()
