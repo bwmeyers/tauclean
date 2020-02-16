@@ -6,9 +6,9 @@ Licensed under the Academic Free License version 3.0
 Test plotting.py
 """
 
+import glob
 import os
 import pickle
-import glob
 
 import numpy as np
 

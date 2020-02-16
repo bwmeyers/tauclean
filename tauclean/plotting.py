@@ -8,7 +8,6 @@ import numpy as np
 
 
 def plot_figures_of_merit(results, true_tau=None):
-
     taus = np.array([a["tau"] for a in results])
     f_r = np.array([a["fr"] for a in results])
     gamma = np.array([a["gamma"] for a in results])
@@ -35,7 +34,7 @@ def plot_figures_of_merit(results, true_tau=None):
         if min(y) < 0:
             ax.axhline(0, lw=1, ls=":", color="k")
 
-        if abs(min(y)) > 0 and abs(max(y)/min(y)) > 100:
+        if abs(min(y)) > 0 and abs(max(y) / min(y)) > 100:
             ax.set_yscale("symlog")
 
         if true_tau is not None:
@@ -62,7 +61,6 @@ def plot_figures_of_merit(results, true_tau=None):
 
 
 def plot_clean_residuals(initial_data, results, period=100.0):
-
     nbins = len(initial_data)
     x = period * np.linspace(0, 1, nbins)
     dt = period / nbins
@@ -108,7 +106,6 @@ def plot_clean_residuals(initial_data, results, period=100.0):
 
 
 def plot_clean_components(results, period=100.0):
-
     taus = np.array([a["tau"] for a in results])
     clean_components = np.array([a["cc"] for a in results])
     nunique = np.array([a["ncc"] for a in results])
@@ -136,7 +133,6 @@ total components added = {1}, unique components = {2}""".format(t, ntotal[i], nu
 
 
 def plot_reconstruction(results, original, period=100.0):
-
     taus = np.array([a["tau"] for a in results])
     recons = np.array([a["recon"] for a in results])
     residuals = np.array([a["profile"] for a in results])
@@ -163,7 +159,6 @@ def plot_reconstruction(results, original, period=100.0):
 
 
 def write_output(results):
-
     taus = np.array([a["tau"] for a in results])
     clean_components = np.array([a["cc"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])

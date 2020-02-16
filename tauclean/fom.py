@@ -3,9 +3,8 @@ Copyright 2019 Bradley Meyers
 Licensed under the Academic Free License version 3.0
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 __all__ = ["consistence", "positivity", "skewness"]
 
@@ -133,10 +132,10 @@ def get_error(results, dchi=1.0, plot=False):
 
     # Also try to get error estimates from fc
     d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
-    #d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
-    #d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
+    # d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
+    # d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
     imin = np.argmax(d2) - 1
-    #imin = np.argmin(fc)
+    # imin = np.argmin(fc)
     imax = np.argmax(fc)
 
     # estimate the slope and intercept of the linear line drawn between the min and max values of fc
@@ -157,7 +156,7 @@ def get_error(results, dchi=1.0, plot=False):
         ax.axhline(fr[imin] + dchi)
         ax.axvline(fr_tauval)
         ax.set_title("fr")
-        ax.set_ylim(None, 1.1*fr.max())
+        ax.set_ylim(None, 1.1 * fr.max())
 
         ax2.plot(taus, fc, ls="none", marker="o")
         x = np.linspace(0.9 * taus[imin], 1.5 * fc_tauval, 10)
@@ -165,7 +164,7 @@ def get_error(results, dchi=1.0, plot=False):
         ax2.axhline(fc[imin] + dchi)
         ax2.axvline(fc_tauval)
         ax2.set_title("fc")
-        ax2.set_ylim(None, 1.1*fc.max())
+        ax2.set_ylim(None, 1.1 * fc.max())
 
         plt.savefig("tauclean_err_diag.png")
         plt.close(fig)

@@ -6,7 +6,6 @@ Licensed under the Academic Free License version 3.0
 import numpy as np
 from scipy.integrate import simps
 
-
 __all__ = ["thin", "thick", "thick_exp", "uniform", "uniform_exp"]
 
 

@@ -6,11 +6,12 @@ Licensed under the Academic Free License version 3.0
 Test fom.py
 """
 
-import numpy as np
 import os
 import pickle
 
-from tauclean.fom import consistence, positivity, skewness, get_error
+import numpy as np
+
+from tauclean.fom import consistence, positivity, skewness
 
 np.random.seed(12345)
 
@@ -116,7 +117,7 @@ def test_skewness_single():
     nbins = 256
     period = 10.0
     cc_amps = np.zeros(nbins)
-    cc_amps[nbins//2] = 50
+    cc_amps[nbins // 2] = 50
 
     gamma = skewness(cc_amps, period=period)
 

@@ -5,9 +5,9 @@ Licensed under the Academic Free License version 3.0
 """
 
 import argparse
+import logging
 import multiprocessing as mp
 import sys
-import logging
 
 import numpy as np
 
@@ -137,6 +137,7 @@ if __name__ == "__main__":
     # Define a small callback function that simply appends output from Pool workers to "master" list
     def log_results(worker_results):
         result_list.append(worker_results)
+
 
     # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
     pool = mp.Pool(processes=args.ncpus)

@@ -110,7 +110,7 @@ def test_reconstruction_simple():
     rest_width = 0.1
 
     x = np.linspace(0, 1, nbins) * period
-    profile = np.exp(-(x - x[500])**2/(2 * rest_width ** 2))
+    profile = np.exp(-(x - x[500]) ** 2 / (2 * rest_width ** 2))
     profile = profile / profile.max()
 
     # test when clean component is aligned with peak of the profile
@@ -233,7 +233,7 @@ def test_clean_thick():
 def test_clean_uniform():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k uniform -t 3.0 -p 500
     data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
-    #intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
+    # intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
     taus = [3.0]
 
     clean_kwargs = dict(period=500, gain=0.05, pbftype="uniform", on_start=128, on_end=700, rest_width=500 / len(data))
@@ -243,6 +243,6 @@ def test_clean_uniform():
     check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     # TODO currently the "uniform" PBF produces weird amplitudes in the reconstruction that I don't full understand...
-    #print(intrinsic.max(), sorted_results[0]["recon"].max(), abs(intrinsic.max() - sorted_results[0]["recon"].max()))
-    #if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
+    # print(intrinsic.max(), sorted_results[0]["recon"].max(), abs(intrinsic.max() - sorted_results[0]["recon"].max()))
+    # if not (abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()):
     #    raise AssertionError()

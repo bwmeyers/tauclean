@@ -5,8 +5,8 @@ Licensed under the Academic Free License version 3.0
 """
 
 import argparse
-import sys
 import logging
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dm", metavar="DM", type=float, default=0.0,
                         help="pulsar dispersion measure (in pc/cm^3) - use zero to simulate coherent de-dispersion")
     parser.add_argument("-f", "--freq", metavar="freq", type=float, default=1.4,
-                           help="centre observing frequency (in GHz)")
+                        help="centre observing frequency (in GHz)")
     parser.add_argument("-b", "--bw", metavar="BW", type=float, default=0.256, help="observing bandwidth (in GHz)")
     parser.add_argument("--nchan", type=int, default=1024, help="number of frequency channels")
     parser.add_argument("-s", type=float, default=500.0, help="Desired signal-to-noise ratio")
