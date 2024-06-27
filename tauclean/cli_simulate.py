@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import argparse
@@ -12,8 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simps
 
-from tauclean import pbf
-from tauclean.clean import gaussian, dm_delay
+from . import pbf
+from .clean import gaussian, dm_delay
 
 logger = logging.getLogger(__name__)
 # Set the seed for numpy's random functions so that the same result can be retrieved each time
@@ -54,7 +55,9 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     return f
 
 
-def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0):
+def create_scattered_profile(
+    intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0
+):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
     :param intrinsic: intrinsic emission profile [array-like]
@@ -95,8 +98,10 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
     # - some Gaussian radiometer noise
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(restoring_function)
-    response = response[nbins // 2:-(nbins // 2) + 1]
+    response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(
+        restoring_function
+    )
+    response = response[nbins // 2 : -(nbins // 2) + 1]
 
     scattered = np.convolve(response, h, mode="full") / np.sum(h)
 
@@ -108,12 +113,25 @@ def create_scattered_profile(intrinsic, tau, rest_width, pbftype="thin", period=
     h = h / simps(x=x, y=h)
 
     # Add noise to produce a profile with approximately the signal-to-noise ratio desired
-    observed = np.copy(scattered) + np.random.normal(0, scattered.max() / snr, scattered.size)
+    observed = np.copy(scattered) + np.random.normal(
+        0, scattered.max() / snr, scattered.size
+    )
 
     return h, scattered, observed
 
 
-def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, period=100.0, xunit="time", save=False):
+def plot_simulated(
+    intrinsic,
+    kernel,
+    scattered,
+    observed,
+    tau,
+    pbftype,
+    snr,
+    period=100.0,
+    xunit="time",
+    save=False,
+):
     """Plot the simulated data in the desired units
 
     :param intrinsic: intrinsic emission profile [array-like]
@@ -170,7 +188,9 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, pe
     ax_sim.set_xlabel(xlab)
 
     ax_obs.plot(x, observed, color="k")
-    ax_obs.set_title(r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(snr))
+    ax_obs.set_title(
+        r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(snr)
+    )
     ax_obs.axhline(0, ls="--", color="r", lw=1)
     step = x.max() / 16.0
     ax_obs.set_xticks(np.arange(0, x.max() + step, step))
@@ -180,7 +200,11 @@ def plot_simulated(intrinsic, kernel, scattered, observed, tau, pbftype, snr, pe
 
     plt.subplots_adjust(wspace=0.25)
     if save:
-        plt.savefig("simulated-profile_{0}-tau{1:g}.png".format(pbftype, tau), dpi=300, bbox_inches="tight")
+        plt.savefig(
+            "simulated-profile_{0}-tau{1:g}.png".format(pbftype, tau),
+            dpi=300,
+            bbox_inches="tight",
+        )
     else:
         plt.show()
 
@@ -202,47 +226,111 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     np.savetxt("sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered)
     np.savetxt("sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
 
-    logger.info("Wrote final scattered profile to: sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau))
+    logger.info(
+        "Wrote final scattered profile to: sim-profile_{0}-tau{1:g}.txt".format(
+            pbftype, tau
+        )
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
     parser.add_argument("-n", type=int, default=2048, help="number of profile bins")
-    parser.add_argument("-m", nargs="+", type=int, help="centre positions of gaussian components (in bins)")
-    parser.add_argument("-w", nargs="+", type=float, help="widths (std. dev.) of gaussian components (in bins)")
-    parser.add_argument("-a", nargs="+", type=float, help="amplitudes of gaussian components")
-    parser.add_argument("-k", default="thin", help="PBF kernel type", choices=pbf.__all__)
-    parser.add_argument("-t", type=float, default=5.0, help="scattering time scale (in ms)")
+    parser.add_argument(
+        "-m",
+        nargs="+",
+        type=int,
+        help="centre positions of gaussian components (in bins)",
+    )
+    parser.add_argument(
+        "-w",
+        nargs="+",
+        type=float,
+        help="widths (std. dev.) of gaussian components (in bins)",
+    )
+    parser.add_argument(
+        "-a", nargs="+", type=float, help="amplitudes of gaussian components"
+    )
+    parser.add_argument(
+        "-k", default="thin", help="PBF kernel type", choices=pbf.__all__
+    )
+    parser.add_argument(
+        "-t", type=float, default=5.0, help="scattering time scale (in ms)"
+    )
     parser.add_argument("-p", type=float, default=100.0, help="pulsar period (in ms)")
-    parser.add_argument("-d", "--dm", metavar="DM", type=float, default=0.0,
-                        help="pulsar dispersion measure (in pc/cm^3) - use zero to simulate coherent de-dispersion")
-    parser.add_argument("-f", "--freq", metavar="freq", type=float, default=1.4,
-                        help="centre observing frequency (in GHz)")
-    parser.add_argument("-b", "--bw", metavar="BW", type=float, default=0.256, help="observing bandwidth (in GHz)")
-    parser.add_argument("--nchan", type=int, default=1024, help="number of frequency channels")
-    parser.add_argument("-s", type=float, default=500.0, help="Desired signal-to-noise ratio")
-    parser.add_argument("-x", default="bins", choices=["time", "phase", "bins"], help="plot x-axis units")
-    parser.add_argument("--saveplot", action="store_true", default=False,
-                        help="Switch to save plot to disk rather than just show")
-    parser.add_argument("--write", action="store_true", default=False,
-                        help="Write the data (intrinsic, kernel, convolution and noisy) to files")
+    parser.add_argument(
+        "-d",
+        "--dm",
+        metavar="DM",
+        type=float,
+        default=0.0,
+        help="pulsar dispersion measure (in pc/cm^3) - use zero to simulate coherent de-dispersion",
+    )
+    parser.add_argument(
+        "-f",
+        "--freq",
+        metavar="freq",
+        type=float,
+        default=1.4,
+        help="centre observing frequency (in GHz)",
+    )
+    parser.add_argument(
+        "-b",
+        "--bw",
+        metavar="BW",
+        type=float,
+        default=0.256,
+        help="observing bandwidth (in GHz)",
+    )
+    parser.add_argument(
+        "--nchan", type=int, default=1024, help="number of frequency channels"
+    )
+    parser.add_argument(
+        "-s", type=float, default=500.0, help="Desired signal-to-noise ratio"
+    )
+    parser.add_argument(
+        "-x",
+        default="bins",
+        choices=["time", "phase", "bins"],
+        help="plot x-axis units",
+    )
+    parser.add_argument(
+        "--saveplot",
+        action="store_true",
+        default=False,
+        help="Switch to save plot to disk rather than just show",
+    )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        default=False,
+        help="Write the data (intrinsic, kernel, convolution and noisy) to files",
+    )
 
     args = parser.parse_args()
 
     logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s :: %(name)s :: %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s :: %(name)s :: %(levelname)s - %(message)s"
+    )
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
     if len(args.w) != len(args.m):
-        logger.warning("Provided different number of widths than positions, selecting first width")
+        logger.warning(
+            "Provided different number of widths than positions, selecting first width"
+        )
         args.w = [args.w[0]]
 
     if len(args.a) != len(args.m):
-        logger.warning("Provided different number of amplitudes than positions, selecting first amplitude")
+        logger.warning(
+            "Provided different number of amplitudes than positions, selecting first amplitude"
+        )
         args.a = [args.a[0]]
 
     time_sample = args.p / args.n
@@ -255,17 +343,32 @@ if __name__ == "__main__":
     lochan = args.freq - (args.bw / 2)
     hichan = lochan + chan_bw
 
-    logger.debug("Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000))
+    logger.debug(
+        "Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000)
+    )
     dmdelay = dm_delay(args.dm, lochan, hichan)
     logger.info("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
 
-    restoring_width = np.sqrt(time_sample ** 2 + dmdelay ** 2)
+    restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
     logger.info("Restoring function width: {0:g} ms".format(restoring_width))
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
-    k, s, o = create_scattered_profile(i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s)
+    k, s, o = create_scattered_profile(
+        i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s
+    )
 
-    plot_simulated(i, k, s, o, args.t, args.k, snr=args.s, period=args.p, xunit=args.x, save=args.saveplot)
+    plot_simulated(
+        i,
+        k,
+        s,
+        o,
+        args.t,
+        args.k,
+        snr=args.s,
+        period=args.p,
+        xunit=args.x,
+        save=args.saveplot,
+    )
 
     if args.write:
         write_data(i, k, s, o, args.k, args.t)

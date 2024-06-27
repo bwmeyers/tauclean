@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import argparse
@@ -11,7 +12,7 @@ import sys
 
 import numpy as np
 
-from tauclean import pbf, plotting, clean, fom
+from . import pbf, plotting, clean, fom
 
 logger = logging.getLogger(__name__)
 
