@@ -26,8 +26,8 @@ requires-python = ">=3.9"
 dependencies = ["numpy>=1.16.0,<2.0", "matplotlib>=3.0.0", "scipy>=1.2.0"]
 
 [project.scripts]
-tauclean = "scripts/tauclean:main"
-simulate = "scripts/simulate:main"
+tauclean = "tauclean.cli_tauclean:main"
+simulate = "tauclean.cli_simulate:main"
 
 [project.urls]
 Repository = "https://github.com/bwmeyers/tauclean.git"
