@@ -12,9 +12,18 @@ import sys
 
 import numpy as np
 
-from . import pbf, plotting, clean, fom
+from . import plotting, clean, fom
 
+
+# Set up the logging configuration
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fmt = logging.Formatter("%(asctime)s :: %(name)s :: %(levelname)s - %(message)s")
+
+ch = logging.StreamHandler()
+ch.setFormatter(fmt)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
 def main():
@@ -159,13 +168,6 @@ def main():
 
     other_group = parser.add_argument_group("Other options")
     other_group.add_argument(
-        "--debug",
-        action="store_true",
-        default=False,
-        help="Increase verbosity and print DEBUG info.",
-    )
-
-    other_group.add_argument(
         "--nowrite",
         action="store_true",
         default=False,
@@ -182,22 +184,10 @@ def main():
 
     args = parser.parse_args()
 
-    logger.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    if args.debug:
-        ch.setLevel(logging.DEBUG)
-    else:
-        ch.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s :: %(name)s :: %(levelname)s - %(message)s"
-    )
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-    execute_tauclean(args, logger)
+    execute_tauclean(args)
 
 
-def execute_tauclean(args, logger):
+def execute_tauclean(args):
     # Load the data (assumes single column, 1 bin per line)
     data = np.loadtxt(args.profile)
     nbins = len(data)
@@ -272,7 +262,7 @@ def execute_tauclean(args, logger):
 
     # Define a small callback function that simply appends output from Pool workers to "master" list
     def log_results(worker_results):
-        logger.debug(f"    finished work for tau={worker_results['tau']}")
+        logger.debug(f"Finished work for tau={worker_results['tau']}")
         result_list.append(worker_results)
 
     logger.info("Starting deconvolution cycles...")
