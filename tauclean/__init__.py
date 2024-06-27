@@ -1,6 +1,7 @@
-#! /usr/bin/env python3
 """
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 
 ----------------
 tauclean module.
@@ -9,7 +10,6 @@ tauclean module.
 This module contains the functionality required by the 'tauclean' and 'simulate' scripts.
 """
 
-__all__ = ["fom", "pbf", "clean", "plotting"]
 __author__ = "Bradley W. Meyers"
 __version__ = "1.0.0"
 __citation__ = """

@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import numpy as np

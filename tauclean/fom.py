@@ -1,12 +1,12 @@
+#!/usr/bin/env python3
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-__all__ = ["consistence", "positivity", "skewness"]
 
 
 def consistence(residuals, off_rms, off_mean=0, onlims=(0, 255), thresh=3.0):

@@ -1,12 +1,12 @@
+#!/usr/bin/env python3
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import numpy as np
-from scipy.integrate import simps
-
-__all__ = ["thin", "thick", "thick_exp", "uniform", "uniform_exp"]
+from scipy.integrate import simpson as simps
 
 
 def thin(x, tau, x0=0):
