@@ -42,9 +42,11 @@ def thick(x, tau, x0=0):
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
     # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
-    old_settings = np.seterr(divide='ignore', invalid='ignore')
+    old_settings = np.seterr(divide="ignore", invalid="ignore")
 
-    h = np.sqrt((np.pi * tau) / (4 * t ** 3)) * np.exp(-tau * np.pi ** 2 / (16 * t))  # normalised
+    h = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
+        -tau * np.pi**2 / (16 * t)
+    )  # normalised
 
     np.seterr(**old_settings)  # restore old behaviour
 
@@ -71,15 +73,17 @@ def thick_exp(x, tau, x0=0):
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
     # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
-    old_settings = np.seterr(divide='ignore', invalid='ignore')
+    old_settings = np.seterr(divide="ignore", invalid="ignore")
 
-    h1 = np.sqrt((np.pi * tau) / (4 * t ** 3)) * np.exp(-tau * np.pi ** 2 / (16 * t))  # normalised
+    h1 = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
+        -tau * np.pi**2 / (16 * t)
+    )  # normalised
     h1[np.where(np.isnan(h1))] = 0  # nominally, h1 is not defined at t <= 0
 
     np.seterr(**old_settings)  # restore old behaviour
 
     # now figure out the peak of the PBF and begin the normal exponential decay after the appropriate delay
-    pbfmax = x0 + np.pi ** 2 * tau / 24  # in ms
+    pbfmax = x0 + np.pi**2 * tau / 24  # in ms
     pbfmax_idx = np.where(t >= pbfmax)[0][0]
     decay_start_idx = np.where(t >= pbfmax + expdelay * tau)[0][0]
     decay_amp = h1[decay_start_idx]
@@ -124,9 +128,11 @@ def uniform(x, tau, x0=0):
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
     # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
-    old_settings = np.seterr(divide='ignore', invalid='ignore')
+    old_settings = np.seterr(divide="ignore", invalid="ignore")
 
-    h = np.sqrt((np.pi ** 5 * tau ** 3) / (8 * t ** 5)) * np.exp(-tau * np.pi ** 2 / (4 * t))  # normalised
+    h = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
+        -tau * np.pi**2 / (4 * t)
+    )  # normalised
 
     np.seterr(**old_settings)  # restore old behaviour
 
@@ -153,15 +159,17 @@ def uniform_exp(x, tau, x0=0):
 
     # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
     # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
-    old_settings = np.seterr(divide='ignore', invalid='ignore')
+    old_settings = np.seterr(divide="ignore", invalid="ignore")
 
-    h1 = np.sqrt((np.pi ** 5 * tau ** 3) / (8 * t ** 5)) * np.exp(-tau * np.pi ** 2 / (4 * t))  # normalised
+    h1 = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
+        -tau * np.pi**2 / (4 * t)
+    )  # normalised
     h1[np.where(np.isnan(h1))] = 0  # nominally, h1 is not defined at t <= 0
 
     np.seterr(**old_settings)  # restore old behaviour
 
     # now figure out the peak of the PBF and begin the normal exponential decay after the appropriate delay
-    pbfmax = x0 + np.pi ** 2 * tau / 10  # in ms
+    pbfmax = x0 + np.pi**2 * tau / 10  # in ms
     pbfmax_idx = np.where(t >= pbfmax)[0][0]
     decay_start_idx = np.where(t >= pbfmax + expdelay * tau)[0][0]
     decay_amp = h1[decay_start_idx]

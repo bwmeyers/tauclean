@@ -54,7 +54,7 @@ def positivity(res, off_rms, m=1.0, x=1.5):
         # safe from a plotting perspective as NaNs are ignored
         return np.nan
 
-    f_r = (m / (len(res) * off_rms ** 2)) * np.sum(u * res ** 2)
+    f_r = (m / (len(res) * off_rms**2)) * np.sum(u * res**2)
 
     return f_r
 
@@ -84,7 +84,7 @@ def skewness(ccs, period=100.0):
         # calculate the skewness in the usual way
         gamma = 0
     else:
-        gamma = moment_3 / (moment_2 ** 1.5)
+        gamma = moment_3 / (moment_2**1.5)
 
     return gamma
 
@@ -116,7 +116,9 @@ def get_error(results, dchi=1.0, plot=False):
     min_tau_step = min(np.diff(taus))
 
     # rather than the minimum of fr, work out the point of greatest inflection using finite differences
-    d2 = [(fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    d2 = [
+        (fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)
+    ]  # central 2nd order difference
     imin = np.argmax(d2) - 1
     imax = np.argmax(fr)
 
@@ -131,7 +133,9 @@ def get_error(results, dchi=1.0, plot=False):
     fr_tau = taus[imin]
 
     # Also try to get error estimates from fc
-    d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]  # central 2nd order difference
+    d2 = [
+        (fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)
+    ]  # central 2nd order difference
     # d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
     # d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
     imin = np.argmax(d2) - 1

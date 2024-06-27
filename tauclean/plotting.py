@@ -15,14 +15,23 @@ def plot_figures_of_merit(results, true_tau=None):
     ncomps = [a["niter"] for a in results]
     nuniq = [a["ncc"] for a in results]
     on_rms = [a["on_rms"] for a in results]
-    sigma_c = np.array([a["off_rms"] for a in results]) / np.array([a["init_rms"] for a in results])
-    nf_frac = np.array([a["nf"] for a in results]) / np.array([a["nbins"] for a in results])
+    sigma_c = np.array([a["off_rms"] for a in results]) / np.array(
+        [a["init_rms"] for a in results]
+    )
+    nf_frac = np.array([a["nf"] for a in results]) / np.array(
+        [a["nbins"] for a in results]
+    )
 
     params = [f_r, gamma, f_c, sigma_c, nuniq, nf_frac]
 
-    labels = [r"$f_r$", r"$\Gamma$", r"$f_c$", r"$\sigma_{\rm offc}/\sigma_{\rm off}$", r"$N_{unique}$",
-              r"$N_f / N_{\rm total}$"
-              ]
+    labels = [
+        r"$f_r$",
+        r"$\Gamma$",
+        r"$f_c$",
+        r"$\sigma_{\rm offc}/\sigma_{\rm off}$",
+        r"$N_{unique}$",
+        r"$N_f / N_{\rm total}$",
+    ]
     min_tau_step = min(np.diff(taus))
 
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
@@ -50,11 +59,28 @@ def plot_figures_of_merit(results, true_tau=None):
 
     # In this case, also write the figures of merit to a file
     header_fmt = "{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<8}  {5:<5}  {6:<5} {7:<7}\n"
-    line_fmt = "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
+    line_fmt = (
+        "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
+    )
     with open("tauclean_fom.txt", "w") as f:
-        f.write(header_fmt.format("#tau", "f_r", "gamma", "f_c", "sigma_c", "ncomps", "nuniq", "nf_frac"))
+        f.write(
+            header_fmt.format(
+                "#tau", "f_r", "gamma", "f_c", "sigma_c", "ncomps", "nuniq", "nf_frac"
+            )
+        )
         for i, t in enumerate(taus):
-            f.write(line_fmt.format(t, f_r[i], gamma[i], f_c[i], sigma_c[i], ncomps[i], nuniq[i], nf_frac[i]))
+            f.write(
+                line_fmt.format(
+                    t,
+                    f_r[i],
+                    gamma[i],
+                    f_c[i],
+                    sigma_c[i],
+                    ncomps[i],
+                    nuniq[i],
+                    nf_frac[i],
+                )
+            )
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
@@ -77,7 +103,9 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     neg_thresh = off_mean - thresh * off_rms
 
     for i, t in enumerate(taus):
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex="all", figsize=plt.figaspect(0.25))
+        fig, (ax1, ax2) = plt.subplots(
+            nrows=1, ncols=2, sharex="all", figsize=plt.figaspect(0.25)
+        )
         fig.suptitle(r"Residuals ($\rm \tau = {0:g}\ ms$)".format(t))
 
         ax1.plot(x, initial_data, label="initial data")
@@ -98,7 +126,10 @@ def plot_clean_residuals(initial_data, results, period=100.0):
         ax2.legend()
         ax2.set_ylim(-10 * off_rms[i], 10 * off_rms[i])
 
-        plt.savefig("clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
+        plt.savefig(
+            "clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t),
+            bbox_inches="tight",
+        )
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
@@ -122,10 +153,15 @@ def plot_clean_components(results, period=100.0):
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Clean component amplitude")
         title = r"""$\rm \tau = {0:g}\ ms$
-total components added = {1}, unique components = {2}""".format(t, ntotal[i], nunique[i])
+total components added = {1}, unique components = {2}""".format(
+            t, ntotal[i], nunique[i]
+        )
         ax.set_title(title)
 
-        plt.savefig("clean_components_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
+        plt.savefig(
+            "clean_components_{0}-tau{1:g}.png".format(pbftype[i], t),
+            bbox_inches="tight",
+        )
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
@@ -151,7 +187,9 @@ def plot_reconstruction(results, original, period=100.0):
         ax.set_ylabel("Intensity")
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
 
-        plt.savefig("reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight")
+        plt.savefig(
+            "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight"
+        )
         plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
@@ -163,8 +201,17 @@ def write_output(results):
     clean_components = np.array([a["cc"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
     # stack the reconstructed profile with the residuals
-    recon_resid = np.array([np.column_stack((a["recon"], a["profile"])) for a in results])
+    recon_resid = np.array(
+        [np.column_stack((a["recon"], a["profile"])) for a in results]
+    )
 
     for i, t in enumerate(taus):
-        np.savetxt("clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t), clean_components[i])
-        np.savetxt("reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t), recon_resid[i], header="Recon Residuals")
+        np.savetxt(
+            "clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t),
+            clean_components[i],
+        )
+        np.savetxt(
+            "reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t),
+            recon_resid[i],
+            header="Recon Residuals",
+        )
