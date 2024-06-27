@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools >= 61.0", "oldest-supported-numpy"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "tauclean"
+description = "An implementation of a pulsar profile deconvolution method for the recovery of intrisic profile shapes and ISM broadening functions."
+dynamic = ["version"] # dynamically grab version from the package
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+authors = [{ name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" }]
+maintainers = [
+    { name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+
+    "License :: OSI Approved :: Academic Free License (AFL)",
+
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Intended Audience :: Science/Research",
+]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.16.0,<2.0", "matplotlib>=3.0.0", "scipy>=1.2.0"]
+
+[project.scripts]
+tauclean = "tauclean.cli_tauclean:main"
+simulate = "tauclean.cli_simulate:main"
+
+[project.urls]
+Repository = "https://github.com/bwmeyers/tauclean.git"
+Issues = "https://github.com/bwmeyers/tauclean/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "tauclean.__version__" }

@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 """
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+########################################################
+# Licensed under the Academic Free License version 3.0 #
+########################################################
 """
 
 import numpy as np
@@ -40,7 +42,7 @@ def gaussian(x, mu, sigma):
     """
 
     amp = 1.0 / (np.sqrt(2 * np.pi) * sigma)
-    g = amp * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    g = amp * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
 
     return g
 
@@ -60,7 +62,9 @@ def dm_delay(dm, lo, hi):
     return delay
 
 
-def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=0.0, coherent=False):
+def get_restoring_width(
+    nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=0.0, coherent=False
+):
     """Estimate the restoring function width in milliseconds based on the time sampling and (possible) residual DM
     delay in channels
 
@@ -88,7 +92,7 @@ def get_restoring_width(nbins, period=100.0, freq=1.4, bw=0.256, nchan=1024, dm=
         dmdelay = dm_delay(dm, lochan, hichan)
 
     # Restoring width in milliseconds
-    restoring_width = np.sqrt(time_sample ** 2 + dmdelay ** 2)
+    restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
 
     return restoring_width
 
@@ -112,7 +116,9 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
     recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
-    recon = recon[nbins // 2:-nbins // 2 + 1]  # actually just want the middle bit of this
+    recon = recon[
+        nbins // 2 : -nbins // 2 + 1
+    ]  # actually just want the middle bit of this
 
     # Roll this such that the maximum value corresponds to the maximum value of the initial profile
     offset = np.argmax(profile) - np.argmax(recon)
@@ -121,9 +127,18 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     return recon
 
 
-def clean(data, tau,
-          on_start=0, on_end=255, period=100.0, rest_width=1.0,
-          gain=0.05, threshold=3.0, pbftype="thin", iter_limit=None):
+def clean(
+    data,
+    tau,
+    on_start=0,
+    on_end=255,
+    period=100.0,
+    rest_width=1.0,
+    gain=0.05,
+    threshold=3.0,
+    pbftype="thin",
+    iter_limit=None,
+):
     """The primary function of tauclean that actually does the deconvolution.
 
     :param data: original pulse profile [array-like]
@@ -201,7 +216,9 @@ def clean(data, tau,
         clean_components[imax] += dmax * gain
 
         # Create a profile component from the model PBF and the clean component
-        component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(filter_guess)
+        component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(
+            filter_guess
+        )
 
         # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
         # profile the constructed component is removed
@@ -210,7 +227,9 @@ def clean(data, tau,
 
         # In this case, we have done the full convolution to accurately capture the shape of the PBF, now just grab
         # the profile-length
-        component = component[:nbins]  # this is ok because we moved to be back in the correct position already
+        component = component[
+            :nbins
+        ]  # this is ok because we moved to be back in the correct position already
 
         # Finally, subtract the component from the profile
         cleaned = profile - component
@@ -235,8 +254,22 @@ def clean(data, tau,
     recon = reconstruct(data, clean_components, period=period, rest_width=rest_width)
 
     return dict(
-        profile=profile, init_rms=init_rms, nbins=nbins, tau=tau, pbftype=pbftype,
-        niter=niter, cc=clean_components, ncc=n_unique,
-        nf=nf, off_rms=off_rms, off_mean=off_mean, on_rms=on_rms, fr=fr, gamma=gamma,
-        recon=recon, threshold=threshold, on_start=on_start, on_end=on_end
+        profile=profile,
+        init_rms=init_rms,
+        nbins=nbins,
+        tau=tau,
+        pbftype=pbftype,
+        niter=niter,
+        cc=clean_components,
+        ncc=n_unique,
+        nf=nf,
+        off_rms=off_rms,
+        off_mean=off_mean,
+        on_rms=on_rms,
+        fr=fr,
+        gamma=gamma,
+        recon=recon,
+        threshold=threshold,
+        on_start=on_start,
+        on_end=on_end,
     )
