@@ -1,8 +1,5 @@
 # tauclean: pulse broadening deconvolution
 
-[![Build Status](https://travis-ci.com/bwmeyers/tauclean.svg?branch=master)](https://travis-ci.com/bwmeyers/tauclean)
-[![Coverage Status](https://coveralls.io/repos/github/bwmeyers/tauclean/badge.svg?branch=master)](https://coveralls.io/github/bwmeyers/tauclean?branch=master)
-
 An implementation of the pulsar profile deconvolution method described by
 [Bhat et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Original description paper")
 for the recovery of intrisic profile shapes and ISM broadening functions.
