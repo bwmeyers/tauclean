@@ -25,7 +25,7 @@ def main():
 
     parser.add_argument(
         "profile",
-        help="the data file containing the folder pulse profile (single column)",
+        help="The data file containing the folded pulse profile. Expects a single column, one value per line.",
     )
 
     # Option group for observation and processing details
@@ -35,14 +35,14 @@ def main():
         metavar="P",
         type=float,
         default=100.0,
-        help="pulsar period (in ms)",
+        help="Pulsar period (in ms)",
     )
 
     obs_group.add_argument(
         "--coherent",
         action="store_true",
         default=False,
-        help="whether the data are coherently de-dispersed (affects calculation of effective time "
+        help="Whether the data are coherently de-dispersed (affects calculation of effective time "
         "sampling for reconstruction). If yes, DM and frequency options are not required.",
     )
 
@@ -52,16 +52,16 @@ def main():
         metavar="DM",
         type=float,
         default=0.0,
-        help="pulsar dispersion measure (in pc/cm^3)",
+        help="Pulsar dispersion measure (in pc/cm^3).",
     )
 
     obs_group.add_argument(
         "-f",
         "--freq",
-        metavar="freq",
+        metavar="FREQ",
         type=float,
         default=1.4,
-        help="centre observing frequency (in GHz)",
+        help="Centre frequency of central channel (in GHz).",
     )
 
     obs_group.add_argument(
@@ -70,11 +70,16 @@ def main():
         metavar="BW",
         type=float,
         default=0.256,
-        help="observing bandwidth (in GHz)",
+        help="Observing bandwidth (in GHz).",
     )
 
     obs_group.add_argument(
-        "--nchan", type=int, default=1024, help="number of frequency channels"
+        "-n",
+        "--nchan",
+        metavar="NCHAN",
+        type=int,
+        default=1024,
+        help="Number of frequency channels across the bandwidth.",
     )
 
     # Option group specifying configuration of deconvolution, and how to perform it (i.e. to search or not)
@@ -86,17 +91,17 @@ def main():
         metavar="tau",
         type=float,
         default=None,
-        help="pulse broadening time scale, tau, to use when deconvolving (in ms)",
+        help="Nominal pulse broadening time scale to use when deconvolving profile (in ms)",
     )
 
     tau_group.add_argument(
         "-s",
         "--search",
-        metavar=("min", "max", "step"),
+        metavar=("MIN", "MAX", "STEP_SIZE"),
         nargs=3,
         type=float,
         default=None,
-        help="pulse broadening time scale search parameters to use: "
+        help="Pulse broadening time scale search parameters: "
         "minimum tau (in ms), maximum tau (in ms), step (in ms)",
     )
 
@@ -105,8 +110,9 @@ def main():
         "--kernel",
         metavar="pbf",
         default="thin",
-        choices=pbf.__all__,
-        help="type of PBF kernel to use during the deconvolution",
+        choices=["thin", "thick", "uniform", "thick_exp", "uniform_exp"],
+        help="The type of PBF kernel to use during the deconvolution."
+        "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
 
     clean_group.add_argument(
@@ -116,7 +122,7 @@ def main():
         metavar=("start", "end"),
         type=int,
         default=(0, 255),
-        help="boundaries of the on-pulse region",
+        help="Boundaries of the on-pulse region.",
     )
 
     clean_group.add_argument(
@@ -124,7 +130,7 @@ def main():
         metavar="sigma",
         type=float,
         default=3.0,
-        help="on-pulse data threshold (units of off-pulse rms noise) to stop cleaning",
+        help="On-pulse data threshold (units of off-pulse rms noise) to stop cleaning.",
     )
 
     clean_group.add_argument(
@@ -133,7 +139,7 @@ def main():
         metavar="gain",
         type=float,
         default=0.05,
-        help="loop gain (scaling factor << 1) used to weight component subtraction",
+        help="Loop gain (scaling factor << 1) used to weight component subtraction. Values around 0.05 are empirically good.",
     )
 
     clean_group.add_argument(
@@ -141,14 +147,14 @@ def main():
         metavar="N",
         type=int,
         default=None,
-        help="limit the number of iterations for each trial value, regardless of convergence",
+        help="Limit the number of iterations for each trial value, regardless of convergence factors.",
     )
 
     clean_group.add_argument(
         "--ncpus",
         type=int,
         default=mp.cpu_count(),
-        help="Number of CPUs to use for parallel trial deconvolution",
+        help="Number of CPUs to use for parallel trial deconvolution.",
     )
 
     other_group = parser.add_argument_group("Other options")
@@ -156,22 +162,22 @@ def main():
         "--debug",
         action="store_true",
         default=False,
-        help="increase verbosity and print DEBUG info",
+        help="Increase verbosity and print DEBUG info.",
     )
 
     other_group.add_argument(
         "--nowrite",
         action="store_true",
         default=False,
-        help="do not write reconstruction or clean component list to files",
+        help="Do not write reconstructed profiles or clean components disk.",
     )
 
     other_group.add_argument(
-        "--noplot", action="store_true", default=False, help="do not produce any plots"
+        "--noplot", action="store_true", default=False, help="Do not produce any plots."
     )
 
     other_group.add_argument(
-        "--truth", type=float, default=None, help="true tau value (for debugging)"
+        "--truth", type=float, default=None, help="Truth value (for debugging)."
     )
 
     args = parser.parse_args()
@@ -194,6 +200,7 @@ def main():
 def execute_tauclean(args, logger):
     # Load the data (assumes single column, 1 bin per line)
     data = np.loadtxt(args.profile)
+    nbins = len(data)
 
     # Check tau values and adjust if necessary
     if args.tau is None:
@@ -214,10 +221,15 @@ def execute_tauclean(args, logger):
             taus = np.arange(tau_min, tau_max + step, step)
     else:
         taus = [args.tau]
+    ntaus = len(taus)
+    if ntaus > 1:
+        logger.info(
+            f"Will search {ntaus} scattering time scales, {tau_min}-{tau_max} ms, inclusive"
+        )
 
     # Calculate the restoring function width
     restoring_width = clean.get_restoring_width(
-        len(data),
+        nbins,
         period=args.period,
         freq=args.freq,
         bw=args.bw,
@@ -225,7 +237,15 @@ def execute_tauclean(args, logger):
         dm=args.dm,
         coherent=False,
     )
-    logger.info("Restoring function width: {0:g} ms".format(restoring_width))
+    chan_bw = args.bw / args.nchan
+    chan_cntr_low = args.freq - args.bw / 2
+    chan_ledge_lo = chan_cntr_low - chan_bw / 2
+    chan_ledge_hi = chan_cntr_low + chan_bw / 2
+    worst_intrachan_smear = clean.dm_delay(args.dm, chan_ledge_lo, chan_ledge_hi)
+    logger.info(f"Native profile time resolution: {args.period/nbins:g} ms")
+    if not args.coherent:
+        logger.info(f"DM smearing within lowest channel: {worst_intrachan_smear:g} ms")
+    logger.info(f"Restoring function width: {restoring_width:g} ms")
 
     # Check the on-pulse boundaries
     onpulse_start = args.onpulse[0]
@@ -233,6 +253,7 @@ def execute_tauclean(args, logger):
     if onpulse_end <= onpulse_start:
         logger.error("On-pulse end boundary must be > start boundary")
         sys.exit()
+    logger.info(f"Deconvolving data only from bins: {onpulse_start}-{onpulse_end}")
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
@@ -251,11 +272,13 @@ def execute_tauclean(args, logger):
 
     # Define a small callback function that simply appends output from Pool workers to "master" list
     def log_results(worker_results):
+        logger.debug(f"    finished work for tau={worker_results['tau']}")
         result_list.append(worker_results)
 
+    logger.info("Starting deconvolution cycles...")
     # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
     pool = mp.Pool(processes=args.ncpus)
-    logger.info("Created pool of {0} workers".format(args.ncpus))
+    logger.debug("Created pool of {0} workers".format(args.ncpus))
 
     for t in taus:
         logger.debug("Started async. job for tau={0:g} ms".format(t))
@@ -265,7 +288,7 @@ def execute_tauclean(args, logger):
     pool.join()
 
     # Sort the results based on the trial value of tau
-    logger.debug("Sorting output...")
+    logger.info("Done. Sorting output...")
     sorted_results = sorted(result_list, key=lambda r: r["tau"])
 
     frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
