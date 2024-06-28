@@ -4,11 +4,21 @@
 # Licensed under the Academic Free License version 3.0 #
 ########################################################
 """
-
+import logging
 import numpy as np
+import matplotlib.pyplot as plt
 
 from . import fom
 from . import pbf
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fmt = logging.Formatter("%(asctime)s :: %(name)s :: %(levelname)s - %(message)s")
+
+ch = logging.StreamHandler()
+ch.setFormatter(fmt)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
 def keep_cleaning(on, off, threshold=3.0):
@@ -97,10 +107,9 @@ def get_restoring_width(
     return restoring_width
 
 
-def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
+def reconstruct(ccs, period=100.0, rest_width=1.0):
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
-    :param profile: the initial pulse profile [array-like]
     :param ccs: the clean components amplitudes [array-like]
     :param period: pulsar period (in ms) [float]
     :param rest_width: telescope restoring function width (in ms) [float]
@@ -116,13 +125,7 @@ def reconstruct(profile, ccs, period=100.0, rest_width=1.0):
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
     recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
-    recon = recon[
-        nbins // 2 : -nbins // 2 + 1
-    ]  # actually just want the middle bit of this
-
-    # Roll this such that the maximum value corresponds to the maximum value of the initial profile
-    offset = np.argmax(profile) - np.argmax(recon)
-    recon = np.roll(recon, offset)
+    recon = recon[nbins // 2 : -nbins // 2 + 1]
 
     return recon
 
@@ -163,6 +166,7 @@ def clean(
     x = np.linspace(0, 1, nbins) * period
 
     # Decide which PBF model to use based on the user input
+    logger.debug(f"Computing PBF template for tau={tau} ms")
     if pbftype == "thin":
         filter_guess = pbf.thin(x, tau)
     elif pbftype == "thick":
@@ -174,10 +178,11 @@ def clean(
     elif pbftype == "uniform_exp":
         filter_guess = pbf.uniform_exp(x, tau)
     else:
-        print("Invalid PBF type requested ({0})".format(pbftype))
+        logger.error(f"Invalid PBF type requested ({pbftype})")
         return None
 
     # Copy data into profile so that data is never actually touched in the process
+    logger.debug(f"Estimating initial profile statistics for tau={tau} ms")
     profile = np.copy(data)
     on_pulse = profile[on_start:on_end]
     off_pulse = np.concatenate((profile[:on_start], profile[on_end:]))
@@ -194,12 +199,13 @@ def clean(
     loop = True
     niter = 0
 
-    # Start the clean procedure, terminating when either the iteration limit is reached, or when the on-pulse residuals
-    # no longer hold data values above the 3-sigma off-pulse rms noise.
+    # Start the clean procedure, terminating when either the iteration limit is reached,
+    # or when the on-pulse residuals no longer hold data values above the 3-sigma off-pulse rms noise.
+    logger.debug(f"Initiating clean loop for tau={tau} ms")
     while loop:
 
         if (iter_limit is not None) and (niter >= iter_limit):
-            print("Reached iteration limit for tau={0:g}".format(tau))
+            logger.warning(f"Reached iteration limit for tau={tau} ms")
             break
         else:
             niter += 1
@@ -216,20 +222,14 @@ def clean(
         clean_components[imax] += dmax * gain
 
         # Create a profile component from the model PBF and the clean component
+        # (Normalised to have area = 1)
         component = np.convolve(temp_clean_comp, filter_guess, mode="full") / np.sum(
             filter_guess
         )
 
-        # Roll the component so that it is re-aligned with the clean component as this dictates from where in the
-        # profile the constructed component is removed
-        offset = np.argmax(temp_clean_comp) - np.argmax(component)
-        component = np.roll(component, offset)
-
         # In this case, we have done the full convolution to accurately capture the shape of the PBF, now just grab
         # the profile-length
-        component = component[
-            :nbins
-        ]  # this is ok because we moved to be back in the correct position already
+        component = component[:nbins]
 
         # Finally, subtract the component from the profile
         cleaned = profile - component
@@ -242,8 +242,10 @@ def clean(
 
         # Now replace the profile with the newly cleaned profile for the next iteration
         profile = np.copy(cleaned)
+    logger.debug(f"Clean loop terminated for tau={tau} ms")
 
     # After the clean procedure, calculate figures of merit and other information about the process
+    logger.debug("Computing figures of merit and reconstructed profile")
     n_unique = np.count_nonzero(clean_components)
     off_rms = np.std(off_pulse)
     off_mean = np.mean(off_pulse)
@@ -251,7 +253,7 @@ def clean(
     nf = fom.consistence(profile, off_rms, off_mean=off_mean, onlims=(on_start, on_end))
     fr = fom.positivity(profile, off_rms)
     gamma = fom.skewness(clean_components, period=period)
-    recon = reconstruct(data, clean_components, period=period, rest_width=rest_width)
+    recon = reconstruct(clean_components, period=period, rest_width=rest_width)
 
     return dict(
         profile=profile,

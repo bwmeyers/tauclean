@@ -9,6 +9,29 @@ import numpy as np
 from scipy.integrate import simpson as simps
 
 
+def _smooth(fn1, fn2, scale, x_array, x_offset=0, peak_idx=0):
+    """To join the functions without discontinuities, we need to use a smoothing transition function.
+    Here, we use tanh to accomplish this, with a smoothing factor k, where in this case, as k decreases,
+    the smoothing is more pronounced.
+
+    See https://math.stackexchange.com/a/45335
+    """
+
+    # Empirically, k = 0.09 smooths appropriately for tau = 30 ms, and should decrease as tau increases
+    k = (0.09 / scale) * 30
+
+    # When x < x_offset, this factor tends to 0, whereas when x > x_offset it tends to 1
+    b = 0.5 * (1 + np.tanh(k * (x_array - x_offset)))
+
+    # The final combination of these functions produces the smoothed, combined kernel
+    smoothed = fn1 + b * (fn2 - fn1)
+
+    # Enforce that the rise-time mimics h1
+    smoothed[:peak_idx] = fn1[:peak_idx] / np.max(fn1[:peak_idx]) * smoothed[peak_idx]
+
+    return smoothed
+
+
 def thin(x, tau, x0=0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).
@@ -93,21 +116,7 @@ def thick_exp(x, tau, x0=0):
     h2 = (h2 / h2[decay_start_idx]) * decay_amp
     h2[np.where(np.isnan(h2))] = 0
 
-    # To join the functions without discontinuities, we need to use a smoothing transition function
-    # Here, we use np.tanh to accomplish this, with a smoothing factor k, where in this case, as k decreases, the
-    # smoothing is more pronounced. See https://math.stackexchange.com/a/45335
-
-    # k = 0.09 smooths appropriately for tau = 30, and should decrease as tau increases
-    k = (0.09 / tau) * 30
-
-    # when t < decay_time, this function tends to 0, whereas when t > decay_time this functions tends to 1
-    b = 0.5 * (1 + np.tanh(k * (t - decay_time)))
-
-    # the final combination of these functions produces the smoothed, combined kernel
-    h = h1 + b * (h2 - h1)
-
-    # enforce that the rise-time mimics h1
-    h[:pbfmax_idx] = h1[:pbfmax_idx] / np.max(h1[:pbfmax_idx]) * h[pbfmax_idx]
+    h = _smooth(h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx)
 
     h[np.where((x < x0) | np.isnan(h))] = 0
     h = h / simps(x=t, y=h)  # enforce normalisation of PBF
@@ -179,21 +188,7 @@ def uniform_exp(x, tau, x0=0):
     h2 = (h2 / h2[decay_start_idx]) * decay_amp
     h2[np.where(np.isnan(h2))] = 0
 
-    # To join the functions without discontinuities, we need to use a smoothing transition function
-    # Here, we use np.tanh to accomplish this, with a smoothing factor k, where in this case, as k decreases, the
-    # smoothing is more pronounced. See https://math.stackexchange.com/a/45335
-
-    # k = 0.09 smooths appropriately for tau = 30, and should decrease as tau increases
-    k = (0.09 / tau) * 30
-
-    # when t < decay_time, this function tends to 0, whereas when t > decay_time this functions tends to 1
-    b = 0.5 * (1 + np.tanh(k * (t - decay_time)))
-
-    # the final combination of these functions produces the smoothed, combined kernel
-    h = h1 + b * (h2 - h1)
-
-    # enforce that the rise-time mimics h1
-    h[:pbfmax_idx] = h1[:pbfmax_idx] / np.max(h1[:pbfmax_idx]) * h[pbfmax_idx]
+    h = _smooth(h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx)
 
     h[np.where(np.isnan(h))] = 0
     h = h / simps(x=t, y=h)  # enforce normalisation of PBF
