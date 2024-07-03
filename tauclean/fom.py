@@ -9,31 +9,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def consistence(residuals, off_rms, off_mean=0, onlims=(0, 255), thresh=3.0):
-    """The number of residual points in the on-pulse region that are consistent with the off-pulse rms is another
-    indicator of how well the CLEAN procedure has done.
+def consistence(onpulse, off_rms, off_mean=0, threshold=3.0):
+    """The number of residual points in the on-pulse region that are
+    consistent with the off-pulse rms is another indicator of how well
+    the CLEAN procedure has done.
+
     Defined in Bhat et al. (2004) in the third-last paragraph of Section 2.5.3
 
-    :param residuals: the residual profile after the CLEAN process has terminated [array-like]
+    :param onpulse: the residual profile after the CLEAN process has terminated [array-like]
     :param off_rms: the off-pulse rms noise [float]
     :param off_mean: the off-pulse mean value [float]
-    :param onlims: a tuple containing the on-pulse region in terms of phase [(float, float) between 0 and 1 inclusive]
+    :param threshold: the threshold with which to compare for significance [float]
     :return: the number of points in the cleaned on-pulse region that are consistent with the off-pulse noise [int]
     """
 
-    start = onlims[0]
-    end = onlims[1]
-
-    onpulse = residuals[start:end]
-
     # Calculate the number of on-pulse points that are consistent with the 3-sigma noise of the off-pulse
-    nf = len(onpulse[abs(onpulse - off_mean) <= thresh * off_rms])
+    nf = len(abs(onpulse - off_mean) <= threshold * off_rms)
 
     return nf
 
 
 def positivity(res, off_rms, m=1.0, x=1.5):
     """The positivity figure of merit used to help decide on the quality of the CLEAN procedure.
+
     Defined by Bhat et al. 2004 in their eqs. 10 and 11.
 
     :param res: residuals after the CLEAN process has terminated [array-like]
@@ -63,6 +61,7 @@ def skewness(ccs, period=100.0):
     """The skewness of the clean components gives a figure of merit that describes how asymmetric the clean profile is.
     For a well-matched PBF and high signal-to-noise data, the clean component distribution should be approximately
     symmetric (Gaussian-like).
+
     Defined by Bhat et al. 2004 in their eqs. 12, 13 and 14.
 
     :param ccs: a list of component (delta-function) amplitudes produced at the end of the CLEAN procedure [array-like]
@@ -89,13 +88,14 @@ def skewness(ccs, period=100.0):
     return gamma
 
 
-def get_error(results, dchi=1.0, plot=False):
-    """Estimate the uncertainty of each tau trial value by determining the value of tau that results in an increase
-    in f_c of unity (or in this case, by whatever value is specified in `dchi` (typically we would expect 1). This is
-    basically equivalent to a reduced chi-square approach.
+def get_error_chi(results, dchi=1.0, plot=False):
+    """Estimate the uncertainty of each tau trial value by determining
+    the value of tau that results in an increase of `dchi` units in the
+    f_c or f_r metrics (typically we would expect dchi=1).
 
-    Here, we use a second-order finite difference in an attempt to figure out where the maximum inflection begins, which
-    nominally corresponds to the best-fitting tau.
+    Here, we use a second-order finite difference in an attempt to figure
+    out where the maximum inflection begins, which nominally corresponds to
+    the best-fitting tau.
 
     :param results: a list of dictionaries, one per trial tau [array-like]
     :param dchi: the offset from the minimum of either fr or fc that is used to constrain the error [float]
@@ -113,13 +113,12 @@ def get_error(results, dchi=1.0, plot=False):
     gamma = np.array([a["gamma"] for a in results])
     fc = (fr + gamma) / 2.0
 
-    min_tau_step = min(np.diff(taus))
-
     # rather than the minimum of fr, work out the point of greatest inflection using finite differences
-    d2 = [
-        (fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)
-    ]  # central 2nd order difference
-    imin = np.argmax(d2) - 1
+    # central 2nd order difference
+    d2 = [(fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)]
+
+    # Since we've taken a second order difference, the actual array value corresponding to the change is
+    imin = np.argmax(d2) - 3
     imax = np.argmax(fr)
 
     # estimate the slope and intercept of the linear line drawn between the min and max values of fr
@@ -133,25 +132,18 @@ def get_error(results, dchi=1.0, plot=False):
     fr_tau = taus[imin]
 
     # Also try to get error estimates from fc
-    d2 = [
-        (fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)
-    ]  # central 2nd order difference
-    # d2 = [(fc[i + 2] - 2 * fc[i + 1] + fc[i]) for i in range(0, len(taus) - 3)]  # forward 2nd order difference
-    # d2 = [(fc[i - 2] - 2 * fc[i - 1] + fc[i]) for i in range(2, len(taus) - 1)]  # forward 2nd order difference
-    imin = np.argmax(d2) - 1
-    # imin = np.argmin(fc)
+    d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]
+    imin = np.argmax(d2) - 3
     imax = np.argmax(fc)
 
-    # estimate the slope and intercept of the linear line drawn between the min and max values of fc
     fcm = (fc[imax] - fc[imin]) / (taus[imax] - taus[imin])
     fcc = fc[imin] - fcm * taus[imin]
 
     fc_tauval = ((fc[imin] + dchi) - fcc) / fcm
-
-    # the nominal uncertainty is then the difference between this and the best-fit tau
     fc_err = abs(fc_tauval - taus[imin])
     fc_tau = taus[imin]
 
+    # plot, if requested
     if plot:
         fig, (ax, ax2) = plt.subplots(1, 2)
         ax.plot(taus, fr, ls="none", marker="o")
