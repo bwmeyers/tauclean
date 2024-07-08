@@ -4,21 +4,33 @@
 # Licensed under the Academic Free License version 3.0 #
 ########################################################
 """
-
+import logging
+from itertools import groupby
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import savgol_filter, find_peaks
+from . import pbf
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fmt = logging.Formatter(
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+)
+ch = logging.StreamHandler()
+ch.setFormatter(fmt)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
-def plot_figures_of_merit(results, true_tau=None):
+def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=None):
     taus = np.array([a["tau"] for a in results])
     f_r = np.array([a["fr"] for a in results])
     gamma = np.array([a["gamma"] for a in results])
     f_c = (f_r + gamma) / 2.0
     ncomps = [a["niter"] for a in results]
     nuniq = [a["ncc"] for a in results]
-    on_rms = [a["on_rms"] for a in results]
     sigma_c = np.array([a["off_rms"] for a in results]) / np.array(
-        [a["init_rms"] for a in results]
+        [a["init_off_rms"] for a in results]
     )
     nf_frac = np.array([a["nf"] for a in results]) / np.array(
         [a["nbins"] for a in results]
@@ -37,23 +49,52 @@ def plot_figures_of_merit(results, true_tau=None):
     min_tau_step = min(np.diff(taus))
 
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
-
     for y, ylab, ax in zip(params, labels, axs.flatten()):
-        ax.plot(taus, y, marker="o")
+        ax.plot(taus, np.array(y), marker="o", label="norm. FOM")
+
+        if ylab in [r"$f_r$", r"$\Gamma$", r"$f_c$"]:
+            ax.axhline(0, lw=1, ls=":", color="k")
+            der3 = savgol_filter(
+                y,
+                window_length=len(y) // 8 if len(y) // 8 > 3 else 4,
+                polyorder=3,
+                deriv=3,
+            )
+            ax.plot(
+                taus,
+                max(y) * der3 / der3.max(),
+                ls=":",
+                color="k",
+                label="norm. 3rd deriv.",
+            )
+
         ax.set_ylabel(ylab, fontsize=20)
 
-        if min(y) < 0:
-            ax.axhline(0, lw=1, ls=":", color="k")
-
-        if abs(min(y)) > 0 and abs(max(y) / min(y)) > 100:
-            ax.set_yscale("symlog")
+        # ax.set_ylim(-1.5, 1.5)
 
         if true_tau is not None:
-            ax.axvline(true_tau)
+            ax.axvline(true_tau, color="k", ls="--", label="truth")
+
+        if best_tau is not None:
+            ax.axvline(best_tau, color="r", ls="-.", label="best tau")
+
+        if best_tau_err is not None:
+            ylims = ax.get_ylim()
+            ax.fill_betweenx(
+                ylims,
+                best_tau - best_tau_err,
+                best_tau + best_tau_err,
+                color="0.1",
+                alpha=0.3,
+                label="best tau err.",
+            )
+            ax.set_ylim(ylims)
 
     for ax in axs.flatten()[3:]:
-        ax.set_xlabel(r"$\rm \tau\ (ms)$", fontsize=20)
+        ax.set_xlabel(r"$\tau\ {\rm (ms)}$", fontsize=20)
         ax.set_xlim(min(taus) - min_tau_step, max(taus) + min_tau_step)
+    axs.flatten()[1].set_title("Figures of Merit summary")
+    axs.flatten()[0].legend(loc="upper left")
 
     plt.subplots_adjust(hspace=0.1, wspace=0.25)
     plt.savefig("tauclean_fom.png", bbox_inches="tight")
@@ -97,32 +138,39 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     off_rms = np.array([a["off_rms"] for a in results])
     off_mean = np.array([a["off_mean"] for a in results])
     thresh = np.array([a["threshold"] for a in results])
-    on_start = np.array([a["on_start"] for a in results])
-    on_end = np.array([a["on_end"] for a in results])
+    off_bins = np.array([a["off_bins"] for a in results])
+    # on_start = np.array([a["on_start"] for a in results])
+    # on_end = np.array([a["on_end"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
     pos_thresh = off_mean + thresh * off_rms
     neg_thresh = off_mean - thresh * off_rms
 
+    # off_pulse_regions = []
+    # for k, g in groupby(enumerate(off_bins), lambda k: k[0] - k[1]):
+    #     start = next(g)[1]
+    #     end = list(v for _, v in g) or [start]
+    #     off_pulse_regions.append(range(start, end[-1] + 1))
+
     for i, t in enumerate(taus):
-        fig, (ax1, ax2) = plt.subplots(
-            nrows=1, ncols=2, sharex="all", figsize=plt.figaspect(0.25)
-        )
+        # print(off_bins[i])
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex="all", figsize=(20, 8))
         fig.suptitle(r"Residuals ($\rm \tau = {0:g}\ ms$)".format(t))
 
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
         ax1.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        ax1.axvline(on_start[i] * dt, color="k")
-        ax1.axvline(on_end[i] * dt, color="k")
+        # for reg in off_pulse_regions:
+        #     ax1.axvline(reg.min() * dt, color="k")
+        #     ax1.axvline(reg.max() * dt, color="k")
         ax1.set_xlabel("Time (ms)")
         ax1.legend()
 
         ax2.plot(x, initial_data, label="initial data")
         ax2.plot(x, residuals[i], label="post-clean residuals")
         ax2.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        ax2.axvline(on_start[i] * dt, color="k")
-        ax2.axvline(on_end[i] * dt, color="k")
+        # ax2.axvline(off_bins[i].min() * dt, color="k")
+        # ax2.axvline(off_bins[i].max() * dt, color="k")
         ax2.axhline(0, color="k", ls=":", lw=1)
         ax2.set_xlabel("Time (ms)")
         ax2.legend()
@@ -149,7 +197,7 @@ def plot_clean_components(results, period=100.0):
     x = period * np.linspace(0, 1, nbins)
 
     for i, t in enumerate(taus):
-        fig, ax = plt.subplots(1, 1)
+        fig, ax = plt.subplots(1, 1, figsize=(20, 8))
 
         ax.vlines(x, ymin=0, ymax=clean_components[i], color="k")
         ax.set_xlabel("Time (ms)")
@@ -180,14 +228,27 @@ def plot_reconstruction(results, original, period=100.0):
     x = period * np.linspace(0, 1, nbins)
 
     for i, t in enumerate(taus):
-        fig, ax = plt.subplots(1, 1)
+        try:
+            pbffn = getattr(pbf, pbftype[i])
+        except AttributeError as e:
+            logger.error(e)
+            logger.warning(
+                f"Cannot find pbf function '{pbftype[i]}'! Assuming 'thin' model."
+            )
+            pbffn = pbf.thin
+        norm_pbf = pbffn(x, t, x0=x[len(x) // 10])
+        norm_pbf = norm_pbf / norm_pbf.max()
 
-        ax.plot(x, recons[i] + residuals[i], color="k")
-        ax.plot(x, original, color="C1", alpha=0.6)
+        fig, ax = plt.subplots(1, 1, figsize=(20, 8))
+        ax.plot(x, recons[i] + residuals[i], color="k", label="reconstruction")
+        ax.plot(x, original, color="C1", alpha=0.6, label="original")
+        ax.plot(x, norm_pbf * original.max(), color="C0", alpha=0.6, label="PBF")
         ax.axhline(0, ls=":", lw=1, color="k")
+        ax.set_xlim(x[0], x[-1])
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Intensity")
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
+        ax.legend()
 
         plt.savefig(
             "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight"
