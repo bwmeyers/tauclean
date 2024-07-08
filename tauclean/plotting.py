@@ -29,44 +29,47 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     f_c = (f_r + gamma) / 2.0
     ncomps = [a["niter"] for a in results]
     nuniq = [a["ncc"] for a in results]
-    sigma_c = np.array([a["off_rms"] for a in results]) / np.array(
+    sigma_c = np.array([a["total_rms"] for a in results]) / np.array(
         [a["init_off_rms"] for a in results]
     )
     nf_frac = np.array([a["nf"] for a in results]) / np.array(
         [a["nbins"] for a in results]
     )
 
-    params = [f_r, gamma, f_c, sigma_c, nuniq, nf_frac]
+    params = [f_r, gamma, f_c, sigma_c, ncomps, nf_frac]
 
     labels = [
         r"$f_r$",
         r"$\Gamma$",
-        r"$f_c$",
+        r"$f_c = (f_r + \Gamma)/2$",
         r"$\sigma_{\rm offc}/\sigma_{\rm off}$",
-        r"$N_{unique}$",
-        r"$N_f / N_{\rm total}$",
+        r"$N_{\rm iter}$",
+        r"$N_f / N_{\phi}$",
     ]
     min_tau_step = min(np.diff(taus))
 
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
     for y, ylab, ax in zip(params, labels, axs.flatten()):
-        ax.plot(taus, np.array(y), marker="o", label="norm. FOM")
 
-        if ylab in [r"$f_r$", r"$\Gamma$", r"$f_c$"]:
-            ax.axhline(0, lw=1, ls=":", color="k")
-            der3 = savgol_filter(
-                y,
-                window_length=len(y) // 8 if len(y) // 8 > 3 else 4,
-                polyorder=3,
-                deriv=3,
-            )
-            ax.plot(
-                taus,
-                max(y) * der3 / der3.max(),
-                ls=":",
-                color="k",
-                label="norm. 3rd deriv.",
-            )
+        ax.plot(taus, np.array(y), marker="o", color="C0", label="FOM")
+        ax.axhline(0, lw=1, ls=":", color="C0")
+
+        tax = ax.twinx()
+        der3 = savgol_filter(
+            y,
+            window_length=len(y) // 8 if len(y) // 8 > 3 else 4,
+            polyorder=3,
+            deriv=3,
+        )
+        tax.plot(
+            taus,
+            max(y) * der3 / der3.max(),
+            ls=":",
+            color="k",
+            label="norm. 3rd deriv.",
+        )
+        tax.axhline(0, lw=1, ls=":", color="k")
+        tax.set_ylabel("3rd derivative")
 
         ax.set_ylabel(ylab, fontsize=20)
 
@@ -96,7 +99,7 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     axs.flatten()[1].set_title("Figures of Merit summary")
     axs.flatten()[0].legend(loc="upper left")
 
-    plt.subplots_adjust(hspace=0.1, wspace=0.25)
+    plt.subplots_adjust(hspace=0.05, wspace=0.4)
     plt.savefig("tauclean_fom.png", bbox_inches="tight")
     plt.close(fig)
 

@@ -294,6 +294,8 @@ def clean(
     off_rms = off_pulse.std()
     on_mean = on_pulse.mean()
     off_mean = off_pulse.mean()
+    total_mean = profile.mean()
+    total_rms = profile.std()
 
     nf = fom.consistence(
         profile[on_pulse_bins],
@@ -323,6 +325,8 @@ def clean(
         off_mean=off_mean,
         on_rms=on_rms,
         on_mean=on_mean,
+        total_mean=total_mean,
+        total_rms=total_rms,
         fr=fr,
         gamma=gamma,
         recon=recon,
