@@ -5,8 +5,20 @@
 ########################################################
 """
 
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import savgol_filter, find_peaks
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+fmt = logging.Formatter(
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+)
+ch = logging.StreamHandler()
+ch.setFormatter(fmt)
+ch.setLevel(logging.INFO)
+logger.addHandler(ch)
 
 
 def consistence(onpulse, off_rms, off_mean=0, threshold=3.0):
@@ -81,11 +93,90 @@ def skewness(ccs, period=100.0):
     if np.count_nonzero(ccs) == 1:
         # The function is symmetric by definition at this stage, but moment_2 = 0 so we'll get an error if we try to
         # calculate the skewness in the usual way
+        logger.warning("Clean components skewness is undefined. Setting to 0.")
         gamma = 0
     else:
         gamma = moment_3 / (moment_2**1.5)
 
     return gamma
+
+
+def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=None):
+    """Estimate the uncertainty of each tau trial value by determining
+    the value of tau that results in an increase of `dchi` units in the
+    f_c or f_r metrics (typically we would expect dchi=1).
+
+    Here, we use a second-order finite difference in an attempt to figure
+    out where the maximum inflection begins, which nominally corresponds to
+    the best-fitting tau.
+
+    :param results: a list of dictionaries, one per trial tau [array-like]
+    :param norm_fom_peak_height: height parameter to determine peaks from
+        normalised FOM derivatives, default=0.8 [float]
+    :param smoothing_window_size: window size to use when computing smoothed
+        FOM derivatives, optional, default set based on FOM series length [int]
+    :returns tuple (best_tau, approx_err) [float, float]
+    """
+    taus = np.array([a["tau"] for a in results])
+    fr = np.array([a["fr"] for a in results])
+    gamma = np.array([a["gamma"] for a in results])
+    fc = (fr + gamma) / 2.0
+    fom = [fr, gamma, fc]
+    names = ["fr", "gamma", "fc"]
+    weights = [1, 0.1, 1]
+    savgol_polyorder = 3
+    savgol_derorder = 3
+
+    # Use the FOM and their derivatives to estimate the best match
+    fom_tau_estimates = []
+    for f, lab in zip(fom, names):
+        logger.debug(f"Finding 'best' tau from FOM={lab} via 3rd deriv.")
+
+        if not smoothing_window_size:
+            logger.debug(
+                "No savgol_filter window size provided, choosing sensible value based on FOM series length."
+            )
+            # The smoothing window size must be greater than the polynomial order used in the filter
+            smoothing_window_size = len(f) // 8
+            if smoothing_window_size <= savgol_polyorder:
+                smoothing_window_size = savgol_polyorder + 1
+            logger.debug(f"Window size set to {smoothing_window_size} bins")
+
+        deriv = savgol_filter(
+            f,
+            window_length=smoothing_window_size,
+            polyorder=savgol_polyorder,
+            deriv=savgol_derorder,
+        )
+        norm_deriv = deriv / deriv.max()
+        pidx, _ = find_peaks(norm_deriv, height=norm_fom_peak_height)
+
+        if len(pidx) == 1:
+            best_tau_fom = taus[pidx]
+            fom_tau_estimates.append(np.squeeze(best_tau_fom))
+            logger.info(
+                f"Best tau from metric={lab} is: {np.squeeze(best_tau_fom):.2f} ms"
+            )
+        elif len(pidx) > 1:
+            logger.info("Multiple peaks in FOM found, taking median...")
+            best_tau_fom = np.median(taus[pidx])
+            fom_tau_estimates.append(np.squeeze(best_tau_fom))
+            logger.info(
+                f"Best tau from metric={lab} is: {np.squeeze(best_tau_fom):.2f} ms"
+            )
+        else:
+            logger.error("Something went wrong finding peaks in the FOM derivatives...")
+
+    fom_median_tau = np.average(np.array(fom_tau_estimates), weights=np.array(weights))
+
+    # Now to approximate some kind of error
+    base_err = np.sqrt(np.std(fom_tau_estimates) ** 2 + (taus[1] - taus[0]) ** 2)
+
+    logger.info(
+        f"Best overall tau = {fom_median_tau:g} +/- {base_err:g} ms  (median from all FOM)"
+    )
+
+    return fom_median_tau, base_err
 
 
 def get_error_chi(results, dchi=1.0, plot=False):
@@ -118,7 +209,7 @@ def get_error_chi(results, dchi=1.0, plot=False):
     d2 = [(fr[i + 1] - 2 * fr[i] + fr[i - 1]) for i in range(1, len(taus) - 2)]
 
     # Since we've taken a second order difference, the actual array value corresponding to the change is
-    imin = np.argmax(d2) - 3
+    imin = np.argmax(np.diff(fr, n=3)) - 2
     imax = np.argmax(fr)
 
     # estimate the slope and intercept of the linear line drawn between the min and max values of fr
@@ -133,7 +224,7 @@ def get_error_chi(results, dchi=1.0, plot=False):
 
     # Also try to get error estimates from fc
     d2 = [(fc[i + 1] - 2 * fc[i] + fc[i - 1]) for i in range(1, len(taus) - 2)]
-    imin = np.argmax(d2) - 3
+    imin = np.argmax(np.diff(fr, n=3)) - 2
     imax = np.argmax(fc)
 
     fcm = (fc[imax] - fc[imin]) / (taus[imax] - taus[imin])
