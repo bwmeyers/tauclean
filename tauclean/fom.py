@@ -36,7 +36,7 @@ def consistence(onpulse, off_rms, off_mean=0, threshold=3.0):
     """
 
     # Calculate the number of on-pulse points that are consistent with the 3-sigma noise of the off-pulse
-    nf = len(abs(onpulse - off_mean) <= threshold * off_rms)
+    nf = np.sum(abs(onpulse - off_mean) <= threshold * off_rms)
 
     return nf
 
@@ -123,7 +123,7 @@ def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=N
     fc = (fr + gamma) / 2.0
     fom = [fr, gamma, fc]
     names = ["fr", "gamma", "fc"]
-    weights = [1, 0.1, 1]
+    weights = [1, 0.5, 0.1]
     savgol_polyorder = 3
     savgol_derorder = 3
 

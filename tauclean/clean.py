@@ -190,7 +190,7 @@ def clean(
     x = np.linspace(0, 1, nbins) * period
 
     # Decide which PBF model to use based on the user input
-    logger.debug(f"Computing PBF template for tau={tau} ms")
+    logger.debug(f"Computing PBF template for tau={tau:g} ms")
     if pbftype == "thin":
         filter_guess = pbf.thin(x, tau)
     elif pbftype == "thick":
@@ -206,7 +206,7 @@ def clean(
         return None
 
     # Copy data into profile so that data is never actually touched in the process
-    logger.debug(f"Estimating initial profile statistics for tau={tau} ms")
+    logger.debug(f"Estimating initial profile statistics for tau={tau:g} ms")
     profile = np.copy(data)
 
     # Determine the off-pulse by minimizing a windowed integrated quantity
@@ -234,11 +234,11 @@ def clean(
 
     # Start the clean procedure, terminating when either the iteration limit is reached,
     # or when the on-pulse residuals no longer hold data values above the 3-sigma off-pulse rms noise.
-    logger.info(f"Initiating clean loop for tau={tau} ms")
+    logger.debug(f"Initiating clean loop for tau={tau:g} ms")
     while loop:
 
         if (iter_limit is not None) and (niter >= iter_limit):
-            logger.warning(f"Reached iteration limit for tau={tau} ms")
+            logger.warning(f"Reached iteration limit for tau={tau:g} ms")
             break
         else:
             niter += 1
@@ -258,7 +258,9 @@ def clean(
         # Create a profile component from the model PBF and the clean component
         # (Normalised to have area = 1)
         # TODO: do we need to have the restoring function convolved here, too?
-        logger.debug("Constructing component to subtract from profile")
+        logger.debug(
+            f"Constructing component to subtract from profile for tau={tau:g} ms"
+        )
         component = (
             np.convolve(temp_clean_comp, filter_guess, mode="full") / filter_guess.sum()
         )
@@ -272,7 +274,7 @@ def clean(
 
         # Calculate the on- and off-pulse regions and use them with the user-defined cleaning threshold to determine
         # whether the clean procedure should be terminated at this point
-        logger.debug("Checking if cleaning should continue")
+        logger.debug(f"Checking if cleaning should continue for tau={tau} ms")
         on_pulse = cleaned[on_pulse_bins]
         off_pulse = cleaned[off_pulse_bins]
         loop = keep_cleaning(on_pulse, off_pulse, threshold=threshold)
@@ -280,17 +282,25 @@ def clean(
         # Now replace the profile with the newly cleaned profile for the next iteration
         profile = np.copy(cleaned)
 
-    logger.info(f"Clean loop terminated for tau={tau} ms")
+    logger.info(f"Clean loop terminated for tau={tau:g} ms")
 
     # After the clean procedure, calculate figures of merit and other information about the process
-    logger.info("Computing figures of merit and reconstructing profile")
+    logger.info(f"Generating FOM and reconstructed profile for tau={tau:g} ms")
     n_unique = np.count_nonzero(clean_components)
+
+    # Since `profile`, `on_pulse`, and `off_pulse` are all updated in the loop, we can access
+    # them here to see the final result
     on_rms = on_pulse.std()
     off_rms = off_pulse.std()
     on_mean = on_pulse.mean()
     off_mean = off_pulse.mean()
 
-    nf = fom.consistence(profile[on_pulse_bins], off_rms, off_mean=off_mean)
+    nf = fom.consistence(
+        profile[on_pulse_bins],
+        off_rms,
+        off_mean=off_mean,
+        threshold=threshold,
+    )
     fr = fom.positivity(profile, off_rms)
     gamma = fom.skewness(clean_components, period=period)
     recon = reconstruct(clean_components, period=period, rest_width=rest_width)
