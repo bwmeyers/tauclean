@@ -121,9 +121,16 @@ def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=N
     fr = np.array([a["fr"] for a in results])
     gamma = np.array([a["gamma"] for a in results])
     fc = (fr + gamma) / 2.0
-    fom = [fr, gamma, fc]
-    names = ["fr", "gamma", "fc"]
-    weights = [1, 0.5, 0.1]
+    sigma_c = np.array([a["total_rms"] for a in results]) / np.array(
+        [a["init_off_rms"] for a in results]
+    )
+    nf_frac = np.array([a["nf"] for a in results]) / np.array(
+        [a["nbins"] for a in results]
+    )
+
+    fom = [fr, gamma, fc, sigma_c, nf_frac]
+    names = ["fr", "gamma", "fc", "sigma_c", "nf_frac"]
+    weights = [1, 0.8, 0.1, 1, 1]
     savgol_polyorder = 3
     savgol_derorder = 3
 
