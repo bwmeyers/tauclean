@@ -19,9 +19,8 @@ from . import plotting, clean, fom
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 fmt = logging.Formatter(
-    "%(asctime)s :: %(name)s [%(process)d] :: %(levelname)s - %(message)s"
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
 )
-
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
 ch.setLevel(logging.INFO)
@@ -156,7 +155,7 @@ def main():
         "--iterlim",
         metavar="N",
         type=int,
-        default=10000,
+        default=100000,
         help="Limit the number of iterations for each trial value, regardless of convergence factors.",
     )
 
@@ -284,33 +283,18 @@ def execute_tauclean(args):
     logger.info("Done. Sorting output...")
     sorted_results = sorted(result_list, key=lambda r: r["tau"])
 
+    logger.info("Attempting to determine best tau from figures-of-merit...")
     if ntaus > 1:
-        frbest, frerr, fcbest, fcerr = fom.get_error_chi(
-            sorted_results, plot=(not args.noplot_f)
-        )
-
-        logger.info("Attempting to estimate best fit tau and errors")
-        logger.info(
-            "   based on f_r: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
-                frbest, frerr, 100 * frerr / frbest
-            )
-        )
-        logger.info(
-            "   based on f_c: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
-                fcbest, fcerr, 100 * fcerr / fcbest
-            )
-        )
-
-        if np.isnan(frerr) or np.isnan(fcerr):
+        best, err = fom.get_best_tau_jerk(sorted_results)
+        if not np.isfinite(err):
             logger.warning(
-                "Undefined uncertainties. "
-                "Review figures of merit - perhaps expand your search bounds?"
+                "Undefined uncertainty. "
+                "Review figures of merit - perhaps adjust your search bounds?"
             )
-
-        if (frerr > frbest) or (fcerr > fcbest):
+        if err > best:
             logger.warning(
-                "Uncertainties are larger than nominal values. "
-                "Review figures of merit - perhaps expand your search bounds?"
+                "Uncertainty is larger than nominal value. "
+                "Review figures of merit - perhaps adjust your search bounds?"
             )
     else:
         logger.info(f"f_r ~ positivity: {sorted_results[0]['fr']}")
@@ -318,23 +302,30 @@ def execute_tauclean(args):
         logger.info(
             f"f_c = f_r / gamma: {(sorted_results[0]['fr']+sorted_results[0]['gamma']) / 2}"
         )
-        logger.info(f"nf ~ consistence: {sorted_results[0]['nf']}")
+        logger.info(
+            f"nf ~ consistence: {sorted_results[0]['nf']} ({100*sorted_results[0]['nf']/sorted_results[0]['nbins_on']}%)"
+        )
 
     # Make all of the diagnostic plots and write relevant files to disk
     if not args.noplot_f:
         if len(taus) > 1:
-            logger.debug("Plotting figures of merit...")
-            plotting.plot_figures_of_merit(sorted_results, args.truth)
+            logger.info("Plotting figures of merit...")
+            plotting.plot_figures_of_merit(
+                sorted_results, true_tau=args.truth, best_tau=best, best_tau_err=err
+            )
+            logger.info("Done plotting FOMs.")
 
     if not args.noplot_r:
-        logger.debug("Plotting clean residuals...")
+        logger.info("Plotting clean residuals...")
         plotting.plot_clean_residuals(data, sorted_results, period=args.period)
 
-        logger.debug("Plotting clean components...")
+        logger.info("Plotting clean components...")
         plotting.plot_clean_components(sorted_results, period=args.period)
 
-        logger.debug("Plotting profile reconstruction...")
+        logger.info("Plotting profile reconstruction...")
         plotting.plot_reconstruction(sorted_results, data, period=args.period)
+
+        logger.info("Done plotting reconstruction.")
 
     if not args.nowrite:
         logger.debug("Writing output products (reconstruction + clean component list")
