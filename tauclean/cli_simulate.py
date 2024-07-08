@@ -11,10 +11,10 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import simps
+from scipy.integrate import simpson as simps
 
 from . import pbf
-from .clean import gaussian, dm_delay
+from .clean import dm_delay
 
 logger = logging.getLogger(__name__)
 # Set the seed for numpy's random functions so that the same result can be retrieved each time
@@ -49,7 +49,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     # For each (position, width, amplitude) set, create and add a component to the intrinsic pulse profile
     for p, w, a in zip(position, width, amps):
         logger.debug("added gaussian comp.")
-        g = gaussian(x, float(p), float(w))
+        g = pbf.gaussian(x, float(p), float(w))
         f += a * (g / g.max())
 
     return f
@@ -89,7 +89,7 @@ def create_scattered_profile(
         logger.warning("Defaulting to thin screen...")
         h = pbf.thin(x, tau)
 
-    restoring_function = gaussian(x, x[x.size // 2], rest_width)
+    restoring_function = pbf.gaussian(x, x[x.size // 2], rest_width)
 
     # The observed pulse shape is the convolution of:
     # - the true signal,
@@ -233,7 +233,7 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     )
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -255,7 +255,12 @@ if __name__ == "__main__":
         "-a", nargs="+", type=float, help="amplitudes of gaussian components"
     )
     parser.add_argument(
-        "-k", default="thin", help="PBF kernel type", choices=pbf.__all__
+        "-k",
+        metavar="pbf",
+        default="thin",
+        choices=["thin", "thick", "uniform", "thick_exp", "uniform_exp"],
+        help="The type of PBF kernel to use during the deconvolution."
+        "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
     parser.add_argument(
         "-t", type=float, default=5.0, help="scattering time scale (in ms)"
@@ -372,3 +377,7 @@ if __name__ == "__main__":
 
     if args.write:
         write_data(i, k, s, o, args.k, args.t)
+
+
+if __name__ == "__main__":
+    main()
