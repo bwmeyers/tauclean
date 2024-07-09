@@ -18,8 +18,9 @@ from . import plotting, clean, fom
 # Set up the logging configuration
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-fmt = logging.Formatter("%(asctime)s :: %(name)s :: %(levelname)s - %(message)s")
-
+fmt = logging.Formatter(
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+)
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
 ch.setLevel(logging.INFO)
@@ -127,11 +128,10 @@ def main():
     clean_group.add_argument(
         "-o",
         "--onpulse",
-        nargs=2,
-        metavar=("start", "end"),
-        type=int,
-        default=(0, 255),
-        help="Boundaries of the on-pulse region.",
+        metavar="START,END or 'auto'",
+        type=str,
+        default="auto",
+        help="Boundaries of the on-pulse region. If set as 'auto', will automatically compute on- and off-pulse regions.",
     )
 
     clean_group.add_argument(
@@ -155,7 +155,7 @@ def main():
         "--iterlim",
         metavar="N",
         type=int,
-        default=None,
+        default=100000,
         help="Limit the number of iterations for each trial value, regardless of convergence factors.",
     )
 
@@ -175,7 +175,17 @@ def main():
     )
 
     other_group.add_argument(
-        "--noplot", action="store_true", default=False, help="Do not produce any plots."
+        "--noplot_r",
+        action="store_true",
+        default=False,
+        help="Do not produce reconstruction or residual plots.",
+    )
+
+    other_group.add_argument(
+        "--noplot_f",
+        action="store_true",
+        default=False,
+        help="Do not produce figure-of-merit plots.",
     )
 
     other_group.add_argument(
@@ -191,6 +201,7 @@ def execute_tauclean(args):
     # Load the data (assumes single column, 1 bin per line)
     data = np.loadtxt(args.profile)
     nbins = len(data)
+    bins = np.arange(nbins)
 
     # Check tau values and adjust if necessary
     if args.tau is None:
@@ -237,14 +248,6 @@ def execute_tauclean(args):
         logger.info(f"DM smearing within lowest channel: {worst_intrachan_smear:g} ms")
     logger.info(f"Restoring function width: {restoring_width:g} ms")
 
-    # Check the on-pulse boundaries
-    onpulse_start = args.onpulse[0]
-    onpulse_end = args.onpulse[1]
-    if onpulse_end <= onpulse_start:
-        logger.error("On-pulse end boundary must be > start boundary")
-        sys.exit()
-    logger.info(f"Deconvolving data only from bins: {onpulse_start}-{onpulse_end}")
-
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
         period=args.period,
@@ -252,8 +255,6 @@ def execute_tauclean(args):
         pbftype=args.kernel,
         iter_limit=args.iterlim,
         threshold=args.thresh,
-        on_start=onpulse_start,
-        on_end=onpulse_end,
         rest_width=restoring_width,
     )
 
@@ -267,59 +268,64 @@ def execute_tauclean(args):
 
     logger.info("Starting deconvolution cycles...")
     # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
-    pool = mp.Pool(processes=args.ncpus)
-    logger.debug("Created pool of {0} workers".format(args.ncpus))
-
-    for t in taus:
-        logger.debug("Started async. job for tau={0:g} ms".format(t))
-        pool.apply_async(clean.clean, (data, t), clean_kwargs, callback=log_results)
-
-    pool.close()
-    pool.join()
+    logger.info("Creating a pool of {0} workers".format(args.ncpus))
+    with mp.Pool(processes=args.ncpus) as pool:
+        for tau in taus:
+            logger.debug(f"Started async. job for tau={tau:g} ms")
+            pool.apply_async(
+                clean.clean, (data, tau), clean_kwargs, callback=log_results
+            )
+        pool.close()
+        pool.join()
+    logger.debug("Worker pool closed.")
 
     # Sort the results based on the trial value of tau
     logger.info("Done. Sorting output...")
     sorted_results = sorted(result_list, key=lambda r: r["tau"])
 
-    frbest, frerr, fcbest, fcerr = fom.get_error(sorted_results, plot=True)
-    logger.info("Attempting to estimate best fit tau and errors")
-    logger.info(
-        "   based on f_r: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
-            frbest, frerr, 100 * frerr / frbest
+    logger.info("Attempting to determine best tau from figures-of-merit...")
+    if ntaus > 1:
+        best, err = fom.get_best_tau_jerk(sorted_results)
+        if not np.isfinite(err):
+            logger.warning(
+                "Undefined uncertainty. "
+                "Review figures of merit - perhaps adjust your search bounds?"
+            )
+        if err > best:
+            logger.warning(
+                "Uncertainty is larger than nominal value. "
+                "Review figures of merit - perhaps adjust your search bounds?"
+            )
+    else:
+        logger.info(f"f_r ~ positivity: {sorted_results[0]['fr']}")
+        logger.info(f"gamma ~ skewnesss: {sorted_results[0]['gamma']}")
+        logger.info(
+            f"f_c = f_r / gamma: {(sorted_results[0]['fr']+sorted_results[0]['gamma']) / 2}"
         )
-    )
-    logger.info(
-        "   based on f_c: {0:.3f} +/- {1:.3f} ({2:.2f}%) ms".format(
-            fcbest, fcerr, 100 * fcerr / fcbest
-        )
-    )
-
-    if np.isnan(frerr) or np.isnan(fcerr):
-        logger.warning(
-            "Undefined uncertainties. "
-            "Review figures of merit - perhaps expand your search bounds?"
-        )
-
-    if (frerr > frbest) or (fcerr > fcbest):
-        logger.warning(
-            "Uncertainties are larger than nominal values. "
-            "Review figures of merit - perhaps expand your search bounds?"
+        logger.info(
+            f"nf ~ consistence: {sorted_results[0]['nf']} ({100*sorted_results[0]['nf']/sorted_results[0]['nbins_on']}%)"
         )
 
     # Make all of the diagnostic plots and write relevant files to disk
-    if not args.noplot:
+    if not args.noplot_f:
         if len(taus) > 1:
-            logger.debug("Plotting figures of merit...")
-            plotting.plot_figures_of_merit(sorted_results, args.truth)
+            logger.info("Plotting figures of merit...")
+            plotting.plot_figures_of_merit(
+                sorted_results, true_tau=args.truth, best_tau=best, best_tau_err=err
+            )
+            logger.info("Done plotting FOMs.")
 
-        logger.debug("Plotting clean residuals...")
+    if not args.noplot_r:
+        logger.info("Plotting clean residuals...")
         plotting.plot_clean_residuals(data, sorted_results, period=args.period)
 
-        logger.debug("Plotting clean components...")
+        logger.info("Plotting clean components...")
         plotting.plot_clean_components(sorted_results, period=args.period)
 
-        logger.debug("Plotting profile reconstruction...")
+        logger.info("Plotting profile reconstruction...")
         plotting.plot_reconstruction(sorted_results, data, period=args.period)
+
+        logger.info("Done plotting reconstruction.")
 
     if not args.nowrite:
         logger.debug("Writing output products (reconstruction + clean component list")
