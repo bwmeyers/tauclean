@@ -32,6 +32,21 @@ def _smooth(fn1, fn2, scale, x_array, x_offset=0, peak_idx=0):
     return smoothed
 
 
+def gaussian(x, mu=0, sigma=1):
+    """A simple function that calculates a Gaussian shape over x
+
+    :param x: independent variable [array-like]
+    :param mu: the mean (position) of the Gaussian [float]
+    :param sigma: the standard deviation (width) of the Gaussian [float]
+    :return: a numerically evaluated Gaussian [array-like]
+    """
+
+    amp = 1.0 / (np.sqrt(2 * np.pi) * sigma)
+    g = amp * np.exp(-((x - mu) ** 2) / (2 * sigma**2))
+
+    return g
+
+
 def thin(x, tau, x0=0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).

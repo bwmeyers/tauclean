@@ -5,11 +5,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tauclean"
-description = "An implementation of a pulsar profile deconvolution method for the recovery of intrisic profile shapes and ISM broadening functions."
+description = "A pulsar profile deconvolution method for the recovery of intrisic profile shapes and ISM broadening functions."
 dynamic = ["version"] # dynamically grab version from the package
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
-authors = [{ name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" }]
+authors = [
+    { name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" },
+    { name = "Ramesh Bhat", email = "rameshbhatnd@gmail.com" },          # original author
+    { name = "Olivia Young", email = "olivia.young@nanograv.org" },      # updated version author
+    { name = "Michael Lam", email = "michael.lam@nanograv.org" },        # updated version author
+]
 maintainers = [
     { name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" },
 ]
