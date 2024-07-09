@@ -142,18 +142,10 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     off_mean = np.array([a["off_mean"] for a in results])
     thresh = np.array([a["threshold"] for a in results])
     off_bins = np.array([a["off_bins"] for a in results])
-    # on_start = np.array([a["on_start"] for a in results])
-    # on_end = np.array([a["on_end"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
     pos_thresh = off_mean + thresh * off_rms
     neg_thresh = off_mean - thresh * off_rms
-
-    # off_pulse_regions = []
-    # for k, g in groupby(enumerate(off_bins), lambda k: k[0] - k[1]):
-    #     start = next(g)[1]
-    #     end = list(v for _, v in g) or [start]
-    #     off_pulse_regions.append(range(start, end[-1] + 1))
 
     for i, t in enumerate(taus):
         # print(off_bins[i])
@@ -163,17 +155,12 @@ def plot_clean_residuals(initial_data, results, period=100.0):
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
         ax1.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        # for reg in off_pulse_regions:
-        #     ax1.axvline(reg.min() * dt, color="k")
-        #     ax1.axvline(reg.max() * dt, color="k")
         ax1.set_xlabel("Time (ms)")
         ax1.legend()
 
         ax2.plot(x, initial_data, label="initial data")
         ax2.plot(x, residuals[i], label="post-clean residuals")
         ax2.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        # ax2.axvline(off_bins[i].min() * dt, color="k")
-        # ax2.axvline(off_bins[i].max() * dt, color="k")
         ax2.axhline(0, color="k", ls=":", lw=1)
         ax2.set_xlabel("Time (ms)")
         ax2.legend()
