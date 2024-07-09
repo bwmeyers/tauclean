@@ -341,7 +341,7 @@ def clean(
 
     # Start the clean procedure, terminating when either the iteration limit is reached,
     # or when the on-pulse residuals no longer hold data values above the 3-sigma off-pulse rms noise.
-    logger.info(f"Initiating clean loop for tau={tau:g} ms")
+    logger.debug(f"Initiating clean loop for tau={tau:g} ms")
     while loop:
 
         if (iter_limit is not None) and (niter >= iter_limit):

@@ -107,20 +107,25 @@ def skewness(ccs, period=100.0):
     return gamma
 
 
-def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=None):
+def get_best_tau_jerk(
+    results: list[dict],
+    norm_fom_peak_height: float = 0.8,
+    smoothing_window_size: int = None,
+    fom_weights: dict = None,
+) -> tuple[float]:
     """Estimate the uncertainty of each tau trial value by determining
-    the value of tau that results in an increase of `dchi` units in the
-    f_c or f_r metrics (typically we would expect dchi=1).
+    the value of tau that results in the maximum peak of the FOM's 3rd derivative.
 
-    Here, we use a second-order finite difference in an attempt to figure
-    out where the maximum inflection begins, which nominally corresponds to
-    the best-fitting tau.
+    Some of the FOMs are degenerate or less-reliable, and thus are weighted when
+    combined to form an overall average estimate.
 
-    :param results: a list of dictionaries, one per trial tau [array-like]
+    :param results: a list of dictionaries, one per trial tau [list of dicts]
     :param norm_fom_peak_height: height parameter to determine peaks from
-        normalised FOM derivatives, default=0.8 [float]
+        normalised FOM derivatives, optional, default=0.8 [float]
     :param smoothing_window_size: window size to use when computing smoothed
         FOM derivatives, optional, default set based on FOM series length [int]
+    :param fom_weights: corresponding weights for each FOM to use when computing
+        the average best tau value, optional [dict]
     :returns tuple (best_tau, approx_err) [float, float]
     """
     taus = np.array([a["tau"] for a in results])
@@ -134,9 +139,27 @@ def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=N
         [a["nbins"] for a in results]
     )
 
+    # Set FOMs to use for automatic best-fit guess and error approximation
     fom = [fr, gamma, fc, sigma_c, nf_frac]
     names = ["fr", "gamma", "fc", "sigma_c", "nf_frac"]
-    weights = [1, 0.8, 0.1, 1, 1]
+    default_fom_weights = dict(fr=1.0, gamma=0.8, fc=0.0, sigma_c=0.8, nf_frac=1.0)
+    if not fom_weights:
+        fom_weights = default_fom_weights
+    else:
+        # Check to make sure required keys are present, if not, adding them.
+        for key in default_fom_weights.keys():
+            if key in fom_weights.keys():
+                if not (
+                    isinstance(fom_weights[key], float) and 0 <= fom_weights[key] <= 1
+                ):
+                    logger.warning(
+                        f"Weight for FOM={key} is not a float in the range 0 <= x <= 1! Setting to 0."
+                    )
+                    fom_weights[key] = 0
+            else:
+                fom_weights.update({f"{key}": default_fom_weights[key]})
+
+    # Smoothing and derivative kernel order
     savgol_polyorder = 3
     savgol_derorder = 3
 
@@ -180,13 +203,14 @@ def get_best_tau_jerk(results, norm_fom_peak_height=0.8, smoothing_window_size=N
         else:
             logger.error("Something went wrong finding peaks in the FOM derivatives...")
 
+    weights = [fom_weights[fom] for fom in names]
     fom_median_tau = np.average(np.array(fom_tau_estimates), weights=np.array(weights))
 
     # Now to approximate some kind of error
     base_err = np.sqrt(np.std(fom_tau_estimates) ** 2 + (taus[1] - taus[0]) ** 2)
 
     logger.info(
-        f"Best overall tau = {fom_median_tau:g} +/- {base_err:g} ms  (median from all FOM)"
+        f"Best overall tau = {fom_median_tau:g} +/- {base_err:g} ms  (weighted average)"
     )
 
     return fom_median_tau, base_err
