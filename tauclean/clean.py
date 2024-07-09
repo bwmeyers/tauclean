@@ -6,6 +6,7 @@
 """
 import logging
 import numpy as np
+from scipy.signal import convolve
 import matplotlib.pyplot as plt
 
 from . import fom
@@ -104,6 +105,86 @@ def get_restoring_width(
     return restoring_width
 
 
+def get_inst_resp(
+    profile: np.ndarray,
+    pulse_period: float,
+    r_dm_width: float,
+    r_pb_width: float,
+    r_av_width: float,
+    r_pd_width: float,
+    fast: bool = False,
+) -> np.ndarray:
+    """As noted in Bhat et al. 2003 in section 2.3.3, the instrumental response
+    is important to consider and has multiple components. In particular,
+        r(t) = convolve( r_dm(t), convolve( r_pb(t), convolve( r_av(t), r_pd(t) ) ) )
+    where
+        - r_dm(t) describes the DM smearing,
+        - r_pb(t) describes the profile binning effects,
+        - r_av(t) describes back-end time averaging, and
+        - r_pd(t) describes post-detection time averaging
+
+    In principle, all of these are knowable before commencing deconvolution.
+    A simplifying assumption (that is typically adequate) is that all of these
+    contributions are approximately rectangular. Thus, the corresponding convolutions
+    will be trapezoidal (if there are clearly dominant contributions), or nearly-Gaussian
+    if the case that each contribution is similar.
+
+    Given that many of these functions affect the signal at much finer time sampling than
+    the integrated profile, this resolution function r(t) must be created with a
+    time resolution much greater than the narrowest factor and then resampled.
+    """
+    upscale_factor = 10
+    if fast:
+        resp = np.zeros_like(profile)
+        resp[np.argmax(profile)] = 1
+    else:
+        # Compute each of the components as rectangular functions and then convolve
+        elements = [
+            r for r in [r_dm_width, r_pb_width, r_av_width, r_pd_width] if r > 0
+        ]
+        logger.debug(f"Restoring elements = {elements} ms")
+        narrowest_element = min(elements)
+        oversamp_nbins = int(upscale_factor * (pulse_period / narrowest_element))
+        oversamp_dt = pulse_period / oversamp_nbins
+        logger.debug(f"Upsampled nbins={oversamp_nbins} & dt={oversamp_dt} ms")
+
+        resp = np.zeros(oversamp_nbins)
+
+        for el in elements:
+            if np.isfinite(el):
+                contrib = np.zeros(oversamp_nbins)
+                width_bins = el // oversamp_dt
+                slc = slice(
+                    int(oversamp_nbins / 2 - width_bins / 2),
+                    int(oversamp_nbins / 2 + width_bins / 2),
+                )
+                contrib[slc] = 1
+                if resp.sum() <= 0:
+                    resp = resp + contrib
+                else:
+                    resp = convolve(resp, contrib, mode="same")
+
+        resp = resp / resp.sum()
+    decimated_resp = resp[:: oversamp_nbins // profile.size]
+    decimated_resp = decimated_resp / np.trapz(dx=1, y=decimated_resp)
+
+    # At this point, we can approximate the width by assuming the total response
+    # is a top-hat function so then the width is the total area divided by the peak
+    resp_width = (np.trapz(dx=1, y=resp) / resp.max()) * oversamp_dt
+
+    return decimated_resp, resp_width
+
+
+def get_restoring_function(
+    profile: np.ndarray,
+    pulse_period: float,
+    inst_resp_width: float,
+) -> np.ndarray:
+    nbins = len(profile)
+    x = pulse_period * np.linspace(0, 1, nbins)
+    return pbf.gaussian(x, mu=x[np.argmax(profile)], sigma=inst_resp_width)
+
+
 def get_offpulse_region(data: np.ndarray, windowsize: int = None) -> np.ndarray:
     """Determine the off-pulse window by minimising the integral over a range.
     i.e., because noise should integrate towards zero, finding the region that
@@ -134,27 +215,26 @@ def get_offpulse_region(data: np.ndarray, windowsize: int = None) -> np.ndarray:
 
 def reconstruct(
     ccs: np.ndarray,
-    period: float = 100.0,
-    rest_width: float = 1.0,
+    rest_func: np.ndarray = None,
 ) -> np.ndarray:
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
     :param ccs: the clean components amplitudes [array-like]
-    :param period: pulsar period (in ms) [float]
-    :param rest_width: telescope restoring function width (in ms) [float]
+    :param rest_func: restoring function to reconstruct with [array-like]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
 
     nbins = len(ccs)
-    x = period * np.linspace(0, 1, nbins)
 
     # Calculate the nominal effective time sampling, including effects of dispersion smearing in channels
-    impulse_response = pbf.gaussian(x, x[x.size // 2], rest_width)
+    if not rest_func:
+        logger.warning("No valid restoring function provided, using a delta function")
+        rest_func = np.zeros_like(ccs)
+        rest_func[rest_func.size // 2] = 1
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
-    recon = np.convolve(ccs, impulse_response, mode="full") / np.sum(impulse_response)
-    recon = recon[nbins // 2 : -nbins // 2 + 1]
+    recon = convolve(ccs, rest_func, mode="same") / rest_func.sum()
 
     return recon
 
@@ -163,7 +243,8 @@ def clean(
     data: np.ndarray,
     tau: float,
     period: float = 100.0,
-    rest_width: float = 1.0,
+    rest_func: np.ndarray = None,
+    inst_resp_func: np.ndarray = None,
     gain: float = 0.05,
     threshold: float = 3.0,
     pbftype: str = "thin",
@@ -174,16 +255,20 @@ def clean(
     :param data: original pulse profile [array-like]
     :param tau: scattering time scale to use when calculating the PBF [float]
     :param period: pulsar period (in ms) [float]
-    :param rest_width: telescope restoring function width (in ms) [float]
+    :param rest_func: the restoring function to use for profile reconstruction [array-like]
+    :param inst_resp_func: the instrumental response function (effective time resolution)
+        to use during deconvolution cycles [array-like]
     :param gain: a "loop gain" that is sued to scale the clean component amplitudes (usually 0.01-0.05) [float]
     :param threshold: threshold defining when to terminate the clean procedure [float]
     :param pbftype: type of pbf to use in the deconvolution [str]
-    :param iter_limit: number of iterations after which to terminate the clean procedure regardless of convergence [int]
+    :param iter_limit: number of iterations after which to terminate the clean procedure
+        regardless of convergence [int]
     :return: a dictionary containing various parameters and output of the cleaning process [dictionary]
     """
 
     nbins = len(data)
     bins = np.arange(nbins)
+    prof_dt = period / nbins
 
     # Create an x-range that is much larger than the nominal pulsar period, so that the full effect of the PBF can be
     # modelled by evaluating  over the extended range and then folding the result on the pulsar period.
@@ -228,13 +313,35 @@ def clean(
     delta = np.zeros_like(profile)
     delta[delta.size // 2] = 1.0
 
+    # Ensure that the restoring and instrumental response functions are set.
+    logger.debug("Checking restoring and instrumental response functions...")
+    if inst_resp_func is None:
+        logger.warning(
+            "No valid instrumental response function defined. Assuming a delta function."
+        )
+        # Just assume a delta function if nothing explicit is provided
+        inst_resp_func = delta
+    logger.debug("Generating instrumental+pbf convolution.")
+    inst_pbf_conv = convolve(inst_resp_func, filter_guess, mode="same")
+    inst_pbf_conv = inst_pbf_conv / inst_pbf_conv.sum()
+    plt.plot(inst_resp_func)
+    plt.plot(filter_guess)
+    plt.show()
+
+    if rest_func is None:
+        logger.warning(
+            "No valid restoring function defined. Assuming a Gaussian with FWHM = 2x profile time resolution."
+        )
+        # Assume a Gaussian with a FWHM corresponding to the profile time resolution
+        rest_func = pbf.gaussian(x, x[x.size // 2], 2 * prof_dt / 2.355)
+
     # Initialise counters and boolean checks
     loop = True
     niter = 0
 
     # Start the clean procedure, terminating when either the iteration limit is reached,
     # or when the on-pulse residuals no longer hold data values above the 3-sigma off-pulse rms noise.
-    logger.debug(f"Initiating clean loop for tau={tau:g} ms")
+    logger.info(f"Initiating clean loop for tau={tau:g} ms")
     while loop:
 
         if (iter_limit is not None) and (niter >= iter_limit):
@@ -257,17 +364,20 @@ def clean(
 
         # Create a profile component from the model PBF and the clean component
         # (Normalised to have area = 1)
-        # TODO: do we need to have the restoring function convolved here, too?
         logger.debug(
             f"Constructing component to subtract from profile for tau={tau:g} ms"
         )
-        component = (
-            np.convolve(temp_clean_comp, filter_guess, mode="full") / filter_guess.sum()
-        )
+        # The actual quantity to subtract is: convolve(scaled_clean_comp, convolve(inst_resp_func, pbf))
+        # But the second term in the first convolution call is pre-computed
+        component = convolve(temp_clean_comp, inst_pbf_conv, mode="valid")
+        component = component / component.sum()
+        plt.plot(component)
+        plt.plot(data)
+        plt.show()
 
         # In this case, we have done the full convolution to accurately capture the shape of the PBF, now just grab
         # the profile-length
-        component = component[:nbins]
+        # component = component[:nbins]
 
         # Finally, subtract the component from the profile
         cleaned = profile - component
@@ -282,10 +392,14 @@ def clean(
         # Now replace the profile with the newly cleaned profile for the next iteration
         profile = np.copy(cleaned)
 
-    logger.info(f"Clean loop terminated for tau={tau:g} ms")
+    logger.debug(f"Clean loop terminated for tau={tau:g} ms")
+    if niter <= 1:
+        logger.warning(
+            "Clean cycle only lasted 1 iteration - something probably went wrong!"
+        )
 
     # After the clean procedure, calculate figures of merit and other information about the process
-    logger.info(f"Generating FOM and reconstructed profile for tau={tau:g} ms")
+    logger.debug(f"Generating FOM and reconstructed profile for tau={tau:g} ms")
     n_unique = np.count_nonzero(clean_components)
 
     # Since `profile`, `on_pulse`, and `off_pulse` are all updated in the loop, we can access
@@ -305,7 +419,7 @@ def clean(
     )
     fr = fom.positivity(profile, off_rms)
     gamma = fom.skewness(clean_components, period=period)
-    recon = reconstruct(clean_components, period=period, rest_width=rest_width)
+    recon = reconstruct(clean_components, rest_func=rest_func)
 
     return dict(
         profile=profile,
