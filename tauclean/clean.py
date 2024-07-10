@@ -64,47 +64,6 @@ def dm_delay(dm: float, lo: float, hi: float) -> float:
     return delay
 
 
-def get_restoring_width(
-    nbins: int = 1024,
-    period: float = 100.0,
-    freq: float = 1.4,
-    bw: float = 0.256,
-    nchan: int = 1024,
-    dm: float = 0.0,
-    coherent: bool = False,
-) -> float:
-    """Estimate the restoring function width in milliseconds based on the time sampling and (possible) residual DM
-    delay in channels
-
-    :param nbins: number of bins in profile [int]
-    :param period: pulsar rotation period in ms [float]
-    :param freq: centre observing frequency in GHz [float]
-    :param bw: observing bandwidth in GHz [float]
-    :param nchan: number of frequency channels [int]
-    :param dm: dispersion measure of pulsar (in cm^-3 pc) [float]
-    :param coherent: boolean switch as to whether coherent dedispersion was used [boolean]
-    :return: restoring function width in milliseconds [float]
-    """
-    time_sample = float(period) / nbins
-
-    if coherent:
-        # If coherently de-dispersed, then there will be no DM-smearing component to the response function
-        dmdelay = 0.0
-    else:
-        # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
-        # nominal width of the restoring function
-        chan_bw = float(bw) / nchan
-        lochan = freq - (bw / 2.0)
-        hichan = lochan + chan_bw
-
-        dmdelay = dm_delay(dm, lochan, hichan)
-
-    # Restoring width in milliseconds
-    restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
-
-    return restoring_width
-
-
 def get_inst_resp(
     profile: np.ndarray,
     pulse_period: float,
@@ -180,12 +139,25 @@ def get_restoring_function(
     pulse_period: float,
     inst_resp_width: float,
 ) -> np.ndarray:
+    """Generate the restoring function to use when reconstructing
+    an intrinsic pulse shape after deconvolution. This follows the logic
+    as given in Bhat et al. (2003), section 2.3.4.
+
+    :param profile: The profile data for the original scattered pulse.
+    :type profile: np.ndarray
+    :param pulse_period: The pulsar period in ms.
+    :type pulse_period: float
+    :param inst_resp_width: The instrumental response effective width in ms.
+    :type inst_resp_width: float
+    :return: A gaussian pulse to use for profile reconstruction.
+    :rtype: np.ndarray
+    """
     nbins = len(profile)
     x = pulse_period * np.linspace(0, 1, nbins)
     return pbf.gaussian(x, mu=x[np.argmax(profile)], sigma=inst_resp_width)
 
 
-def get_offpulse_region(data: np.ndarray, windowsize: int = None) -> np.ndarray:
+def get_offpulse_region(data: np.ndarray, windowsize: int | None = None) -> np.ndarray:
     """Determine the off-pulse window by minimising the integral over a range.
     i.e., because noise should integrate towards zero, finding the region that
     minimises the area mean it is representative of the noise level.
@@ -215,7 +187,7 @@ def get_offpulse_region(data: np.ndarray, windowsize: int = None) -> np.ndarray:
 
 def reconstruct(
     ccs: np.ndarray,
-    rest_func: np.ndarray = None,
+    rest_func: np.ndarray | None = None,
 ) -> np.ndarray:
     """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
 
@@ -223,19 +195,18 @@ def reconstruct(
     :param rest_func: restoring function to reconstruct with [array-like]
     :return: a reconstruction of the intrinsic pulse profile [array-like]
     """
-
     nbins = len(ccs)
 
     # Calculate the nominal effective time sampling, including effects of dispersion smearing in channels
-    if not rest_func:
+    if rest_func is None:
         logger.warning("No valid restoring function provided, using a delta function")
         rest_func = np.zeros_like(ccs)
         rest_func[rest_func.size // 2] = 1
 
     # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
     # The impulse response has unit area, thus the fluence of the pulse should be conserved
-    recon = convolve(ccs, rest_func, mode="same") / rest_func.sum()
-
+    recon = convolve(ccs, rest_func, mode="full")
+    recon = recon[:nbins]
     return recon
 
 
@@ -243,8 +214,8 @@ def clean(
     data: np.ndarray,
     tau: float,
     period: float = 100.0,
-    rest_func: np.ndarray = None,
-    inst_resp_func: np.ndarray = None,
+    rest_func: np.ndarray | None = None,
+    inst_resp_func: np.ndarray | None = None,
     gain: float = 0.05,
     threshold: float = 3.0,
     pbftype: str = "thin",
@@ -322,11 +293,9 @@ def clean(
         # Just assume a delta function if nothing explicit is provided
         inst_resp_func = delta
     logger.debug("Generating instrumental+pbf convolution.")
-    inst_pbf_conv = convolve(inst_resp_func, filter_guess, mode="same")
+    inst_pbf_conv = convolve(inst_resp_func, filter_guess, mode="full")
+    inst_pbf_conv = inst_pbf_conv[nbins // 2 : nbins]
     inst_pbf_conv = inst_pbf_conv / inst_pbf_conv.sum()
-    plt.plot(inst_resp_func)
-    plt.plot(filter_guess)
-    plt.show()
 
     if rest_func is None:
         logger.warning(
@@ -343,7 +312,6 @@ def clean(
     # or when the on-pulse residuals no longer hold data values above the 3-sigma off-pulse rms noise.
     logger.debug(f"Initiating clean loop for tau={tau:g} ms")
     while loop:
-
         if (iter_limit is not None) and (niter >= iter_limit):
             logger.warning(f"Reached iteration limit for tau={tau:g} ms")
             break
@@ -368,16 +336,16 @@ def clean(
             f"Constructing component to subtract from profile for tau={tau:g} ms"
         )
         # The actual quantity to subtract is: convolve(scaled_clean_comp, convolve(inst_resp_func, pbf))
-        # But the second term in the first convolution call is pre-computed
-        component = convolve(temp_clean_comp, inst_pbf_conv, mode="valid")
-        component = component / component.sum()
-        plt.plot(component)
-        plt.plot(data)
-        plt.show()
+        # But the second term in the first convolution call is pre-computed.
+        # This preserves the component position at the clean-component.
+        component = convolve(temp_clean_comp, inst_pbf_conv, mode="full")
+        component = component[:nbins]
 
-        # In this case, we have done the full convolution to accurately capture the shape of the PBF, now just grab
-        # the profile-length
-        # component = component[:nbins]
+        if component.size != profile.size:
+            logger.error(
+                f"CLEAN component shape ({component.size}) is not the same as the profile ({profile.size})!"
+            )
+            raise ValueError
 
         # Finally, subtract the component from the profile
         cleaned = profile - component
@@ -390,13 +358,14 @@ def clean(
         loop = keep_cleaning(on_pulse, off_pulse, threshold=threshold)
 
         # Now replace the profile with the newly cleaned profile for the next iteration
-        profile = np.copy(cleaned)
+        profile = cleaned
 
-    logger.debug(f"Clean loop terminated for tau={tau:g} ms")
     if niter <= 1:
         logger.warning(
             "Clean cycle only lasted 1 iteration - something probably went wrong!"
         )
+    else:
+        logger.debug(f"Clean cycle terminated successfully for tau={tau:g} ms")
 
     # After the clean procedure, calculate figures of merit and other information about the process
     logger.debug(f"Generating FOM and reconstructed profile for tau={tau:g} ms")
@@ -417,8 +386,15 @@ def clean(
         off_mean=off_mean,
         threshold=threshold,
     )
+    logger.debug(f"nf (tau={tau:g} ms) = {nf}")
+
     fr = fom.positivity(profile, off_rms)
+    logger.debug(f"fr (tau={tau:g} ms) = {fr}")
+
     gamma = fom.skewness(clean_components, period=period)
+    logger.debug(f"gamma (tau={tau:g} ms) = {gamma}")
+
+    logger.debug(f"Reconstructing profile for tau={tau:g} ms")
     recon = reconstruct(clean_components, rest_func=rest_func)
 
     return dict(
@@ -435,6 +411,7 @@ def clean(
         ncc=n_unique,
         nf=nf,
         off_bins=off_pulse_bins,
+        on_bins=on_pulse_bins,
         off_rms=off_rms,
         off_mean=off_mean,
         on_rms=on_rms,
