@@ -35,10 +35,14 @@ def keep_cleaning(
 
     Decides whether to keep cleaning or terminate the process.
 
-    :param on: on-pulse time series [array-like]
-    :param off: off-pulse time series [array-like]
-    :param threshold: noise-threshold to determine when to stop cleaning [float]
-    :return: whether to keep cleaning or not [boolean]
+    :param on: On-pulse time series.
+    :type on: np.ndarray
+    :param off: Off-pulse time series.
+    :type off: np.ndarray
+    :param threshold: Noise threshold to determine when to stop cleaning.
+    :type threshold: float
+    :return: Whether to keep cleaning or not.
+    :rtype: bool
     """
     rms = np.std(off)
     mean = np.mean(off)
@@ -52,10 +56,14 @@ def keep_cleaning(
 def dm_delay(dm: float, lo: float, hi: float) -> float:
     """Calculate the dispersion delay between frequencies "lo" and "hi", both in GHz
 
-    :param dm: dispersion measure of pulsar (in cm^-3 pc) [float]
-    :param lo: the lowest frequency (in GHz) [float]
-    :param hi: the highest frequency (in GHz) [float]
-    :return: dispersion delay (in ms) [float]
+    :param dm: dispersion measure of pulsar (in cm^-3 pc)
+    :type dm: float
+    :param lo: the lowest frequency (in GHz)
+    :type lo: float
+    :param hi: the highest frequency (in GHz)
+    :type hi: float
+    :return: dispersion delay (in ms)
+    :rtype: float
     """
 
     k = 4.148808  # dispersion constant in ms
@@ -73,7 +81,8 @@ def get_inst_resp(
     r_pd_width: float,
     fast: bool = False,
 ) -> np.ndarray:
-    """As noted in Bhat et al. 2003 in section 2.3.3, the instrumental response
+    """Compute the instrumental response.
+    As noted in Bhat et al. 2003 in section 2.3.3, the instrumental response
     is important to consider and has multiple components. In particular,
         r(t) = convolve( r_dm(t), convolve( r_pb(t), convolve( r_av(t), r_pd(t) ) ) )
     where
@@ -91,9 +100,28 @@ def get_inst_resp(
     Given that many of these functions affect the signal at much finer time sampling than
     the integrated profile, this resolution function r(t) must be created with a
     time resolution much greater than the narrowest factor and then resampled.
+
+    :param profile: The profile data for the original scattered pulse.
+    :type profile: np.ndarray
+    :param pulse_period: The pulsar period in ms.
+    :type pulse_period: float
+    :param r_dm_width: The DM smearing effective width.
+    :type r_dm_width: float
+    :param r_pb_width: The profile binning effective width.
+    :type r_pb_width: float
+    :param r_av_width: The effective width corresponding to the back-end sampling/averaging.
+    :type r_av_width: float
+    :param r_pd_width: The effective width corresponding to any post-detection averaging.
+    :type r_pd_width: float
+    :param fast: Whether to take the cheap assumption that the instrumental response is a
+        delta-function, defaults to False.
+    :type fast: bool, optional
+    :return: The instrumental response function, resampled at the same resolution as the profile.
+    :rtype: np.ndarray
     """
     upscale_factor = 10
     if fast:
+        # Just use a delta function!
         resp = np.zeros_like(profile)
         resp[np.argmax(profile)] = 1
     else:
@@ -123,7 +151,7 @@ def get_inst_resp(
                 else:
                     resp = convolve(resp, contrib, mode="same")
 
-        resp = resp / resp.sum()
+        resp = resp / resp.sum()  # preserves fluence
     decimated_resp = resp[:: oversamp_nbins // profile.size]
     decimated_resp = decimated_resp / np.trapz(dx=1, y=decimated_resp)
 
@@ -153,8 +181,11 @@ def get_restoring_function(
     :rtype: np.ndarray
     """
     nbins = len(profile)
-    x = pulse_period * np.linspace(0, 1, nbins)
-    return pbf.gaussian(x, mu=x[np.argmax(profile)], sigma=inst_resp_width)
+    x = pulse_period * np.linspace(-0.5, 0.5, nbins)
+    rest_func = pbf.gaussian(x, mu=0, sigma=inst_resp_width)
+    rest_func = rest_func / rest_func.sum()  # preserves fluence
+
+    return rest_func
 
 
 def get_offpulse_region(data: np.ndarray, windowsize: int | None = None) -> np.ndarray:
@@ -164,9 +195,12 @@ def get_offpulse_region(data: np.ndarray, windowsize: int | None = None) -> np.n
 
     Method taken from PyPulse (Lam, 2017. https://ascl.net/1706.011).
 
-    :param data: original pulse profile [array-like]
-    :param windowsize: window width (in bins) defining the trial regions to integrate [int]
-    :return: a list of bins corresponding to the off-pulse region [array-like]
+    :param data: The original pulse profile.
+    :type data: np.ndarray
+    :param windowsize: Window width (in bins) defining the trial regions to integrate.
+    :type windowsize: int | None
+    :return: A list of bins corresponding to the off-pulse region.
+    :rtype: np.ndarray
     """
     nbins = len(data)
 
@@ -189,24 +223,27 @@ def reconstruct(
     ccs: np.ndarray,
     rest_func: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Attempt to reconstruct the intrinsic pulse shape based on the clean component positions and amplitudes
+    """Attempt to reconstruct the intrinsic pulse shape based on the clean
+    component positions and amplitudes.
 
-    :param ccs: the clean components amplitudes [array-like]
-    :param rest_func: restoring function to reconstruct with [array-like]
-    :return: a reconstruction of the intrinsic pulse profile [array-like]
+    :param ccs: The clean components amplitudes.
+    :type ccs: np.ndarray
+    :param rest_func: The restoring function to reconstruct with.
+    :type rest_func: np.ndarray | None
+    :return: A reconstruction of the intrinsic pulse profile.
+    :rtype: np.ndarray
     """
-    nbins = len(ccs)
-
-    # Calculate the nominal effective time sampling, including effects of dispersion smearing in channels
+    # Calculate the nominal effective time sampling, including effects
+    # of dispersion smearing in channels
     if rest_func is None:
         logger.warning("No valid restoring function provided, using a delta function")
         rest_func = np.zeros_like(ccs)
         rest_func[rest_func.size // 2] = 1
 
-    # Reconstruct the intrinsic pulse profile by convolving the clean components with the impulse response
-    # The impulse response has unit area, thus the fluence of the pulse should be conserved
-    recon = convolve(ccs, rest_func, mode="full")
-    recon = recon[:nbins]
+    # Reconstruct the intrinsic pulse profile by convolving the clean
+    # components with the impulse response. The impulse response has unit
+    # area, thus the fluence of the pulse should be conserved.
+    recon = convolve(ccs, rest_func, mode="same")
     return recon
 
 
@@ -219,22 +256,38 @@ def clean(
     gain: float = 0.05,
     threshold: float = 3.0,
     pbftype: str = "thin",
-    iter_limit: int = None,
+    iter_limit: int = 1000,
 ) -> dict:
-    """The primary function of tauclean that actually does the deconvolution.
+    """The primary function which does the deconvolution (CLEAN) procedure,
+    gathers the figures of merit for each converged cycle and returns a
+    dictionary of results and supplemental information.
 
-    :param data: original pulse profile [array-like]
-    :param tau: scattering time scale to use when calculating the PBF [float]
-    :param period: pulsar period (in ms) [float]
-    :param rest_func: the restoring function to use for profile reconstruction [array-like]
-    :param inst_resp_func: the instrumental response function (effective time resolution)
-        to use during deconvolution cycles [array-like]
-    :param gain: a "loop gain" that is sued to scale the clean component amplitudes (usually 0.01-0.05) [float]
-    :param threshold: threshold defining when to terminate the clean procedure [float]
-    :param pbftype: type of pbf to use in the deconvolution [str]
-    :param iter_limit: number of iterations after which to terminate the clean procedure
-        regardless of convergence [int]
-    :return: a dictionary containing various parameters and output of the cleaning process [dictionary]
+    :param data: The original pulse profile.
+    :type data: np.ndarray
+    :param tau: Scattering time scale to use when calculating the PBF.
+    :type tau: float
+    :param period: The pulsar spin period (in ms), defaults to 100.0.
+    :type period: float
+    :param rest_func: The restoring function to use for profile reconstruction,
+        defaults to None.
+    :type rest_func: np.ndarray | None
+    :param inst_resp_func: The instrumental response function to use during
+        deconvolution cycles, defaults to None.
+    :type inst_resp: np.ndarray | None
+    :param gain: A small (<<1) "loop gain" that is used to scale the clean component
+        amplitudes, defaults to 0.05.
+    :param gain: float
+    :param threshold: Noise-level threshold defining when to terminate the clean
+        procedure, defaults to 3.0.
+    :type threshold: float
+    :param pbftype: Type of pulse-broadening function to use in the deconvolution,
+        defaults to "thin".
+    :type pbftype: str
+    :param iter_limit: Number of iterations after which to terminate the clean procedure
+        regardless of convergence, defaults to 1000.
+    :type iter_limit: int
+    :return: A dictionary containing various parameters and output of the cleaning process.
+    :rtype: dict
     """
 
     nbins = len(data)
