@@ -237,17 +237,6 @@ def execute_tauclean(args):
             f"Will search {ntaus} scattering time scales, {tau_min}-{tau_max} ms, inclusive"
         )
 
-    # Calculate the components required to approximate the instrumental response
-    # and corresponding restoring function for the reconstruction process
-    # restoring_width = clean.get_restoring_width(
-    #     nbins,
-    #     period=args.period,
-    #     freq=args.freq,
-    #     bw=args.bw,
-    #     nchan=args.nchan,
-    #     dm=args.dm,
-    #     coherent=False,
-    # )
     chan_bw = args.bw / args.nchan
     chan_cntr_low = args.freq - args.bw / 2
     chan_ledge_lo = chan_cntr_low - chan_bw / 2
@@ -273,7 +262,7 @@ def execute_tauclean(args):
     restoring_fn = clean.get_restoring_function(data, args.period, inst_resp_width)
 
     logger.info(f"Effective instrumental response width: {inst_resp_width:g} ms")
-    logger.info(
+    logger.debug(
         f"Restoring function will be a Gaussian with std. dev. = {inst_resp_width:g} ms"
     )
 
@@ -343,7 +332,6 @@ def execute_tauclean(args):
             plotting.plot_figures_of_merit(
                 sorted_results, true_tau=args.truth, best_tau=best, best_tau_err=err
             )
-            logger.info("Done plotting FOMs.")
 
     if not args.noplot_r:
         logger.info("Plotting clean residuals...")
