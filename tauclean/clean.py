@@ -257,6 +257,7 @@ def clean(
     threshold: float = 3.0,
     pbftype: str = "thin",
     iter_limit: int = 1000,
+    onpulse_estimator: list | str = "auto",
 ) -> dict:
     """The primary function which does the deconvolution (CLEAN) procedure,
     gathers the figures of merit for each converged cycle and returns a
@@ -286,6 +287,10 @@ def clean(
     :param iter_limit: Number of iterations after which to terminate the clean procedure
         regardless of convergence, defaults to 1000.
     :type iter_limit: int
+    :param onpulse_estimator: Either the range of profile bins defining an on-pulse region,
+        or the string "auto" to indicate that we should automatically determine an
+        on/off-pulse region. Defaults to "auto".
+    :type onpulse_estimator: list | str
     :return: A dictionary containing various parameters and output of the cleaning process.
     :rtype: dict
     """
@@ -318,11 +323,14 @@ def clean(
     logger.debug(f"Estimating initial profile statistics for tau={tau:g} ms")
     profile = np.copy(data)
 
-    # Determine the off-pulse by minimizing a windowed integrated quantity
-    off_pulse_bins = get_offpulse_region(profile)
-
-    # Define everything else of "on-pulse"
-    on_pulse_bins = bins[np.logical_not(np.in1d(bins, off_pulse_bins))]
+    if onpulse_estimator == "auto":
+        # Determine the off-pulse by minimizing a windowed integrated quantity
+        off_pulse_bins = get_offpulse_region(profile)
+        on_pulse_bins = bins[np.logical_not(np.in1d(bins, off_pulse_bins))]
+    else:
+        # Accept the user-defined region as the on-pulse
+        on_pulse_bins = bins[onpulse_estimator[0] : onpulse_estimator[1]]
+        off_pulse_bins = bins[np.logical_not(np.in1d(bins, on_pulse_bins))]
 
     # Calculate the noise level (assumes baseline removal happened already)
     off_pulse = profile[off_pulse_bins]
