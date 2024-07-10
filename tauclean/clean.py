@@ -444,7 +444,7 @@ def clean(
     fr = fom.positivity(profile, off_rms)
     logger.debug(f"fr (tau={tau:g} ms) = {fr}")
 
-    gamma = fom.skewness(clean_components, period=period)
+    gamma = fom.skewness(clean_components, pulsar_period=period)
     logger.debug(f"gamma (tau={tau:g} ms) = {gamma}")
 
     logger.debug(f"Reconstructing profile for tau={tau:g} ms")
