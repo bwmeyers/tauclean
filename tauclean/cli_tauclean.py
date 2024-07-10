@@ -275,6 +275,7 @@ def execute_tauclean(args):
         threshold=args.thresh,
         inst_resp_func=inst_resp_fn,
         rest_func=restoring_fn,
+        onpulse_estimator=args.onpulse,
     )
 
     # Create a master list that will contain the output for each trial
