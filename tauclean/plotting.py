@@ -6,6 +6,7 @@
 """
 import logging
 import matplotlib.pyplot as plt
+from matplotlib.scale import SymmetricalLogScale
 import numpy as np
 from scipy.signal import savgol_filter
 from . import pbf
@@ -47,32 +48,28 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     ]
     min_tau_step = min(np.diff(taus))
 
-    fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(20, 6))
+    fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(24, 6))
     for y, ylab, ax in zip(params, labels, axs.flatten()):
-
-        ax.plot(taus, np.array(y), marker="o", color="C0", label="FOM")
-        ax.axhline(0, lw=1, ls=":", color="C0")
+        vals = np.array(y)
+        ax.plot(taus, vals, marker="o", color="C0", label="FOM")
+        ax.set_ylabel(ylab, fontsize=20)
 
         tax = ax.twinx()
         der3 = savgol_filter(
-            y,
-            window_length=len(y) // 8 if len(y) // 8 > 3 else 4,
+            vals,
+            window_length=vals.size // 8 if vals.size // 8 > 3 else 4,
             polyorder=3,
             deriv=3,
         )
+        norm_abs_der3 = np.abs(der3 / der3.max())
         tax.plot(
             taus,
-            max(y) * der3 / der3.max(),
+            norm_abs_der3,
             ls=":",
             color="k",
-            label="norm. 3rd deriv.",
+            label="|norm. 3rd deriv.|",
         )
-        tax.axhline(0, lw=1, ls=":", color="k")
-        tax.set_ylabel("3rd derivative")
-
-        ax.set_ylabel(ylab, fontsize=20)
-
-        # ax.set_ylim(-1.5, 1.5)
+        tax.set_ylabel("abs(normalsed 3rd deriv.)")
 
         if true_tau is not None:
             ax.axvline(true_tau, color="k", ls="--", label="truth")
@@ -140,41 +137,41 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     off_rms = np.array([a["off_rms"] for a in results])
     off_mean = np.array([a["off_mean"] for a in results])
     thresh = np.array([a["threshold"] for a in results])
-    on_start = np.array([a["on_start"] for a in results])
-    on_end = np.array([a["on_end"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
     pos_thresh = off_mean + thresh * off_rms
     neg_thresh = off_mean - thresh * off_rms
 
-    # off_pulse_regions = []
-    # for k, g in groupby(enumerate(off_bins), lambda k: k[0] - k[1]):
-    #     start = next(g)[1]
-    #     end = list(v for _, v in g) or [start]
-    #     off_pulse_regions.append(range(start, end[-1] + 1))
-
     for i, t in enumerate(taus):
-        # print(off_bins[i])
         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex="all", figsize=(20, 8))
         fig.suptitle(r"Residuals ($\rm \tau = {0:g}\ ms$)".format(t))
 
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
-        ax1.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        ax1.axvline(on_start[i] * dt, color="k")
-        ax1.axvline(on_end[i] * dt, color="k")
+        ax1.fill_between(
+            x,
+            neg_thresh[i],
+            pos_thresh[i],
+            color="0.8",
+            label="CLEAN threshold",
+        )
         ax1.set_xlabel("Time (ms)")
+        ax1.set_xlim(x.min(), x.max())
         ax1.legend()
 
         ax2.plot(x, initial_data, label="initial data")
         ax2.plot(x, residuals[i], label="post-clean residuals")
-        ax2.fill_between(x, neg_thresh[i], pos_thresh[i], color="0.8")
-        ax2.axvline(on_start[i] * dt, color="k")
-        ax2.axvline(on_end[i] * dt, color="k")
+        ax2.fill_between(
+            x,
+            neg_thresh[i],
+            pos_thresh[i],
+            color="0.8",
+            label="CLEAN threshold",
+        )
         ax2.axhline(0, color="k", ls=":", lw=1)
         ax2.set_xlabel("Time (ms)")
         ax2.legend()
-        ax2.set_ylim(-10 * off_rms[i], 10 * off_rms[i])
+        ax2.set_ylim(-2 * thresh[i] * off_rms[i], 2 * thresh[i] * off_rms[i])
 
         plt.savefig(
             "clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t),
@@ -200,12 +197,11 @@ def plot_clean_components(results, period=100.0):
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
 
         ax.vlines(x, ymin=0, ymax=clean_components[i], color="k")
+        ax.set_ylim(0, None)
+        ax.set_xlim(x.min(), x.max())
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Clean component amplitude")
-        title = r"""$\rm \tau = {0:g}\ ms$
-total components added = {1}, unique components = {2}""".format(
-            t, ntotal[i], nunique[i]
-        )
+        title = rf"$\tau$ = {t:g} ms,  total components added = {ntotal[i]},  unique components = {nunique[i]}"
         ax.set_title(title)
 
         plt.savefig(
