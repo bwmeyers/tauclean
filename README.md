@@ -1,4 +1,4 @@
-# tauclean: pulse broadening deconvolution
+# tauclean: pulse broadening deconvolution and profile reconstruction
 
 An implementation of the pulsar profile deconvolution method described by
 [Bhat et al. (2003)](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Original description paper")
