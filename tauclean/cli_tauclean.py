@@ -92,6 +92,15 @@ def main():
         help="Number of frequency channels across the bandwidth.",
     )
 
+    obs_group.add_argument(
+        "-r",
+        "--native_dt",
+        metavar="NATIVE_TIME_RES",
+        type=float,
+        default=100.0,
+        help="Native time resolution of output data from back-end (pre-folding), in microseconds.",
+    )
+
     # Option group specifying configuration of deconvolution, and how to perform it (i.e. to search or not)
     clean_group = parser.add_argument_group("Deconvolution options")
     tau_group = clean_group.add_mutually_exclusive_group(required=True)
@@ -228,25 +237,34 @@ def execute_tauclean(args):
             f"Will search {ntaus} scattering time scales, {tau_min}-{tau_max} ms, inclusive"
         )
 
-    # Calculate the restoring function width
-    restoring_width = clean.get_restoring_width(
-        nbins,
-        period=args.period,
-        freq=args.freq,
-        bw=args.bw,
-        nchan=args.nchan,
-        dm=args.dm,
-        coherent=False,
-    )
     chan_bw = args.bw / args.nchan
     chan_cntr_low = args.freq - args.bw / 2
     chan_ledge_lo = chan_cntr_low - chan_bw / 2
     chan_ledge_hi = chan_cntr_low + chan_bw / 2
-    worst_intrachan_smear = clean.dm_delay(args.dm, chan_ledge_lo, chan_ledge_hi)
-    logger.info(f"Native profile time resolution: {args.period/nbins:g} ms")
+    dm_smear_width = clean.dm_delay(args.dm, chan_ledge_lo, chan_ledge_hi)  # in ms
+    prof_bin_width = args.period / nbins  # in ms
+    backend_dt_width = args.native_dt / 1000  # in ms
+    post_dt_width = 0  # in ms
+
+    logger.info(f"Native profile time resolution: {prof_bin_width:g} ms")
     if not args.coherent:
-        logger.info(f"DM smearing within lowest channel: {worst_intrachan_smear:g} ms")
-    logger.info(f"Restoring function width: {restoring_width:g} ms")
+        logger.info(f"DM smearing within lowest channel: {dm_smear_width:g} ms")
+
+    inst_resp_fn, inst_resp_width = clean.get_inst_resp(
+        data,
+        args.period,
+        r_dm_width=dm_smear_width,
+        r_pb_width=prof_bin_width,
+        r_av_width=backend_dt_width,
+        r_pd_width=post_dt_width,
+        fast=False,
+    )
+    restoring_fn = clean.get_restoring_function(data, args.period, inst_resp_width)
+
+    logger.info(f"Effective instrumental response width: {inst_resp_width:g} ms")
+    logger.debug(
+        f"Restoring function will be a Gaussian with std. dev. = {inst_resp_width:g} ms"
+    )
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
@@ -255,7 +273,9 @@ def execute_tauclean(args):
         pbftype=args.kernel,
         iter_limit=args.iterlim,
         threshold=args.thresh,
-        rest_width=restoring_width,
+        inst_resp_func=inst_resp_fn,
+        rest_func=restoring_fn,
+        onpulse_estimator=args.onpulse,
     )
 
     # Create a master list that will contain the output for each trial
@@ -268,7 +288,7 @@ def execute_tauclean(args):
 
     logger.info("Starting deconvolution cycles...")
     # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
-    logger.info("Creating a pool of {0} workers".format(args.ncpus))
+    logger.debug(f"Creating a pool of {args.ncpus} workers")
     with mp.Pool(processes=args.ncpus) as pool:
         for tau in taus:
             logger.debug(f"Started async. job for tau={tau:g} ms")
@@ -313,7 +333,6 @@ def execute_tauclean(args):
             plotting.plot_figures_of_merit(
                 sorted_results, true_tau=args.truth, best_tau=best, best_tau_err=err
             )
-            logger.info("Done plotting FOMs.")
 
     if not args.noplot_r:
         logger.info("Plotting clean residuals...")
