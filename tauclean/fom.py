@@ -257,11 +257,11 @@ def get_best_tau_jerk(
         # If there are zero peaks (again, possible for complex profiles or poorly samples trials),
         # we can't use that information and so the weights/values need to be excluded.
         else:
-            logger.warning("Unable to find peaks in the FOM ({lab}) derivative.")
+            logger.warning(f"Unable to find peaks in the FOM ({lab}) derivative.")
             logger.warning(
                 "This could be due to profile complexity, or maybe you need to increase the number of trial taus."
             )
-            logger.debug("Excluding FOM={lab} from further analysis.")
+            logger.debug(f"Excluding FOM={lab} from further analysis.")
             # Remove that FOM from the weighting scheme
             fom_weights.pop(lab)
 
