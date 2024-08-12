@@ -182,7 +182,7 @@ def get_best_tau_jerk(
     # Set FOMs to use for automatic best-fit guess and error approximation
     fom = [fr, gamma, fc, sigma_c, nf_frac]
     names = ["fr", "gamma", "fc", "sigma_c", "nf_frac"]
-    default_fom_weights = dict(fr=1.0, gamma=0.8, fc=0.0, sigma_c=0.8, nf_frac=1.0)
+    default_fom_weights = dict(fr=1.0, gamma=0.5, fc=0.0, sigma_c=0.5, nf_frac=0.5)
     if fom_weights is None:
         fom_weights = default_fom_weights
     else:
