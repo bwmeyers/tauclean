@@ -137,10 +137,11 @@ def main():
     clean_group.add_argument(
         "-o",
         "--onpulse",
-        metavar="START,END or 'auto'",
+        metavar="'START END' or 'auto'",
         type=str,
         default="auto",
-        help="Boundaries of the on-pulse region. If set as 'auto', will automatically compute on- and off-pulse regions.",
+        help="""Boundaries of the on-pulse region. Format as 'START END', or if set to 'auto',
+        will automatically compute on- and off-pulse regions.""",
     )
 
     clean_group.add_argument(
@@ -156,8 +157,8 @@ def main():
         "--gain",
         metavar="gain",
         type=float,
-        default=0.05,
-        help="Loop gain (scaling factor << 1) used to weight component subtraction. Values around 0.05 are empirically good.",
+        default=0.01,
+        help="Loop gain (scaling factor << 1) used to weight component subtraction. Values around 0.01 are empirically good.",
     )
 
     clean_group.add_argument(
@@ -236,6 +237,7 @@ def execute_tauclean(args):
         logger.info(
             f"Will search {ntaus} scattering time scales, {tau_min}-{tau_max} ms, inclusive"
         )
+    logger.info(f"Loop gain factor = {args.gain}")
 
     chan_bw = args.bw / args.nchan
     chan_cntr_low = args.freq - args.bw / 2
@@ -257,14 +259,12 @@ def execute_tauclean(args):
         r_pb_width=prof_bin_width,
         r_av_width=backend_dt_width,
         r_pd_width=post_dt_width,
-        fast=False,
+        fast=True,
     )
     restoring_fn = clean.get_restoring_function(data, args.period, inst_resp_width)
 
     logger.info(f"Effective instrumental response width: {inst_resp_width:g} ms")
-    logger.debug(
-        f"Restoring function will be a Gaussian with std. dev. = {inst_resp_width:g} ms"
-    )
+    logger.info(f"Restoring function (Gaussian) width: {inst_resp_width:g} ms")
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
