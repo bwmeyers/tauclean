@@ -120,10 +120,12 @@ def get_inst_resp(
     :rtype: np.ndarray
     """
     upscale_factor = 10
+
     if fast:
         # Just use a delta function!
         resp = np.zeros_like(profile)
         resp[np.argmax(profile)] = 1
+        return resp, pulse_period / len(profile)
     else:
         # Compute each of the components as rectangular functions and then convolve
         elements = [
@@ -133,7 +135,8 @@ def get_inst_resp(
         narrowest_element = min(elements)
         oversamp_nbins = int(upscale_factor * (pulse_period / narrowest_element))
         oversamp_dt = pulse_period / oversamp_nbins
-        logger.debug(f"Upsampled nbins={oversamp_nbins} & dt={oversamp_dt} ms")
+        x = np.linspace(0, 1, oversamp_nbins) * pulse_period
+        logger.debug(f"Upsampled nbins={oversamp_nbins} & dt={oversamp_dt}ms")
 
         resp = np.zeros(oversamp_nbins)
 
@@ -152,14 +155,17 @@ def get_inst_resp(
                     resp = convolve(resp, contrib, mode="same")
 
         resp = resp / resp.sum()  # preserves fluence
-    decimated_resp = resp[:: oversamp_nbins // profile.size]
-    decimated_resp = decimated_resp / np.trapz(dx=1, y=decimated_resp)
 
-    # At this point, we can approximate the width by assuming the total response
-    # is a top-hat function so then the width is the total area divided by the peak
-    resp_width = (np.trapz(dx=1, y=resp) / resp.max()) * oversamp_dt
+        decimated_resp = resp[:: oversamp_nbins // profile.size]
+        decimated_resp = decimated_resp / np.trapz(
+            x=np.linspace(0, 1, len(decimated_resp)) * pulse_period, y=decimated_resp
+        )
 
-    return decimated_resp, resp_width
+        # At this point, we can approximate the width by assuming the total response
+        # is a top-hat function so then the width is the total area divided by the peak
+        resp_width = (np.trapz(dx=1, y=resp) / resp.max()) * oversamp_dt
+
+        return decimated_resp, resp_width
 
 
 def get_restoring_function(
@@ -180,12 +186,13 @@ def get_restoring_function(
     :return: A gaussian pulse to use for profile reconstruction.
     :rtype: np.ndarray
     """
-    nbins = len(profile)
+    upfact = 10
+    nbins = upfact * len(profile)
     x = pulse_period * np.linspace(-0.5, 0.5, nbins)
     rest_func = pbf.gaussian(x, mu=0, sigma=inst_resp_width)
-    rest_func = rest_func / rest_func.sum()  # preserves fluence
+    # The above gaussian function is already normalised.
 
-    return rest_func
+    return rest_func[::upfact]
 
 
 def get_offpulse_region(data: np.ndarray, windowsize: int | None = None) -> np.ndarray:
@@ -241,10 +248,11 @@ def reconstruct(
         rest_func[rest_func.size // 2] = 1
 
     # Reconstruct the intrinsic pulse profile by convolving the clean
-    # components with the impulse response. The impulse response has unit
+    # components with the restoring function. The restoring function has unit
     # area, thus the fluence of the pulse should be conserved.
     recon = convolve(ccs, rest_func, mode="same")
-    return recon
+
+    return recon / recon.max()
 
 
 def clean(
@@ -325,14 +333,19 @@ def clean(
 
     if onpulse_estimator == "auto":
         # Determine the off-pulse by minimizing a windowed integrated quantity
+        logger.debug("Using 'auto' off-pulse estimator.")
         off_pulse_bins = get_offpulse_region(profile)
         on_pulse_bins = bins[np.logical_not(np.in1d(bins, off_pulse_bins))]
     else:
         # Accept the user-defined region as the on-pulse
-        on_pulse_bins = bins[onpulse_estimator[0] : onpulse_estimator[1]]
+        logger.debug("Using used-defined on-pulse region.")
+        on_start, on_end = onpulse_estimator.split(" ")
+        on_pulse_bins = bins[on_start:on_end]
         off_pulse_bins = bins[np.logical_not(np.in1d(bins, on_pulse_bins))]
 
     # Calculate the noise level (assumes baseline removal happened already)
+    baseline = np.mean(profile[off_pulse_bins])
+    profile = profile - baseline
     off_pulse = profile[off_pulse_bins]
     on_pulse = profile[on_pulse_bins]
     init_off_rms = np.std(off_pulse)
@@ -353,17 +366,24 @@ def clean(
         )
         # Just assume a delta function if nothing explicit is provided
         inst_resp_func = delta
-    logger.debug("Generating instrumental+pbf convolution.")
-    inst_pbf_conv = convolve(inst_resp_func, filter_guess, mode="full")
-    inst_pbf_conv = inst_pbf_conv[nbins // 2 : nbins]
-    inst_pbf_conv = inst_pbf_conv / inst_pbf_conv.sum()
+
+    logger.debug(
+        f"instr. response function area: {np.trapz(x=x, y=inst_resp_func)}  (should be 1)"
+    )
 
     if rest_func is None:
         logger.warning(
             "No valid restoring function defined. Assuming a Gaussian with FWHM = 2x profile time resolution."
         )
-        # Assume a Gaussian with a FWHM corresponding to the profile time resolution
-        rest_func = pbf.gaussian(x, x[x.size // 2], 2 * prof_dt / 2.355)
+        # Assume a Gaussian with a std. dev. corresponding to the twice profile time resolution
+        rest_func = pbf.gaussian(x, x[x.size // 2], 2 * prof_dt)
+
+    logger.debug(f"restoring function area: {np.trapz(x=x, y=rest_func)} (should be 1)")
+
+    # Pre-compute one of the required convolutions required
+    preconv = convolve(inst_resp_func, filter_guess, mode="full")
+    preconv = preconv[nbins // 2 : -nbins // 2 + 1]
+    preconv = preconv / np.trapz(preconv)
 
     # Initialise counters and boolean checks
     loop = True
@@ -382,25 +402,41 @@ def clean(
         # Identify the location and value of the maximum data point in the profile
         imax = np.argmax(profile)
         dmax = profile[imax]
+        cc_amp = dmax * gain
 
         # Construct a single clean component on the same scale as the profile and assign its location and value
         temp_clean_comp = np.zeros_like(clean_components)
-        temp_clean_comp[imax] = dmax * gain
+        temp_clean_comp[imax] = cc_amp
 
         # Also add this component to the total list of clean components which will be used in the profile reconstruction
         logger.debug("Adding scaled cc to list")
-        clean_components[imax] += dmax * gain
+        clean_components[imax] += cc_amp
 
         # Create a profile component from the model PBF and the clean component
         # (Normalised to have area = 1)
         logger.debug(
             f"Constructing component to subtract from profile for tau={tau:g} ms"
         )
-        # The actual quantity to subtract is: convolve(scaled_clean_comp, convolve(inst_resp_func, pbf))
-        # But the second term in the first convolution call is pre-computed.
-        # This preserves the component position at the clean-component.
-        component = convolve(temp_clean_comp, inst_pbf_conv, mode="full")
-        component = component[:nbins]
+        # The actual quantity to subtract is:
+        #   convolve(convolve(scaled_clean_comp, inst_resp_func), pbf))
+        # The inst_resp_func and pbf components are pre-computed before the CLEAN cycles.
+        #
+        # By the associativity of convolution, we can instead have
+        #   convolve(scaled_clean_comp, convolve(inst_resp_func, pbf))
+        # which means the interior convolution can occur outside of the CLEAN cycle.
+
+        # NOTE: Annoyingly, convolution with "same" appears to not exactly keep the index position
+        # information in the way we need it to, so we do the full convolution and then cut the windows
+        # as required. Even this, though, does not always ensure that the "pbf" part (preconv)
+        # has its peak at index 0, which is what should be expected. Thus, we have an additional
+        # "rolling" operation to shift the component to the correct location.
+        component1 = convolve(temp_clean_comp, preconv, mode="full")
+        component1 = component1[nbins // 2 : -nbins // 2 + 1]
+        didx = imax - np.argmax(component1)
+        component = np.roll(component1, didx)
+        # Scale the component based on the off-pulse noise and loop-gain so that the S/N doesn't
+        # dictate the run time quite as much (i.e., higher S/N = more required iterations without this)
+        component = init_off_rms * (component / component.max())
 
         if component.size != profile.size:
             logger.error(
@@ -408,8 +444,53 @@ def clean(
             )
             raise ValueError
 
+        if np.argmax(component) != imax:
+            logger.error(
+                f"Component alignment error - convolved subtraction component position ({np.argmax(component)}) does not match data maximum ({imax})!"
+            )
+            logger.error(
+                f"Error on Iteration number = {niter}/{iter_limit} for tau={tau}ms"
+            )
+            plt.plot(1e-5 + data, color="k", alpha=0.2)
+            plt.plot(1e-5 + cleaned, label="profile")
+            plt.plot(1e-5 + temp_clean_comp, label="cc")
+            plt.plot(1e-5 + preconv, ls="--", label="inst_resp ^ pbf")
+            plt.plot(1e-5 + component, ls="-.", label="component")
+            plt.plot(1e-5 + component1, ls="-.", label="component1")
+            plt.axvline(imax, ls="--", color="k")
+            plt.axvline(np.argmax(component), ls=":", color="r")
+            plt.axhline(threshold * init_off_rms, ls=":", color="k")
+            plt.ylim(-1.1 * init_off_rms, 1.1 * cleaned.max())
+            plt.xlim(0, len(data))
+            plt.title(
+                f"Iteration={niter}/{iter_limit}  Current imax={imax}  conv.comp idx={np.argmax(component1)}"
+            )
+            plt.legend()
+            plt.show()
+            raise ValueError
+
         # Finally, subtract the component from the profile
         cleaned = profile - component
+
+        # if niter % 100 == 0 or niter == 1:  # or niter == 77981:
+        #     plt.plot(1e-5 + data, color="k", alpha=0.2)
+        #     plt.plot(1e-5 + cleaned, label="profile")
+        #     plt.plot(1e-5 + temp_clean_comp, label="cc")
+        #     plt.plot(1e-5 + preconv, ls="--", label="inst_resp ^ pbf")
+        #     plt.plot(1e-5 + component, ls="-.", label="component")
+        #     plt.plot(1e-5 + component1, ls="-.", label="component1")
+        #     # plt.plot(filter_guess, ls=":", color="r", label="pbf")
+        #     plt.axvline(imax, ls="--", color="k")
+        #     plt.axvline(np.argmax(component), ls=":", color="r")
+        #     plt.axhline(1e-5 + threshold * init_off_rms, ls=":", color="k")
+        #     # plt.yscale("log")
+        #     plt.ylim(-1.1 * init_off_rms, 1.1 * cleaned.max() + 1e-5)
+        #     plt.xlim(0, len(data))
+        #     plt.title(
+        #         f"Iteration={niter}/{iter_limit}  Current imax={imax} conv. comp idx={np.argmax(component1)}"
+        #     )
+        #     plt.legend()
+        #     plt.show()
 
         # Calculate the on- and off-pulse regions and use them with the user-defined cleaning threshold to determine
         # whether the clean procedure should be terminated at this point
@@ -425,6 +506,8 @@ def clean(
         logger.warning(
             "Clean cycle only lasted 1 iteration - something probably went wrong!"
         )
+    elif niter >= iter_limit:
+        logger.warning(f"Clean cycle terminated prematurely for tau={tau:g} ms")
     else:
         logger.debug(f"Clean cycle terminated successfully for tau={tau:g} ms")
 
@@ -441,11 +524,11 @@ def clean(
     total_mean = profile.mean()
     total_rms = profile.std()
 
+    # since the profile is already mean-subtracted, we can just use the defaults
+    # of the consistence function
     nf = fom.consistence(
-        profile[on_pulse_bins],
-        off_rms,
-        off_mean=off_mean,
-        threshold=threshold,
+        profile=profile,
+        off_rms=off_rms,
     )
     logger.debug(f"nf (tau={tau:g} ms) = {nf}")
 
@@ -465,6 +548,8 @@ def clean(
         nbins=nbins,
         nbins_on=len(on_pulse_bins),
         nbins_off=len(off_pulse_bins),
+        rest_func=rest_func,
+        inst_resp_func=inst_resp_func,
         tau=tau,
         pbftype=pbftype,
         niter=niter,
