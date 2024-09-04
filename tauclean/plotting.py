@@ -8,7 +8,7 @@ import logging
 import matplotlib.pyplot as plt
 from matplotlib.scale import SymmetricalLogScale
 import numpy as np
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, find_peaks
 from . import pbf
 
 logger = logging.getLogger(__name__)
@@ -27,55 +27,112 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     f_r = np.array([a["fr"] for a in results])
     gamma = np.array([a["gamma"] for a in results])
     f_c = (f_r + gamma) / 2.0
-    ncomps = [a["niter"] for a in results]
+    niter = [a["niter"] for a in results]
     nuniq = [a["ncc"] for a in results]
-    sigma_c = np.array([a["total_rms"] for a in results]) / np.array(
+    r_sigma = np.array([a["total_rms"] for a in results]) / np.array(
         [a["init_off_rms"] for a in results]
     )
-    nf_frac = np.array([a["nf"] for a in results]) / np.array(
+    r_phi = np.array([a["nf"] for a in results]) / np.array(
         [a["nbins"] for a in results]
     )
 
-    params = [f_r, gamma, f_c, sigma_c, ncomps, nf_frac]
-
-    labels = [
-        r"$f_r$",
-        r"$\Gamma$",
-        r"$f_c = (f_r + \Gamma)/2$",
-        r"$\sigma_{\rm offc}/\sigma_{\rm off}$",
-        r"$N_{\rm iter}$",
-        r"$N_f / N_{\phi}$",
+    foms = [
+        {
+            "name": "f_r",
+            "values": np.array(f_r),
+            "label": r"$f_r$",
+            "use_jerk": True,
+            "alt_operation": np.argmin,
+            "ylims": None,
+        },
+        {
+            "name": "gamma",
+            "values": np.array(gamma),
+            "label": r"$\Gamma$",
+            "use_jerk": True,
+            "alt_operation": np.argmin,
+            "ylims": None,
+        },
+        {
+            "name": "f_c",
+            "values": np.array(f_c),
+            "label": r"$f_c = (f_r + \Gamma)/2$",
+            "use_jerk": False,
+            "alt_operation": None,
+            "ylims": None,
+        },
+        {
+            "name": "r_sigma",
+            "values": np.array(r_sigma),
+            "label": r"$r_\sigma = \sigma_{\rm offc}/\sigma_{\rm off}$",
+            "use_jerk": False,
+            "alt_operation": np.argmin,
+            "ylims": (1, 3),
+        },
+        {
+            "name": "niter",
+            "values": np.array(niter),
+            "label": r"$N_{\rm iter}$",
+            "use_jerk": False,
+            "alt_operation": None,
+            "ylims": None,
+        },
+        {
+            "name": "r_phi",
+            "values": np.array(r_phi),
+            "label": r"$r_\phi=N_f / N_{\rm tot}$",
+            "use_jerk": False,
+            "alt_operation": np.argmax,
+            "ylims": None,
+        },
     ]
+
     min_tau_step = min(np.diff(taus))
 
     fig, axs = plt.subplots(ncols=3, nrows=2, sharex="all", figsize=(24, 6))
-    for y, ylab, ax in zip(params, labels, axs.flatten()):
-        vals = np.array(y)
-        ax.plot(taus, vals, marker="o", color="C0", label="FOM")
-        ax.set_ylabel(ylab, fontsize=20)
+    for fom, ax in zip(foms, axs.flatten()):
+        ax.plot(taus, fom["values"], marker="o", color="C0", label="FOM")
+        ax.set_ylabel(fom["label"], fontsize=20)
 
-        tax = ax.twinx()
-        der3 = savgol_filter(
-            vals,
-            window_length=vals.size // 8 if vals.size // 8 > 3 else 4,
-            polyorder=3,
-            deriv=3,
-        )
-        norm_abs_der3 = np.abs(der3 / der3.max())
-        tax.plot(
-            taus,
-            norm_abs_der3,
-            ls=":",
-            color="k",
-            label="|norm. 3rd deriv.|",
-        )
-        tax.set_ylabel("abs(normalsed 3rd deriv.)")
+        if fom["use_jerk"]:
+            tax = ax.twinx()
+            wlen = fom["values"].size // 8 if fom["values"].size // 8 > 3 else 4
+            der3 = savgol_filter(
+                fom["values"],
+                window_length=wlen,
+                polyorder=3,
+                deriv=3,
+            )
+            norm_abs_der3 = np.abs(der3) / np.abs(der3).max()
+            pidx, _ = find_peaks(
+                np.abs(norm_abs_der3),
+                prominence=(0.05, None),
+                height=(None, None),
+            )
+            tax.plot(
+                taus,
+                norm_abs_der3,
+                ls=":",
+                color="k",
+                label="|norm. 3rd deriv.|",
+            )
+            tax.scatter(
+                taus[pidx], norm_abs_der3[pidx], marker="x", color="C1", label="peaks"
+            )
+            tax.set_ylabel("abs(normalsed 3rd deriv.)")
+        elif fom["alt_operation"] != None:
+            fn = fom["alt_operation"]
+            idx = fn(fom["values"])
+            ax.plot(taus[idx], fom["values"][idx], marker="*", ms=10, color="C1")
+
+        if fom["ylims"] != None:
+            ax.set_ylim(fom["ylims"])
 
         if true_tau is not None:
-            ax.axvline(true_tau, color="k", ls="--", label="truth")
+            ax.axvline(true_tau, color="k", ls="--", label="truth", zorder=0.5)
 
         if best_tau is not None:
-            ax.axvline(best_tau, color="r", ls="-.", label="best tau")
+            ax.axvline(best_tau, color="r", ls="-.", label="best tau", zorder=0.5)
 
         if best_tau_err is not None:
             ylims = ax.get_ylim()
@@ -86,6 +143,7 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
                 color="0.1",
                 alpha=0.3,
                 label="best tau err.",
+                zorder=0.49,
             )
             ax.set_ylim(ylims)
 
@@ -107,7 +165,7 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     with open("tauclean_fom.txt", "w") as f:
         f.write(
             header_fmt.format(
-                "#tau", "f_r", "gamma", "f_c", "sigma_c", "ncomps", "nuniq", "nf_frac"
+                "#tau", "f_r", "gamma", "f_c", "sigma_c", "niter", "nuniq", "nf_frac"
             )
         )
         for i, t in enumerate(taus):
@@ -117,10 +175,10 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
                     f_r[i],
                     gamma[i],
                     f_c[i],
-                    sigma_c[i],
-                    ncomps[i],
+                    r_sigma[i],
+                    niter[i],
                     nuniq[i],
-                    nf_frac[i],
+                    r_phi[i],
                 )
             )
 
@@ -217,6 +275,7 @@ def plot_clean_components(results, period=100.0):
 def plot_reconstruction(results, original, period=100.0):
     taus = np.array([a["tau"] for a in results])
     recons = np.array([a["recon"] for a in results])
+    restoring = np.array([a["rest_func"] for a in results])
     residuals = np.array([a["profile"] for a in results])
     pbftype = np.array([a["pbftype"] for a in results])
 
@@ -232,19 +291,47 @@ def plot_reconstruction(results, original, period=100.0):
                 f"Cannot find pbf function '{pbftype[i]}'! Assuming 'thin' model."
             )
             pbffn = pbf.thin
-        norm_pbf = pbffn(x, t, x0=x[len(x) // 10])
+        rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
+        norm_rest = rest / rest.max()
+        norm_pbf = pbffn(x, t, x0=x[len(x) // 20])
         norm_pbf = norm_pbf / norm_pbf.max()
 
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
-        ax.plot(x, recons[i] + residuals[i], color="k", label="reconstruction")
-        ax.plot(x, original, color="C1", alpha=0.6, label="original")
-        ax.plot(x, norm_pbf * original.max(), color="C0", alpha=0.6, label="PBF")
+        ax.plot(
+            x,
+            (recons[i] * original.max() + residuals[i]),
+            color="k",
+            label="reconstruction (scaled)",
+        )
+        ax.plot(
+            x,
+            original,
+            color="k",
+            alpha=0.3,
+            label="original",
+        )
+        ax.plot(
+            x,
+            original.max() * norm_pbf,
+            color="C0",
+            alpha=0.5,
+            ls=":",
+            label="PBF (scaled, shifted)",
+        )
+        ax.plot(
+            x,
+            original.max() * norm_rest,
+            color="C1",
+            alpha=0.5,
+            ls="--",
+            label="restoring function (shifted)",
+        )
         ax.axhline(0, ls=":", lw=1, color="k")
         ax.set_xlim(x[0], x[-1])
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("Intensity")
+        ax.set_xlabel("Time (ms)", fontsize=15)
+        ax.set_ylabel("Intensity", fontsize=15)
         ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
-        ax.legend()
+        ax.legend(fontsize=15)
 
         plt.savefig(
             "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight"
