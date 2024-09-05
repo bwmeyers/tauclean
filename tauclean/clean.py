@@ -338,9 +338,9 @@ def clean(
         on_pulse_bins = bins[np.logical_not(np.in1d(bins, off_pulse_bins))]
     else:
         # Accept the user-defined region as the on-pulse
-        logger.debug("Using used-defined on-pulse region.")
+        logger.debug("Using user-defined on-pulse region.")
         on_start, on_end = onpulse_estimator.split(" ")
-        on_pulse_bins = bins[on_start:on_end]
+        on_pulse_bins = bins[int(on_start) : int(on_end)]
         off_pulse_bins = bins[np.logical_not(np.in1d(bins, on_pulse_bins))]
 
     # Calculate the noise level (assumes baseline removal happened already)
