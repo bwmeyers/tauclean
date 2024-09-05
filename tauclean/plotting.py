@@ -67,7 +67,7 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
             "label": r"$r_\sigma = \sigma_{\rm offc}/\sigma_{\rm off}$",
             "use_jerk": False,
             "alt_operation": np.argmin,
-            "ylims": (1, 3),
+            "ylims": (0.9, 3),
         },
         {
             "name": "niter",
