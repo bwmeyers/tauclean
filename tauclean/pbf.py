@@ -4,21 +4,32 @@ import numpy as np
 from scipy.integrate import simpson as simps
 
 
-def _smooth(fn1, fn2, scale, x_array, x_offset=0, peak_idx=0):
-    """To join the functions without discontinuities, we need to use a smoothing transition function.
-    Here, we use tanh to accomplish this, with a smoothing factor k, where in this case, as k decreases,
-    the smoothing is more pronounced.
+def _smooth(
+    fn1: np.ndarray,
+    fn2: np.ndarray,
+    scale: float,
+    x_array: np.ndarray,
+    x_offset: float = 0,
+    peak_idx: int = 0,
+) -> np.ndarray:
+    """To join the functions without discontinuities, we need to use a
+    smoothing transition function. Here, we use tanh to accomplish this, with
+    a smoothing factor k. As k decreases, the smoothing
+    is more pronounced.
 
     See https://math.stackexchange.com/a/45335
     """
 
-    # Empirically, k = 0.09 smooths appropriately for tau = 30 ms, and should decrease as tau increases
+    # Empirically, k = 0.09 smooths appropriately for tau = 30 ms, and
+    # should decrease as tau increases
     k = (0.09 / scale) * 30
 
-    # When x < x_offset, this factor tends to 0, whereas when x > x_offset it tends to 1
+    # When x < x_offset, this factor tends to 0, whereas when x > x_offset
+    # it tends towards 1
     b = 0.5 * (1 + np.tanh(k * (x_array - x_offset)))
 
-    # The final combination of these functions produces the smoothed, combined kernel
+    # The final combination of these functions produces the smoothed and
+    # combined kernel
     smoothed = fn1 + b * (fn2 - fn1)
 
     # Enforce that the rise-time mimics h1
@@ -44,8 +55,10 @@ def gaussian(x, mu: float = 0, sigma: float = 1) -> np.ndarray:
     return g
 
 
-def thin(x, tau: float, x0: float = 0):
-    """The classical, square-law structure media thin screen approximation for a pulse broadening function.
+def thin(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    """The classical, square-law structure media thin screen approximation
+    for a pulse broadening function.
+
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).
 
     :param x: time over which to evaluate the PBF [array-like]
@@ -64,8 +77,9 @@ def thin(x, tau: float, x0: float = 0):
     return h
 
 
-def thick(x, tau: float, x0: float = 0):
-    """The thick screen pulse broadening function as presented in Williamson (1972).
+def thick(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    """The thick screen pulse broadening function as presented in the optics
+    work of Williamson (1972).
 
     :param x: time over which to evaluate the PBF [array-like]
     :param tau: pulse broadening time scale [float]
@@ -75,8 +89,10 @@ def thick(x, tau: float, x0: float = 0):
 
     t = x - x0
 
-    # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
-    # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
+    # ignore divide by zero and consequent invalid operation warnings due to
+    # very negative numbers (caused by providing large offsets through x0,
+    # size you can end up dividing by 0 or evaluating very large negative
+    # exponentials)
     old_settings = np.seterr(divide="ignore", invalid="ignore")
 
     h = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
@@ -92,10 +108,13 @@ def thick(x, tau: float, x0: float = 0):
     return h
 
 
-def thick_exp(x, tau: float, x0: float = 0):
-    """The thick screen pulse broadening function as presented in Williamson (1972), modified to exhibit the classical
-    exponential delay shape (see p68 of Williamson 1972, just after Figure 9). This ensures that at t -> infinity,
-    the PBF vanishes.
+def thick_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    """The thick screen pulse broadening function as presented in the optics
+    work of Williamson (1972), modified to exhibit the classical exponential
+    delay shape. This ensures that at t -> infinity, the PBF vanishes.
+
+    See p68 of Williamson 1972, just after Figure 9, for discussion on this
+    kind of modification.
 
     :param x: time over which to evaluate the PBF [array-like]
     :param tau: pulse broadening time scale [float]
@@ -106,8 +125,10 @@ def thick_exp(x, tau: float, x0: float = 0):
     t = x - x0
     expdelay = np.log(4 / np.pi)
 
-    # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
-    # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
+    # ignore divide by zero and consequent invalid operation warnings due to
+    # very negative numbers (caused by providing large offsets through x0,
+    # size you can end up dividing by 0 or evaluating very large negative
+    # exponentials)
     old_settings = np.seterr(divide="ignore", invalid="ignore")
 
     h1 = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
@@ -136,8 +157,9 @@ def thick_exp(x, tau: float, x0: float = 0):
     return h
 
 
-def uniform(x, tau: float, x0: float = 0):
-    """The uniform media pulse broadening function as presented in Williamson (1972).
+def uniform(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    """The uniform media pulse broadening function as presented in the optics
+    work of Williamson (1972).
 
     :param x: time over which to evaluate the PBF [array-like]
     :param tau: pulse broadening time scale [float]
@@ -147,8 +169,10 @@ def uniform(x, tau: float, x0: float = 0):
 
     t = x - x0
 
-    # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
-    # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
+    # ignore divide by zero and consequent invalid operation warnings due to
+    # very negative numbers (caused by providing large offsets through x0,
+    # size you can end up dividing by 0 or evaluating very large negative
+    # exponentials)
     old_settings = np.seterr(divide="ignore", invalid="ignore")
 
     h = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
@@ -164,10 +188,13 @@ def uniform(x, tau: float, x0: float = 0):
     return h
 
 
-def uniform_exp(x, tau: float, x0: float = 0):
-    """The uniform media pulse broadening function as presented in Williamson (1972), modified to exhibit the classical
-    exponential delay shape (see p68 of Williamson 1972, just after Figure 9). This ensures that at t -> infinity,
-    the PBF vanishes.
+def uniform_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    """The uniform media pulse broadening function as presented in the optics
+    work of Williamson (1972), modified to exhibit the classical exponential
+    delay shape. This ensures that at t -> infinity, the PBF vanishes.
+
+    See p68 of Williamson 1972, just after Figure 9, for discussion on this
+    kind of modification.
 
     :param x: time over which to evaluate the PBF [array-like]
     :param tau: pulse broadening time scale [float]
@@ -178,8 +205,10 @@ def uniform_exp(x, tau: float, x0: float = 0):
     t = x - x0
     expdelay = np.log(2)
 
-    # ignore divide by zero and consequent invalid operation warnings due to very negative numbers (caused by providing
-    # large offsets through x0, size you can end up dividing by 0 or evaluating very large negative exponentials)
+    # ignore divide by zero and consequent invalid operation warnings due to
+    # very negative numbers (caused by providing large offsets through x0,
+    # size you can end up dividing by 0 or evaluating very large negative
+    # exponentials)
     old_settings = np.seterr(divide="ignore", invalid="ignore")
 
     h1 = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
