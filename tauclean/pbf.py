@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-########################################################
-# Licensed under the Academic Free License version 3.0 #
-########################################################
-"""
 
 import numpy as np
 from scipy.integrate import simpson as simps
@@ -27,12 +22,14 @@ def _smooth(fn1, fn2, scale, x_array, x_offset=0, peak_idx=0):
     smoothed = fn1 + b * (fn2 - fn1)
 
     # Enforce that the rise-time mimics h1
-    smoothed[:peak_idx] = fn1[:peak_idx] / np.max(fn1[:peak_idx]) * smoothed[peak_idx]
+    smoothed[:peak_idx] = (
+        fn1[:peak_idx] / np.max(fn1[:peak_idx]) * smoothed[peak_idx]
+    )
 
     return smoothed
 
 
-def gaussian(x, mu=0, sigma=1):
+def gaussian(x, mu: float = 0, sigma: float = 1) -> np.ndarray:
     """A simple function that calculates a Gaussian shape over x
 
     :param x: independent variable [array-like]
@@ -47,7 +44,7 @@ def gaussian(x, mu=0, sigma=1):
     return g
 
 
-def thin(x, tau, x0=0):
+def thin(x, tau: float, x0: float = 0):
     """The classical, square-law structure media thin screen approximation for a pulse broadening function.
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).
 
@@ -67,7 +64,7 @@ def thin(x, tau, x0=0):
     return h
 
 
-def thick(x, tau, x0=0):
+def thick(x, tau: float, x0: float = 0):
     """The thick screen pulse broadening function as presented in Williamson (1972).
 
     :param x: time over which to evaluate the PBF [array-like]
@@ -95,7 +92,7 @@ def thick(x, tau, x0=0):
     return h
 
 
-def thick_exp(x, tau, x0=0):
+def thick_exp(x, tau: float, x0: float = 0):
     """The thick screen pulse broadening function as presented in Williamson (1972), modified to exhibit the classical
     exponential delay shape (see p68 of Williamson 1972, just after Figure 9). This ensures that at t -> infinity,
     the PBF vanishes.
@@ -139,7 +136,7 @@ def thick_exp(x, tau, x0=0):
     return h
 
 
-def uniform(x, tau, x0=0):
+def uniform(x, tau: float, x0: float = 0):
     """The uniform media pulse broadening function as presented in Williamson (1972).
 
     :param x: time over which to evaluate the PBF [array-like]
@@ -167,7 +164,7 @@ def uniform(x, tau, x0=0):
     return h
 
 
-def uniform_exp(x, tau, x0=0):
+def uniform_exp(x, tau: float, x0: float = 0):
     """The uniform media pulse broadening function as presented in Williamson (1972), modified to exhibit the classical
     exponential delay shape (see p68 of Williamson 1972, just after Figure 9). This ensures that at t -> infinity,
     the PBF vanishes.

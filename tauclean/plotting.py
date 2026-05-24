@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""
-########################################################
-# Licensed under the Academic Free License version 3.0 #
-########################################################
-"""
+
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.scale import SymmetricalLogScale
@@ -14,7 +10,8 @@ from . import pbf
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 fmt = logging.Formatter(
-    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: "
+    "%(levelname)s - %(message)s"
 )
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
@@ -22,7 +19,9 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 
-def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=None):
+def plot_figures_of_merit(
+    results, true_tau=None, best_tau=None, best_tau_err=None
+):
     taus = np.array([a["tau"] for a in results])
     f_r = np.array([a["fr"] for a in results])
     gamma = np.array([a["gamma"] for a in results])
@@ -96,7 +95,9 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
 
         if fom["use_jerk"]:
             tax = ax.twinx()
-            wlen = fom["values"].size // 8 if fom["values"].size // 8 > 3 else 4
+            wlen = (
+                fom["values"].size // 8 if fom["values"].size // 8 > 3 else 4
+            )
             der3 = savgol_filter(
                 fom["values"],
                 window_length=wlen,
@@ -117,13 +118,19 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
                 label="|norm. 3rd deriv.|",
             )
             tax.scatter(
-                taus[pidx], norm_abs_der3[pidx], marker="x", color="C1", label="peaks"
+                taus[pidx],
+                norm_abs_der3[pidx],
+                marker="x",
+                color="C1",
+                label="peaks",
             )
             tax.set_ylabel("abs(normalsed 3rd deriv.)")
         elif fom["alt_operation"] != None:
             fn = fom["alt_operation"]
             idx = fn(fom["values"])
-            ax.plot(taus[idx], fom["values"][idx], marker="*", ms=10, color="C1")
+            ax.plot(
+                taus[idx], fom["values"][idx], marker="*", ms=10, color="C1"
+            )
 
         if fom["ylims"] != None:
             ax.set_ylim(fom["ylims"])
@@ -132,7 +139,9 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
             ax.axvline(true_tau, color="k", ls="--", label="truth", zorder=0.5)
 
         if best_tau is not None:
-            ax.axvline(best_tau, color="r", ls="-.", label="best tau", zorder=0.5)
+            ax.axvline(
+                best_tau, color="r", ls="-.", label="best tau", zorder=0.5
+            )
 
         if best_tau_err is not None:
             ylims = ax.get_ylim()
@@ -158,14 +167,21 @@ def plot_figures_of_merit(results, true_tau=None, best_tau=None, best_tau_err=No
     plt.close(fig)
 
     # In this case, also write the figures of merit to a file
-    header_fmt = "{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<8}  {5:<5}  {6:<5} {7:<7}\n"
-    line_fmt = (
-        "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
+    header_fmt = (
+        "{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<8}  {5:<5}  {6:<5} {7:<7}\n"
     )
+    line_fmt = "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
     with open("tauclean_fom.txt", "w") as f:
         f.write(
             header_fmt.format(
-                "#tau", "f_r", "gamma", "f_c", "sigma_c", "niter", "nuniq", "nf_frac"
+                "#tau",
+                "f_r",
+                "gamma",
+                "f_c",
+                "sigma_c",
+                "niter",
+                "nuniq",
+                "nf_frac",
             )
         )
         for i, t in enumerate(taus):
@@ -201,7 +217,9 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     neg_thresh = off_mean - thresh * off_rms
 
     for i, t in enumerate(taus):
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex="all", figsize=(20, 8))
+        fig, (ax1, ax2) = plt.subplots(
+            nrows=1, ncols=2, sharex="all", figsize=(20, 8)
+        )
         fig.suptitle(r"Residuals ($\rm \tau = {0:g}\ ms$)".format(t))
 
         ax1.plot(x, initial_data, label="initial data")
@@ -330,11 +348,14 @@ def plot_reconstruction(results, original, period=100.0):
         ax.set_xlim(x[0], x[-1])
         ax.set_xlabel("Time (ms)", fontsize=15)
         ax.set_ylabel("Intensity", fontsize=15)
-        ax.set_title(r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t))
+        ax.set_title(
+            r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t)
+        )
         ax.legend(fontsize=15)
 
         plt.savefig(
-            "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t), bbox_inches="tight"
+            "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t),
+            bbox_inches="tight",
         )
         plt.close(fig)
 

@@ -1,9 +1,4 @@
 #! /usr/bin/env python
-"""
-########################################################
-# Licensed under the Academic Free License version 3.0 #
-########################################################
-"""
 
 import argparse
 import logging
@@ -17,14 +12,16 @@ from . import pbf
 from .clean import dm_delay
 
 logger = logging.getLogger(__name__)
-# Set the seed for numpy's random functions so that the same result can be retrieved each time
+# Set the seed for numpy's random functions so that the same result can be
+# retrieved each time
 np.random.seed(12345)
 
 
 def create_intrinsic_pulse(position, width, amps, nbins=2048):
     """Simulate an intrinsic pulse shape (made of Gaussian components)
 
-    :param position: where the centroid (mean) of the Gaussian is to be placed (units: bins) [array-like]
+    :param position: where the centroid (mean) of the Gaussian is to be
+        placed (units: bins) [array-like]
     :param width: width (standard deviation) of the Gaussian (units: bins) [array-like]
     :param amps: peak amplitudes of the Gaussian [array-like]
     :param nbins: desired number of bins in the profile
@@ -98,9 +95,9 @@ def create_scattered_profile(
     # - some Gaussian radiometer noise
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(
-        restoring_function
-    )
+    response = np.convolve(
+        intrinsic, restoring_function, mode="full"
+    ) / np.sum(restoring_function)
     response = response[nbins // 2 : -(nbins // 2) + 1]
 
     scattered = np.convolve(response, h, mode="full") / np.sum(h)
@@ -178,7 +175,9 @@ def plot_simulated(
     step = x.max() / 4.0
     ax_int.set_xticks(np.arange(0, x.max() + step, step))
 
-    ax_ker.plot(x, kernel, color="C1", label=r"$\rm \tau = {0:g} ms$".format(tau))
+    ax_ker.plot(
+        x, kernel, color="C1", label=r"$\rm \tau = {0:g} ms$".format(tau)
+    )
     ax_ker.set_title("Scattering kernel")
     ax_ker.set_xlabel(xlab)
     ax_ker.legend()
@@ -189,7 +188,9 @@ def plot_simulated(
 
     ax_obs.plot(x, observed, color="k")
     ax_obs.set_title(
-        r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(snr)
+        r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(
+            snr
+        )
     )
     ax_obs.axhline(0, ls="--", color="r", lw=1)
     step = x.max() / 16.0
@@ -221,9 +222,13 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     :return: None
     """
 
-    np.savetxt("sim-intrinsic_{0}-tau{1:g}.txt".format(pbftype, tau), intrinsic)
+    np.savetxt(
+        "sim-intrinsic_{0}-tau{1:g}.txt".format(pbftype, tau), intrinsic
+    )
     np.savetxt("sim-kernel_{0}-tau{1:g}.txt".format(pbftype, tau), kernel)
-    np.savetxt("sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered)
+    np.savetxt(
+        "sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered
+    )
     np.savetxt("sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
 
     logger.info(
@@ -238,7 +243,9 @@ def main():
         prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument("-n", type=int, default=2048, help="number of profile bins")
+    parser.add_argument(
+        "-n", type=int, default=2048, help="number of profile bins"
+    )
     parser.add_argument(
         "-m",
         nargs="+",
@@ -265,7 +272,9 @@ def main():
     parser.add_argument(
         "-t", type=float, default=5.0, help="scattering time scale (in ms)"
     )
-    parser.add_argument("-p", type=float, default=100.0, help="pulsar period (in ms)")
+    parser.add_argument(
+        "-p", type=float, default=100.0, help="pulsar period (in ms)"
+    )
     parser.add_argument(
         "-d",
         "--dm",
@@ -349,10 +358,14 @@ def main():
     hichan = lochan + chan_bw
 
     logger.debug(
-        "Lowest channel edges: {0:g}-{1:g} MHz".format(lochan * 1000, hichan * 1000)
+        "Lowest channel edges: {0:g}-{1:g} MHz".format(
+            lochan * 1000, hichan * 1000
+        )
     )
     dmdelay = dm_delay(args.dm, lochan, hichan)
-    logger.info("Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay))
+    logger.info(
+        "Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay)
+    )
 
     restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
     logger.info("Restoring function width: {0:g} ms".format(restoring_width))

@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-########################################################
-# Licensed under the Academic Free License version 3.0 #
-########################################################
-"""
 
 import logging
 import numpy as np
@@ -12,7 +7,8 @@ from scipy.signal import savgol_filter, find_peaks
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 fmt = logging.Formatter(
-    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: "
+    "%(levelname)s - %(message)s"
 )
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
@@ -35,7 +31,8 @@ def consistence(
 
     Defined in Bhat et al. (2003) in the third-last paragraph of Section 2.5.3
 
-    :param profile: The residual profile after the CLEAN process has terminated.
+    :param profile: The residual profile after the CLEAN process has
+        terminated.
     :type profile: np.ndarray
     :param off_rms: The off-pulse rms noise.
     :type off_rms: float
@@ -72,7 +69,8 @@ def positivity(
     :type res: np.ndarray
     :param off_rms: The off-pulse rms value to be used as a threshold.
     :type off_rms: float
-    :param m: A scale-factor (or weight) that is of order unity, defaults to 1.0.
+    :param m: A scale-factor (or weight) that is of order unity, defaults
+        to 1.0.
     :type m: float
     :param x: A threshold (units of off_rms) defined to penalise the positivity
         if there are residuals more negative than this, defaults to 1.5.
@@ -83,8 +81,8 @@ def positivity(
 
     u = np.zeros_like(res)
     # When the residual is less than x * rms, turn on the step-function.
-    # This means that only those points that have been over subtracted (due to a poor choice in PBF)
-    # contribute to this parameter.
+    # This means that only those points that have been over subtracted
+    # (due to a poor choice in PBF) contribute to this parameter.
     u[res < -x * off_rms] = 1
 
     if np.all(res == 0):
@@ -148,10 +146,11 @@ def get_best_tau_jerk(
     fom_weights: dict | None = None,
 ) -> tuple[float]:
     """Estimate the uncertainty of each tau trial value by determining
-    the value of tau that results in the maximum peak of the FOM's 3rd derivative.
+    the value of tau that results in the maximum peak of the FOM's 3rd
+    derivative.
 
-    Some of the FOMs are degenerate or less-reliable, and thus are weighted when
-    combined to form an overall average estimate.
+    Some of the FOMs are degenerate or less-reliable, and thus are weighted
+    when combined to form an overall average estimate.
 
     :param results: A list of dictionaries containing the output from the
         deconvolution process, one per trial tau.
@@ -160,13 +159,14 @@ def get_best_tau_jerk(
         normalised FOM derivatives. In the case of multiple peaks above this
         threshold, the first is taken as the best guess. Defaults to 0.8.
     :type norm_fom_peak_height: float
-    :param smoothing_window_size: The window size to use when computing smoothed
-        FOM derivatives. If no value is provided, a size is calculated based on the
-        number of FOM measurements. Defaults to None.
+    :param smoothing_window_size: The window size to use when computing
+        smoothed FOM derivatives. If no value is provided, a size is
+        calculated based on the number of FOM measurements. Defaults to None.
     :type smoothing_window_size: int | None
-    :param fom_weights: The corresponding weights for each FOM to use when computing
-        the average best tau value. If no dictionary is given, or required keys are
-        missing, a default weighting scheme is used. Defaults to None.
+    :param fom_weights: The corresponding weights for each FOM to use when
+        computing the average best tau value. If no dictionary is given, or
+        required keys are missing, a default weighting scheme is used.
+        Defaults to None.
     :type fom_weights: dict | None
     :return: The best estimated tau and uncertainty based on FOMs.
     :rtype: tuple[float, float]
@@ -222,7 +222,9 @@ def get_best_tau_jerk(
     fom_names = [f["name"] for f in foms]
 
     # Set FOMs to use for automatic best-fit guess and error approximation
-    default_fom_weights = dict(f_r=1.0, gamma=0.2, f_c=0.0, r_sigma=0.5, r_phi=0.5)
+    default_fom_weights = dict(
+        f_r=1.0, gamma=0.2, f_c=0.0, r_sigma=0.5, r_phi=0.5
+    )
     if fom_weights is None:
         fom_weights = default_fom_weights
     else:
@@ -230,10 +232,13 @@ def get_best_tau_jerk(
         for key in default_fom_weights.keys():
             if key in fom_weights.keys():
                 if not (
-                    isinstance(fom_weights[key], float) and 0 <= fom_weights[key] <= 1
+                    isinstance(fom_weights[key], float)
+                    and 0 <= fom_weights[key] <= 1
                 ):
                     logger.warning(
-                        f"Weight for FOM={key} is not a float in the range 0 <= x <= 1! Setting to 0."
+                        "Weight for FOM=%s is not a float in the range "
+                        "0 <= x <= 1! Setting to 0.",
+                        key,
                     )
                     fom_weights[key] = 0
             else:
@@ -249,8 +254,9 @@ def get_best_tau_jerk(
     # Use the FOM and their derivatives to estimate the best match
     fom_tau_estimates = []
     for fom in foms:
-        # For the cases of r_sigma and r_phi, we actually want to use a heuristic
-        # functional evaluation of the values to determine the "best fit"
+        # For the cases of r_sigma and r_phi, we actually want to use a
+        # heuristic functional evaluation of the values to determine the
+        # "best fit"
         if fom["name"] in ["r_phi", "r_sigma"]:
             fn = fom["alt_operation"]
             best_tau_fom = taus[fn(fom["values"])]
@@ -260,7 +266,9 @@ def get_best_tau_jerk(
             )
         else:
 
-            logger.debug(f"Finding 'best' tau from FOM={fom['name']} via 3rd deriv.")
+            logger.debug(
+                f"Finding 'best' tau from FOM={fom['name']} via 3rd deriv."
+            )
 
             # The smoothing window size must be greater than the polynomial order used in the filter
             if smoothing_window_size is None:
@@ -270,7 +278,9 @@ def get_best_tau_jerk(
                 smoothing_window_size = len(fom["values"]) // 8
                 if smoothing_window_size <= savgol_polyorder:
                     smoothing_window_size = savgol_polyorder + 1
-                logger.debug(f"Window size set to {smoothing_window_size} bins")
+                logger.debug(
+                    f"Window size set to {smoothing_window_size} bins"
+                )
 
             # The smoothing window must be smaller than the total number of measurements
             if smoothing_window_size > fom["values"].size:
@@ -331,7 +341,9 @@ def get_best_tau_jerk(
                     best_tau_fom = taus[fn(fom["values"])]
                     fom_tau_estimates.append(best_tau_fom)
                 else:
-                    logger.debug(f"Excluding FOM={fom['name']} from further analysis.")
+                    logger.debug(
+                        f"Excluding FOM={fom['name']} from further analysis."
+                    )
                     # Remove that FOM from the weighting scheme
                     fom_weights.pop(fom["name"])
 

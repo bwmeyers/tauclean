@@ -1,9 +1,4 @@
 #! /usr/bin/env python
-"""
-########################################################
-# Licensed under the Academic Free License version 3.0 #
-########################################################
-"""
 
 import argparse
 import logging
@@ -14,12 +9,12 @@ import numpy as np
 
 from . import plotting, clean, fom
 
-
 # Set up the logging configuration
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 fmt = logging.Formatter(
-    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: %(levelname)s - %(message)s"
+    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: "
+    "%(levelname)s - %(message)s"
 )
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
@@ -31,7 +26,9 @@ def main():
     parser = argparse.ArgumentParser(
         prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    obs_group = parser.add_argument_group("Observing and de-dispersion details")
+    obs_group = parser.add_argument_group(
+        "Observing and de-dispersion details"
+    )
 
     parser.add_argument(
         "profile",
@@ -199,7 +196,10 @@ def main():
     )
 
     other_group.add_argument(
-        "--truth", type=float, default=None, help="Truth value (for debugging)."
+        "--truth",
+        type=float,
+        default=None,
+        help="Truth value (for debugging).",
     )
 
     args = parser.parse_args()
@@ -235,22 +235,27 @@ def execute_tauclean(args):
     ntaus = len(taus)
     if ntaus > 1:
         logger.info(
-            f"Will search {ntaus} scattering time scales, {tau_min}-{tau_max} ms, inclusive"
+            "Will search %s scattering time scales, %s-%s ms, inclusive",
+            ntaus,
+            tau_min,
+            tau_max,
         )
-    logger.info(f"Loop gain factor = {args.gain}")
+    logger.info("Loop gain factor = %s", args.gain)
 
     chan_bw = args.bw / args.nchan
     chan_cntr_low = args.freq - args.bw / 2
     chan_ledge_lo = chan_cntr_low - chan_bw / 2
     chan_ledge_hi = chan_cntr_low + chan_bw / 2
-    dm_smear_width = clean.dm_delay(args.dm, chan_ledge_lo, chan_ledge_hi)  # in ms
+    dm_smear_width = clean.dm_delay(
+        args.dm, chan_ledge_lo, chan_ledge_hi
+    )  # in ms
     prof_bin_width = args.period / nbins  # in ms
     backend_dt_width = args.native_dt / 1000  # in ms
     post_dt_width = 0  # in ms
 
-    logger.info(f"Native profile time resolution: {prof_bin_width:g} ms")
+    logger.info("Native profile time resolution: %g ms", prof_bin_width)
     if not args.coherent:
-        logger.info(f"DM smearing within lowest channel: {dm_smear_width:g} ms")
+        logger.info("DM smearing within lowest channel: %g ms", dm_smear_width)
 
     inst_resp_fn, inst_resp_width = clean.get_inst_resp(
         data,
@@ -261,10 +266,14 @@ def execute_tauclean(args):
         r_pd_width=post_dt_width,
         fast=True,
     )
-    restoring_fn = clean.get_restoring_function(data, args.period, inst_resp_width)
+    restoring_fn = clean.get_restoring_function(
+        data, args.period, inst_resp_width
+    )
 
-    logger.info(f"Effective instrumental response width: {inst_resp_width:g} ms")
-    logger.info(f"Restoring function (Gaussian) width: {inst_resp_width:g} ms")
+    logger.info(
+        "Effective instrumental response width: %g ms", inst_resp_width
+    )
+    logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
@@ -283,15 +292,15 @@ def execute_tauclean(args):
 
     # Define a small callback function that simply appends output from Pool workers to "master" list
     def log_results(worker_results):
-        logger.debug(f"Finished work for tau={worker_results['tau']}")
+        logger.debug("Finished work for tau=%s", worker_results["tau"])
         result_list.append(worker_results)
 
     logger.info("Starting deconvolution cycles...")
     # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
-    logger.debug(f"Creating a pool of {args.ncpus} workers")
+    logger.debug("Creating a pool of %s workers", args.ncpus)
     with mp.Pool(processes=args.ncpus) as pool:
         for tau in taus:
-            logger.debug(f"Started async. job for tau={tau:g} ms")
+            logger.debug("Started async. job for tau=%g ms", tau)
             pool.apply_async(
                 clean.clean, (data, tau), clean_kwargs, callback=log_results
             )
@@ -317,8 +326,8 @@ def execute_tauclean(args):
                 "Review figures of merit - perhaps adjust your search bounds?"
             )
     else:
-        logger.info(f"f_r ~ positivity: {sorted_results[0]['fr']}")
-        logger.info(f"gamma ~ skewnesss: {sorted_results[0]['gamma']}")
+        logger.info("f_r ~ positivity: %s", sorted_results[0]["fr"])
+        logger.info("gamma ~ skewnesss: %s", sorted_results[0]["gamma"])
         logger.info(
             f"f_c = f_r / gamma: {(sorted_results[0]['fr']+sorted_results[0]['gamma']) / 2}"
         )
@@ -331,7 +340,10 @@ def execute_tauclean(args):
         if len(taus) > 1:
             logger.info("Plotting figures of merit...")
             plotting.plot_figures_of_merit(
-                sorted_results, true_tau=args.truth, best_tau=best, best_tau_err=err
+                sorted_results,
+                true_tau=args.truth,
+                best_tau=best,
+                best_tau_err=err,
             )
 
     if not args.noplot_r:
@@ -347,7 +359,9 @@ def execute_tauclean(args):
         logger.info("Done plotting reconstruction.")
 
     if not args.nowrite:
-        logger.debug("Writing output products (reconstruction + clean component list")
+        logger.debug(
+            "Writing output products (reconstruction + clean component list"
+        )
         plotting.write_output(sorted_results)
 
 
