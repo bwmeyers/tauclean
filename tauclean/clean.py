@@ -3,6 +3,7 @@
 import logging
 import numpy as np
 from scipy.signal import convolve
+from scipy.interpolate import PchipInterpolator
 import matplotlib.pyplot as plt
 
 from . import fom
@@ -86,14 +87,14 @@ def get_instrumental_response(
 
     .. math::
 
-        r(t) = r_{\\rm dm}(t) * r_{\\rm pb}(t) * r_{\\rm av}(t) * r_{\\rm pd}(t)
+        r(t) = r_{\\rm dm} * r_{\\rm pb} * r_{\\rm av} * r_{\\rm pd}
 
-    where:
-        * :math:`*` is the convolution operator
-        * :math:`r_{\\rm dm}(t)` describes the DM smearing
-        * :math:`r_{\\rm pb}(t)` describes the profile binning effects
-        * :math:`r_{\\rm av}(t)` describes back-end time averaging
-        * :math:`r_{\\rm pd}(t)` describes post-detection time averaging
+    where
+        - :math:`*` is the convolution operator
+        - :math:`r_{\\rm dm}(t)` describes the DM smearing
+        - :math:`r_{\\rm pb}(t)` describes the profile binning effects
+        - :math:`r_{\\rm av}(t)` describes back-end time averaging
+        - :math:`r_{\\rm pd}(t)` describes post-detection time averaging
 
     All of these are knowable before commencing deconvolution. A simplifying
     assumption (typically adequate) is that all contributions are approximately
@@ -107,13 +108,14 @@ def get_instrumental_response(
     :type profile: np.ndarray
     :param pulse_period: The pulsar period in ms.
     :type pulse_period: float
-    :param r_dm_width: The DM smearing effective width.
+    :param r_dm_width: The DM smearing effective width (in ms).
     :type r_dm_width: float
-    :param r_pb_width: The profile binning effective width.
+    :param r_pb_width: The profile binning effective width (in ms).
     :type r_pb_width: float
-    :param r_av_width: The effective width of back-end sampling/averaging.
+    :param r_av_width: The effective width of back-end sampling/averaging
+        (in ms).
     :type r_av_width: float
-    :param r_pd_width: The effective width of post-detection averaging.
+    :param r_pd_width: The effective width of post-detection averaging (in ms).
     :type r_pd_width: float
     :param fast: Use delta-function approximation for instrumental response.
         Defaults to False.
@@ -143,7 +145,7 @@ def get_instrumental_response(
             upscale_factor * (pulse_period / narrowest_element)
         )
         oversamp_dt = pulse_period / oversamp_nbins
-        x = np.linspace(0, 1, oversamp_nbins) * pulse_period
+        # x = np.linspace(0, 1, oversamp_nbins) * pulse_period
         logger.debug(
             "Upsampled nbins=%s & dt=%sms", oversamp_nbins, oversamp_dt
         )
@@ -166,16 +168,31 @@ def get_instrumental_response(
 
         resp = resp / resp.sum()  # preserves fluence
 
-        decimated_resp = resp[:: oversamp_nbins // profile.size]
+        # Decimate back to original profile resolution using interpolation
+        # that is appropraite for use with the expected shapes of convolved
+        # top-hate functions (i.e., PCHIP, which is monotonicity-preserving
+        # and does not introduce spurious oscillations). More convolved
+        # top-hats will be more Gaussian-like, so the interpolation should be
+        # appropriate for a range of shapes from top-hats to Gaussians.
+        oversampled_x = np.linspace(
+            0, pulse_period, oversamp_nbins, endpoint=False
+        )
+        original_x = np.linspace(0, pulse_period, profile.size, endpoint=False)
+        interp_func = PchipInterpolator(oversampled_x, resp, extrapolate=False)
+        decimated_resp = interp_func(original_x)
+        decimated_resp = np.nan_to_num(
+            decimated_resp, nan=0, posinf=0, neginf=0
+        )  # Handle NaN and any out-of-bounds values
+
+        # Normalize to integrate to 1 over the profile period
         decimated_resp = decimated_resp / np.trapz(
-            x=np.linspace(0, 1, len(decimated_resp)) * pulse_period,
-            y=decimated_resp,
+            y=decimated_resp, dx=pulse_period / profile.size
         )
 
         # At this point, we can approximate the width by assuming the total
         # response is a top-hat function so then the width is the total area
         # divided by the peak
-        resp_width = (np.trapz(dx=1, y=resp) / resp.max()) * oversamp_dt
+        resp_width = np.trapz(dx=oversamp_dt, y=resp) / resp.max()
 
     return decimated_resp, resp_width
 
