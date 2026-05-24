@@ -12,12 +12,28 @@ def _smooth(
     x_offset: float = 0,
     peak_idx: int = 0,
 ) -> np.ndarray:
-    """To join the functions without discontinuities, we need to use a
-    smoothing transition function. Here, we use tanh to accomplish this, with
-    a smoothing factor k. As k decreases, the smoothing
-    is more pronounced.
+    """Join functions without discontinuities using a smoothing transition
+    function.
+
+    Uses tanh to accomplish smoothing, with a smoothing factor k. As k
+    decreases, the smoothing is more pronounced.
 
     See https://math.stackexchange.com/a/45335
+
+    :param fn1: first function to combine
+    :type fn1: np.ndarray
+    :param fn2: second function to combine
+    :type fn2: np.ndarray
+    :param scale: smoothing scale parameter
+    :type scale: float
+    :param x_array: independent variable array
+    :type x_array: np.ndarray
+    :param x_offset: offset position for smoothing transition
+    :type x_offset: float
+    :param peak_idx: index of the peak
+    :type peak_idx: int
+    :return: smoothed and combined kernel
+    :rtype: np.ndarray
     """
 
     # Empirically, k = 0.09 smooths appropriately for tau = 30 ms, and
@@ -41,12 +57,16 @@ def _smooth(
 
 
 def gaussian(x, mu: float = 0, sigma: float = 1) -> np.ndarray:
-    """A simple function that calculates a Gaussian shape over x
+    """Calculate a Gaussian shape over x.
 
-    :param x: independent variable [array-like]
-    :param mu: the mean (position) of the Gaussian [float]
-    :param sigma: the standard deviation (width) of the Gaussian [float]
-    :return: a numerically evaluated Gaussian [array-like]
+    :param x: independent variable
+    :type x: np.ndarray
+    :param mu: the mean (position) of the Gaussian
+    :type mu: float
+    :param sigma: the standard deviation (width) of the Gaussian
+    :type sigma: float
+    :return: a numerically evaluated Gaussian
+    :rtype: np.ndarray
     """
 
     amp = 1.0 / (np.sqrt(2 * np.pi) * sigma)
@@ -56,15 +76,19 @@ def gaussian(x, mu: float = 0, sigma: float = 1) -> np.ndarray:
 
 
 def thin(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
-    """The classical, square-law structure media thin screen approximation
-    for a pulse broadening function.
+    """Classical, square-law structure media thin screen approximation for
+    pulse broadening.
 
     See e.g. Cordes & Rickett (1998) and Lambert & Rickett (1999).
 
-    :param x: time over which to evaluate the PBF [array-like]
-    :param tau: pulse broadening time scale [float]
-    :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated thin screen PBF [array-like]
+    :param x: time over which to evaluate the PBF
+    :type x: np.ndarray
+    :param tau: pulse broadening time scale
+    :type tau: float
+    :param x0: where the PBF turns on (in range of x)
+    :type x0: float
+    :return: evaluated thin screen PBF
+    :rtype: np.ndarray
     """
 
     t = x - x0
@@ -78,13 +102,17 @@ def thin(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
 
 
 def thick(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
-    """The thick screen pulse broadening function as presented in the optics
-    work of Williamson (1972).
+    """Thick screen pulse broadening function as presented in
+    Williamson (1972).
 
-    :param x: time over which to evaluate the PBF [array-like]
-    :param tau: pulse broadening time scale [float]
-    :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated thick screen PBF [array-like]
+    :param x: time over which to evaluate the PBF
+    :type x: np.ndarray
+    :param tau: pulse broadening time scale
+    :type tau: float
+    :param x0: where the PBF turns on (in range of x)
+    :type x0: float
+    :return: evaluated thick screen PBF
+    :rtype: np.ndarray
     """
 
     t = x - x0
@@ -109,17 +137,22 @@ def thick(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
 
 
 def thick_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
-    """The thick screen pulse broadening function as presented in the optics
-    work of Williamson (1972), modified to exhibit the classical exponential
-    delay shape. This ensures that at t -> infinity, the PBF vanishes.
+    """Thick screen PBF from Williamson (1972) with exponential delay shape.
+
+    Modified to exhibit the classical exponential delay shape, ensuring that at
+    t -> infinity, the PBF vanishes.
 
     See p68 of Williamson 1972, just after Figure 9, for discussion on this
     kind of modification.
 
-    :param x: time over which to evaluate the PBF [array-like]
-    :param tau: pulse broadening time scale [float]
-    :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated thick screen with exp. decay PBF [array-like]
+    :param x: time over which to evaluate the PBF
+    :type x: np.ndarray
+    :param tau: pulse broadening time scale
+    :type tau: float
+    :param x0: where the PBF turns on (in range of x)
+    :type x0: float
+    :return: evaluated thick screen with exponential decay PBF
+    :rtype: np.ndarray
     """
 
     t = x - x0
@@ -138,7 +171,8 @@ def thick_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
 
     np.seterr(**old_settings)  # restore old behaviour
 
-    # now figure out the peak of the PBF and begin the normal exponential decay after the appropriate delay
+    # now figure out the peak of the PBF and begin the normal exponential
+    # decay after the appropriate delay
     pbfmax = x0 + np.pi**2 * tau / 24  # in ms
     pbfmax_idx = np.where(t >= pbfmax)[0][0]
     decay_start_idx = np.where(t >= pbfmax + expdelay * tau)[0][0]
@@ -158,13 +192,17 @@ def thick_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
 
 
 def uniform(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
-    """The uniform media pulse broadening function as presented in the optics
-    work of Williamson (1972).
+    """Uniform media pulse broadening function as presented in
+    Williamson (1972).
 
-    :param x: time over which to evaluate the PBF [array-like]
-    :param tau: pulse broadening time scale [float]
-    :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated PBF for a uniform scattering medium [array-like]
+    :param x: time over which to evaluate the PBF
+    :type x: np.ndarray
+    :param tau: pulse broadening time scale
+    :type tau: float
+    :param x0: where the PBF turns on (in range of x)
+    :type x0: float
+    :return: evaluated PBF for a uniform scattering medium
+    :rtype: np.ndarray
     """
 
     t = x - x0
@@ -189,17 +227,23 @@ def uniform(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
 
 
 def uniform_exp(x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
-    """The uniform media pulse broadening function as presented in the optics
-    work of Williamson (1972), modified to exhibit the classical exponential
-    delay shape. This ensures that at t -> infinity, the PBF vanishes.
+    """Uniform media PBF from Williamson (1972) with exponential delay shape.
+
+    Modified to exhibit the classical exponential delay shape, ensuring that at
+    t -> infinity, the PBF vanishes.
 
     See p68 of Williamson 1972, just after Figure 9, for discussion on this
     kind of modification.
 
-    :param x: time over which to evaluate the PBF [array-like]
-    :param tau: pulse broadening time scale [float]
-    :param x0: where the PBF turns on [float, in range of x]
-    :return: evaluated PBF for a uniform scattering medium with exp. decay [array-like]
+    :param x: time over which to evaluate the PBF
+    :type x: np.ndarray
+    :param tau: pulse broadening time scale
+    :type tau: float
+    :param x0: where the PBF turns on (in range of x)
+    :type x0: float
+    :return: evaluated PBF for a uniform scattering medium with exponential
+        decay
+    :rtype: np.ndarray
     """
 
     t = x - x0
