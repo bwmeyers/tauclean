@@ -48,7 +48,8 @@ def consistence(
 
     # Calculate the number of profile points that are consistent with
     # the n-sigma noise level of the off-pulse region
-    nf = np.sum(abs(profile - off_mean) <= threshold * off_rms)
+    consistent_points = abs(profile - off_mean) <= threshold * off_rms
+    nf = np.sum(consistent_points.astype(int))
 
     return nf
 
@@ -69,11 +70,11 @@ def positivity(
     :type res: np.ndarray
     :param off_rms: The off-pulse rms value to be used as a threshold.
     :type off_rms: float
-    :param m: A scale-factor (or weight) that is of order unity, defaults
+    :param m: A scale-factor (or weight) that is of order unity. Defaults
         to 1.0.
     :type m: float
     :param x: A threshold (units of off_rms) defined to penalise the positivity
-        if there are residuals more negative than this, defaults to 1.5.
+        if there are residuals more negative than this. Defaults to 1.5.
     :type x: float
     :return: The positivity figure of merit.
     :rtype float:
@@ -90,7 +91,7 @@ def positivity(
         # Also easier to identify and deal with with other functions.
         return np.nan
 
-    f_r = (m / (len(res) * off_rms**2)) * np.sum(u * res**2)
+    f_r = float((m / (len(res) * off_rms**2)) * np.sum(u * res**2))
 
     return f_r
 
@@ -112,7 +113,7 @@ def skewness(
         at the end of the CLEAN procedure.
     :type ccs: np.ndarray
     :param pulsar_period: The pulsar period (in ms), defaults to 100.0.
-    :type pulsar_period:
+    :type pulsar_period: float
     :return: The skewness figure of merit.
     :rtype: float
     """
@@ -131,9 +132,9 @@ def skewness(
         # moment_2 = 0 so we'll get an error if we try to calculate the
         # skewness in the usual way
         logger.warning("Clean components skewness is undefined. Setting to 0.")
-        gamma = 0
+        gamma = 0.0
     else:
-        gamma = moment_3 / (moment_2**1.5)
+        gamma = float(moment_3 / (moment_2**1.5))
 
     return gamma
 
@@ -144,7 +145,7 @@ def get_best_tau_jerk(
     norm_fom_peak_prominance: float | None = None,
     smoothing_window_size: int | None = None,
     fom_weights: dict | None = None,
-) -> tuple[float]:
+) -> tuple[float, float]:
     """Estimate the uncertainty of each tau trial value by determining
     the value of tau that results in the maximum peak of the FOM's 3rd
     derivative.
@@ -262,39 +263,49 @@ def get_best_tau_jerk(
             best_tau_fom = taus[fn(fom["values"])]
             fom_tau_estimates.append(best_tau_fom)
             logger.info(
-                f"Best tau from metric={fom['name']:7s} is: {np.squeeze(best_tau_fom):.2f} ms"
+                "Best tau from metric=%7s is: %.2f ms",
+                fom["name"],
+                np.squeeze(best_tau_fom),
             )
         else:
 
             logger.debug(
-                f"Finding 'best' tau from FOM={fom['name']} via 3rd deriv."
+                "Finding 'best' tau from FOM=%7s via 3rd deriv.", fom["name"]
             )
 
-            # The smoothing window size must be greater than the polynomial order used in the filter
+            # The smoothing window size must be greater than the polynomial
+            # order used in the filter
             if smoothing_window_size is None:
                 logger.debug(
-                    "No savgol_filter window size provided, choosing sensible value based on FOM series length."
+                    "No savgol_filter window size provided, choosing sensible "
+                    "value based on FOM series length."
                 )
                 smoothing_window_size = len(fom["values"]) // 8
                 if smoothing_window_size <= savgol_polyorder:
                     smoothing_window_size = savgol_polyorder + 1
                 logger.debug(
-                    f"Window size set to {smoothing_window_size} bins"
+                    "Window size set to %d bins", smoothing_window_size
                 )
 
-            # The smoothing window must be smaller than the total number of measurements
+            # The smoothing window must be smaller than the total number of
+            # measurements
             if smoothing_window_size > fom["values"].size:
                 logger.error(
-                    f"Smoothing window size ({smoothing_window_size}) is greater "
-                    f"than the number of FOM values ({fom['values'].size})!"
+                    "Smoothing window size (%d) is greater "
+                    "than the number of FOM values (%d)!",
+                    smoothing_window_size,
+                    fom["values"].size,
                 )
 
-            # Compute the smoothed derivative to use for best-tau determination and peak-finding
-            deriv = savgol_filter(
-                fom["values"],
-                window_length=smoothing_window_size,
-                polyorder=savgol_polyorder,
-                deriv=savgol_derorder,
+            # Compute the smoothed derivative to use for best-tau
+            # determination and peak-finding
+            deriv = np.array(
+                savgol_filter(
+                    fom["values"],
+                    window_length=smoothing_window_size,
+                    polyorder=savgol_polyorder,
+                    deriv=savgol_derorder,
+                )
             )
             norm_deriv = deriv / deriv.max()
             pidx, peak_props = find_peaks(
@@ -308,49 +319,59 @@ def get_best_tau_jerk(
                 best_tau_fom = taus[pidx]
                 fom_tau_estimates.append(np.squeeze(best_tau_fom))
                 logger.info(
-                    f"Best tau from metric={fom['name']:7s} is: {np.squeeze(best_tau_fom):.2f} ms"
+                    "Best tau from metric=%7s is: %.2f ms",
+                    fom["name"],
+                    np.squeeze(best_tau_fom),
                 )
-            # If there are multiple peaks (possible for complex profiles or poorly sampled trials),
-            # the first instance of a significant peak is likely the best guess
+            # If there are multiple peaks (possible for complex profiles or
+            # poorly sampled trials), the first instance of a significant peak
+            # is likely the best guess
             elif len(pidx) > 1:
                 logger.debug(
-                    "Multiple peaks in FOM found, taking mean of first two instances..."
+                    "Multiple peaks in FOM found, taking mean of first two "
+                    "instances..."
                 )
                 multi_peak_flag += 1
                 best_tau_fom = np.mean(taus[pidx[:1]])
                 fom_tau_estimates.append(np.squeeze(best_tau_fom))
                 logger.info(
-                    f"Best tau from metric={fom['name']:7s} is: {np.squeeze(best_tau_fom):.2f} ms"
+                    "Best tau from metric=%7s is: %.2f ms",
+                    fom["name"],
+                    np.squeeze(best_tau_fom),
                 )
-            # If there are zero peaks (again, possible for complex profiles or poorly samples trials),
-            # try to use a heuristic measure, otherwise we can't use that information and so the
+            # If there are zero peaks (again, possible for complex profiles or
+            # poorly samples trials), try to use a heuristic measure,
+            # otherwise we can't use that information and so the
             # weights/values need to be excluded.
             else:
                 logger.warning(
-                    f"Unable to find peaks in the FOM ({fom['name']}) derivative."
+                    "Unable to find peaks in the FOM (%s) derivative.",
+                    fom["name"],
                 )
                 logger.debug(
-                    "This could be due to profile complexity, or maybe you need to increase the number of trial taus."
+                    "This could be due to profile complexity, or maybe you "
+                    "need to increase the number of trial taus."
                 )
                 logger.warning(
-                    "Resorting to heuristic selection (generally, under-estimates)."
+                    "Resorting to heuristic selection (~ underestimates)."
                 )
                 # Use heuristic method based on the specific FOM
-                if fom["alt_operation"] != None:
+                if fom["alt_operation"] is not None:
                     fn = fom["alt_operation"]
                     best_tau_fom = taus[fn(fom["values"])]
                     fom_tau_estimates.append(best_tau_fom)
                 else:
                     logger.debug(
-                        f"Excluding FOM={fom['name']} from further analysis."
+                        "Excluding FOM=%s from further analysis.", fom["name"]
                     )
                     # Remove that FOM from the weighting scheme
                     fom_weights.pop(fom["name"])
 
     if multi_peak_flag > 0:
         logger.info(
-            f"There were {multi_peak_flag} FOMs with >1 peaks, so the mean "
-            f"of the first two peaks was used in each instance."
+            "There were %d FOMs with >1 peaks, so the mean "
+            "of the first two peaks was used in each instance.",
+            multi_peak_flag,
         )
 
     fom_tau_estimates = np.array(fom_tau_estimates)
@@ -367,7 +388,9 @@ def get_best_tau_jerk(
     wt_err = np.sqrt(fom_wt_std_tau**2 + d_tau**2)
 
     logger.info(
-        f"Best overall tau = {fom_wt_mean_tau:g} +/- {wt_err:g} ms  (weighted mean, weighted error)"
+        "Best overall tau = %.2f +/- %.2f ms  (weighted mean, weighted error)",
+        fom_wt_mean_tau,
+        wt_err,
     )
 
-    return fom_wt_mean_tau, wt_err
+    return float(fom_wt_mean_tau), float(wt_err)
