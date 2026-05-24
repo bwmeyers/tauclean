@@ -11,7 +11,12 @@ This module contains the functionality required by the 'tauclean' and 'simulate'
 """
 
 __author__ = "Bradley W. Meyers"
-__version__ = "1.0.0"
+
+try:
+    from tauclean._version import __version__
+except ImportError:
+    __version__ = "0.0.0.dev0"
+
 __citation__ = """
 If you make use of this tauclean implementation, please cite the following paper as appropriate:
 

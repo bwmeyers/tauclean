@@ -1,34 +1,39 @@
 [build-system]
-requires = ["setuptools >= 61.0", "oldest-supported-numpy"]
-build-backend = "setuptools.build_meta"
-
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "tauclean"
 description = "A pulsar profile deconvolution method for the recovery of intrisic profile shapes and ISM broadening functions."
-dynamic = ["version"] # dynamically grab version from the package
+dynamic = ["version"]
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
 authors = [
     { name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" },
-    { name = "Ramesh Bhat", email = "rameshbhatnd@gmail.com" },          # original author
-    { name = "Olivia Young", email = "olivia.young@nanograv.org" },      # updated version author
-    { name = "Michael Lam", email = "michael.lam@nanograv.org" },        # updated version author
+    { name = "Ramesh Bhat", email = "rameshbhatnd@gmail.com" },
+    { name = "Olivia Young", email = "olivia.young@nanograv.org" },
+    { name = "Michael Lam", email = "michael.lam@nanograv.org" },
 ]
 maintainers = [
     { name = "Bradley Meyers", email = "bradley.meyers1993@gmail.com" },
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: Academic Free License (AFL)",
-
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research",
 ]
 requires-python = ">=3.9"
-dependencies = ["numpy>=1.16.0,<2.0", "matplotlib>=3.0.0", "scipy>=1.2.0"]
+dependencies = [
+    "numpy>=1.16.0",
+    "matplotlib>=3.0.0",
+    "scipy>=1.2.0",
+]
 
 [project.scripts]
 tauclean = "tauclean.cli_tauclean:main"
@@ -38,5 +43,8 @@ simulate = "tauclean.cli_simulate:main"
 Repository = "https://github.com/bwmeyers/tauclean.git"
 Issues = "https://github.com/bwmeyers/tauclean/issues"
 
-[tool.setuptools.dynamic]
-version = { attr = "tauclean.__version__" }
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "tauclean/_version.py"

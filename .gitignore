@@ -103,5 +103,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Generated files
+tauclean/_version.py
+
 # PNGS
 *.png
