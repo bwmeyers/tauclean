@@ -11,6 +11,14 @@ from scipy.signal import convolve
 logger = logging.getLogger(__name__)
 
 
+def _equivalent_width_to_sigma(width: float) -> float:
+    """Convert area/peak equivalent width to Gaussian sigma.
+
+    For a unit-area Gaussian, area/peak = sqrt(2*pi)*sigma.
+    """
+    return width / np.sqrt(2 * np.pi)
+
+
 def gaussian(x, mu: float = 0, sigma: float = 1) -> np.ndarray:
     """Calculate a Gaussian shape over x."""
     amp = 1.0 / (np.sqrt(2 * np.pi) * sigma)
@@ -41,11 +49,20 @@ def get_instrumental_response(
         resp_width = pulse_period / len(profile)
         return decimated_resp, resp_width
 
+    raw_elements = np.array(
+        [r_dm_width, r_pb_width, r_av_width, r_pd_width], dtype=float
+    )
+    if not np.all(np.isfinite(raw_elements)):
+        raise ValueError("All instrumental response widths must be finite.")
+
     elements = [
-        response_width
-        for response_width in [r_dm_width, r_pb_width, r_av_width, r_pd_width]
-        if response_width > 0
+        response_width for response_width in raw_elements if response_width > 0
     ]
+    if not elements:
+        raise ValueError(
+            "At least one instrumental response width must be > 0."
+        )
+
     logger.debug("Restoring elements = %s ms", elements)
     narrowest_element = min(elements)
     oversamp_nbins = int(upscale_factor * (pulse_period / narrowest_element))
@@ -54,21 +71,22 @@ def get_instrumental_response(
 
     response = np.zeros(oversamp_nbins)
     for element in elements:
-        if np.isfinite(element):
-            contribution = np.zeros(oversamp_nbins)
-            width_bins = element // oversamp_dt
-            slc = slice(
-                int(oversamp_nbins / 2 - width_bins / 2),
-                int(oversamp_nbins / 2 + width_bins / 2),
-            )
-            contribution[slc] = 1
-            if response.sum() <= 0:
-                response = response + contribution
-            else:
-                response = convolve(response, contribution, mode="same")
+        contribution = np.zeros(oversamp_nbins)
+        width_bins = max(1, int(np.round(element / oversamp_dt)))
+        center_bin = oversamp_nbins // 2
+        start_bin = center_bin - width_bins // 2
+        stop_bin = min(oversamp_nbins, start_bin + width_bins)
+        start_bin = max(0, stop_bin - width_bins)
+        contribution[start_bin:stop_bin] = 1
+        if response.sum() <= 0:
+            response = response + contribution
+        else:
+            response = convolve(response, contribution, mode="same")
 
     response = response / response.sum()
-    oversampled_x = np.linspace(0, pulse_period, oversamp_nbins, endpoint=False)
+    oversampled_x = np.linspace(
+        0, pulse_period, oversamp_nbins, endpoint=False
+    )
     original_x = np.linspace(0, pulse_period, profile.size, endpoint=False)
     interp_func = PchipInterpolator(oversampled_x, response, extrapolate=False)
     decimated_resp = interp_func(original_x)
@@ -85,12 +103,26 @@ def get_restoring_function(
     pulse_period: float,
     inst_resp_width: float,
 ) -> np.ndarray:
-    """Generate the restoring function for pulse shape reconstruction."""
+    """Generate the restoring function for pulse shape reconstruction.
+
+    The provided ``inst_resp_width`` is interpreted as an equivalent width
+    defined as area/peak of the instrumental response. This is converted to
+    Gaussian sigma via sigma = width / sqrt(2*pi).
+    """
+    if not np.isfinite(inst_resp_width) or inst_resp_width <= 0:
+        raise ValueError("Instrumental response width must be finite and > 0.")
+
     upfact = 10
     nbins = upfact * len(profile)
-    x = pulse_period * np.linspace(-0.5, 0.5, nbins)
-    rest_func = gaussian(x, mu=0, sigma=inst_resp_width)
-    return rest_func[::upfact]
+    x = pulse_period * np.linspace(-0.5, 0.5, nbins, endpoint=False)
+    sigma = _equivalent_width_to_sigma(inst_resp_width)
+    rest_func = gaussian(x, mu=0, sigma=sigma)
+    decimated = rest_func[::upfact]
+    dt = pulse_period / len(profile)
+    area = np.trapz(y=decimated, dx=dt)
+    if area <= 0 or not np.isfinite(area):
+        raise ValueError("Restoring function has invalid normalization area.")
+    return decimated / area
 
 
 def reconstruct(
@@ -99,9 +131,14 @@ def reconstruct(
 ) -> np.ndarray:
     """Reconstruct the intrinsic pulse shape from clean components."""
     if rest_func is None:
-        logger.warning("No valid restoring function provided, using a delta function")
+        logger.warning(
+            "No valid restoring function provided, using a delta function"
+        )
         rest_func = np.zeros_like(clean_components)
         rest_func[rest_func.size // 2] = 1
 
     reconstruction = convolve(clean_components, rest_func, mode="same")
-    return reconstruction / reconstruction.max()
+    peak = np.max(np.abs(reconstruction))
+    if peak <= 0 or not np.isfinite(peak):
+        return reconstruction
+    return reconstruction / peak
