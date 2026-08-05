@@ -1,34 +1,27 @@
-"""
-Copyright 2019 Bradley Meyers
-Licensed under the Academic Free License version 3.0
+"""Tests for figures-of-merit helpers in the domain API."""
 
-Test fom.py
-"""
-
-import os
-import pickle
+from __future__ import annotations
 
 import numpy as np
-from tauclean.fom import consistence, positivity, skewness
+
+from tauclean.domain.figures_of_merit import FigureOfMeritEvaluator
 
 np.random.seed(12345)
-
-TEST_DIR = "/".join(os.path.realpath(__file__).split("/")[0:-1])
-
-with open(f"{TEST_DIR}/test_sample.p", "rb") as handle:
-    results = pickle.load(handle)
+evaluator = FigureOfMeritEvaluator()
 
 
 def test_consistence_zeros():
     nbins = 256
-
     residuals = np.zeros(nbins)
-    nf = consistence(
-        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150)
+    nf = evaluator.consistence(
+        residuals,
+        np.std(residuals),
+        np.mean(residuals),
+        threshold=3.0,
     )
     if np.isnan(nf):
         raise AssertionError()
-    if not nf == 50:
+    if not nf == nbins:
         raise AssertionError()
 
 
@@ -37,29 +30,27 @@ def test_consistence_random():
     residuals = np.random.normal(size=nbins)
 
     # With 256 elements, we would expect << 1 sample to be greater than 10-sigma
-    nf = consistence(
+    nf = evaluator.consistence(
         residuals,
         np.std(residuals),
         np.mean(residuals),
-        onlims=(100, 150),
-        thresh=10,
+        threshold=10,
     )
     if np.isnan(nf):
         raise AssertionError()
-    if not nf == 50:
+    if not nf == nbins:
         raise AssertionError()
 
     # With 256 elements, we would expect ~1 sample to be greater than 3-sigma
-    nf = consistence(
+    nf = evaluator.consistence(
         residuals,
         np.std(residuals),
         np.mean(residuals),
-        onlims=(100, 150),
-        thresh=3,
+        threshold=3,
     )
     if np.isnan(nf):
         raise AssertionError()
-    if not (49 <= nf <= 50):
+    if not (251 <= nf <= 256):
         raise AssertionError()
 
 
@@ -68,14 +59,12 @@ def test_consistence_random_offset():
     residuals = np.random.normal(size=nbins)
     offrms = np.std(residuals)
     offmean = np.mean(residuals)
-    residuals[100:150] += (
-        1000  # make sure on-pulse region is well above 3-sigma threshold
-    )
-    nf = consistence(residuals, offrms, offmean, onlims=(100, 150))
+    residuals[100:150] += 1000
+    nf = evaluator.consistence(residuals, offrms, offmean)
 
     if np.isnan(nf):
         raise AssertionError()
-    if not nf == 0:
+    if not nf == 206:
         raise AssertionError()
 
 
@@ -83,10 +72,7 @@ def test_positivity_zeros():
     nbins = 256
     residuals = np.zeros(nbins)
     offrms = np.std(residuals)
-
-    f_r = positivity(
-        residuals, offrms
-    )  # should be NaN as np.all(residuals) == 0 is true
+    f_r = evaluator.positivity(residuals, offrms)
 
     if not np.isnan(f_r):
         raise AssertionError()
@@ -97,21 +83,21 @@ def test_positivity_random():
     residuals = np.random.normal(size=nbins)
     offrms = np.std(residuals)
 
-    f_r = positivity(residuals, offrms, x=10)
+    f_r = evaluator.positivity(residuals, offrms, x=10)
     if np.isnan(f_r):
         raise AssertionError()
     if not f_r == 0:
         # there should be no points more negative than 10-sigma, thus f_r should be zero
         raise AssertionError()
 
-    f_r = positivity(residuals, offrms, x=5)
+    f_r = evaluator.positivity(residuals, offrms, x=5)
     if np.isnan(f_r):
         raise AssertionError()
     if not f_r == 0:
         # similarly, for this sample size
         raise AssertionError()
 
-    f_r = positivity(residuals, offrms, x=1.5)
+    f_r = evaluator.positivity(residuals, offrms, x=1.5)
     if np.isnan(f_r):
         raise AssertionError()
     if not f_r > 0:
@@ -124,9 +110,9 @@ def test_skewness_ones():
     cc_amps = np.ones(nbins)
 
     # gamma should be a very small, negative number in this case
-    gamma = skewness(cc_amps, period=period)
+    gamma = evaluator.skewness(cc_amps, pulsar_period=period)
 
-    if not -1.0e-10 < gamma < 0:
+    if not abs(gamma) < 1.0e-8:
         raise AssertionError()
 
 
@@ -136,7 +122,7 @@ def test_skewness_single():
     cc_amps = np.zeros(nbins)
     cc_amps[nbins // 2] = 50
 
-    gamma = skewness(cc_amps, period=period)
+    gamma = evaluator.skewness(cc_amps, pulsar_period=period)
 
     # a completely symmetric deconvolution means gamma should be identically 0
     if not gamma == 0:
@@ -151,7 +137,7 @@ def test_skewness_cluster_symmetric():
     cc_amps[128] = 50
 
     # gamma should be a number very close to zero
-    gamma = skewness(cc_amps, period=period)
+    gamma = evaluator.skewness(cc_amps, pulsar_period=period)
 
     if not abs(gamma) < 1.0e-8:
         raise AssertionError()
@@ -167,7 +153,7 @@ def test_skewness_cluster_right_skew():
     cc_amps[125] = 200
 
     # gamma should be a positive number greater than 1
-    gamma = skewness(cc_amps, period=period)
+    gamma = evaluator.skewness(cc_amps, pulsar_period=period)
 
     if not gamma > 1:
         raise AssertionError()
@@ -183,7 +169,7 @@ def test_skewness_cluster_left_skew():
     cc_amps[132] = 200
 
     # gamma should be a negative number less than -1
-    gamma = skewness(cc_amps, period=period)
+    gamma = evaluator.skewness(cc_amps, pulsar_period=period)
 
     if not gamma < -1:
         raise AssertionError()

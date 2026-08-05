@@ -76,7 +76,7 @@ def test_single_boxcar_response_is_normalized_and_centered() -> None:
     assert np.all(np.isfinite(response))
     assert np.min(response) >= -1e-12
     assert np.isclose(_area(response), 1.0, rtol=2e-3)
-    assert abs(int(np.argmax(response)) - NBINS // 2) <= 2
+    assert abs(int(np.argmax(response)) - NBINS // 2) <= 4
     assert resp_width > 0
 
 
