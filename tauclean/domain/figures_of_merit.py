@@ -83,11 +83,17 @@ class FigureOfMeritEvaluator:
 
         return float((m / (len(residuals) * off_rms**2)) * np.sum(mask * residuals**2))
 
-    def skewness(self, clean_components: np.ndarray, pulsar_period: float = 100.0) -> float:
+    def skewness(
+        self, clean_components: np.ndarray, pulsar_period: float = 100.0
+    ) -> float:
         component_times = pulsar_period * np.linspace(0, 1, len(clean_components))
         moment_1 = np.average(component_times, weights=clean_components)
-        moment_2 = np.average((component_times - moment_1) ** 2, weights=clean_components)
-        moment_3 = np.average((component_times - moment_1) ** 3, weights=clean_components)
+        moment_2 = np.average(
+            (component_times - moment_1) ** 2, weights=clean_components
+        )
+        moment_3 = np.average(
+            (component_times - moment_1) ** 3, weights=clean_components
+        )
 
         if np.count_nonzero(clean_components) == 1:
             self.logger.warning("Clean components skewness is undefined. Setting to 0.")
@@ -135,8 +141,12 @@ class TauSearchAnalyzer:
         f_r = np.array([result.figures_of_merit.positivity for result in results])
         gamma = np.array([result.figures_of_merit.skewness for result in results])
         f_c = (f_r + gamma) / 2.0
-        r_sigma = np.array([result.figures_of_merit.residual_ratio for result in results])
-        r_phi = np.array([result.figures_of_merit.consistence_fraction for result in results])
+        r_sigma = np.array(
+            [result.figures_of_merit.residual_ratio for result in results]
+        )
+        r_phi = np.array(
+            [result.figures_of_merit.consistence_fraction for result in results]
+        )
 
         return taus, [
             FigureOfMeritSeries("f_r", f_r, r"$f_r$", True, np.argmin),
@@ -296,7 +306,9 @@ class TauSearchAnalyzer:
                     "Unable to find peaks in the FOM (%s) derivative.",
                     series.name,
                 )
-                self.logger.warning("Resorting to heuristic selection (~ underestimates).")
+                self.logger.warning(
+                    "Resorting to heuristic selection (~ underestimates)."
+                )
                 if series.alt_operation is not None:
                     fn = series.alt_operation
                     best_tau_fom = taus[fn(series.values)]

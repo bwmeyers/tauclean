@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """
 Copyright 2019 Bradley Meyers
 Licensed under the Academic Free License version 3.0
@@ -21,10 +20,11 @@ from tauclean.plotting import (
 )
 
 np.random.seed(12345)
-TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
+TEST_DIR = "/".join(os.path.realpath(__file__).split("/")[0:-1])
 
 init_data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
-results = pickle.load(open(f"{TEST_DIR}/test_sample.p", "rb"))
+with open(f"{TEST_DIR}/test_sample.p", "rb") as handle:
+    results = pickle.load(handle)
 results[-1]["fr"] = 100  # fake one fo the FoM to ensure that testing covers all code
 
 
@@ -75,14 +75,14 @@ def test_write_output():
         raise AssertionError()
 
     # tau = 20ms is item 2 in the results list
-    np.testing.assert_array_equal(lines, results[2]['cc'])
+    np.testing.assert_array_equal(lines, results[2]["cc"])
 
     try:
         lines = np.genfromtxt("reconstruction_thin-tau20.txt")
     except FileNotFoundError:
         raise AssertionError()
 
-    np.testing.assert_array_equal(lines[:, 0], results[2]['recon'])
-    np.testing.assert_array_equal(lines[:, 1], results[2]['profile'])
+    np.testing.assert_array_equal(lines[:, 0], results[2]["recon"])
+    np.testing.assert_array_equal(lines[:, 1], results[2]["profile"])
 
     remove_files("*.txt")

@@ -80,7 +80,10 @@ class Cleaner:
         if off_pulse_bins is None or on_pulse_bins is None:
             raise ValueError("Profile noise regions were not initialized")
 
-        if profile_data.baseline_corrected is None or profile_data.initial_noise is None:
+        if (
+            profile_data.baseline_corrected is None
+            or profile_data.initial_noise is None
+        ):
             raise ValueError("Profile noise properties are not initialized")
 
         profile = np.copy(profile_data.baseline_corrected)
@@ -217,9 +220,13 @@ class Cleaner:
                 "Clean cycle only lasted 1 iteration - something probably went wrong!"
             )
         elif niter >= self.iter_limit:
-            active_logger.warning(f"Clean cycle terminated prematurely for tau={tau:g} ms")
+            active_logger.warning(
+                f"Clean cycle terminated prematurely for tau={tau:g} ms"
+            )
         else:
-            active_logger.debug("Clean cycle terminated successfully for tau=%g ms", tau)
+            active_logger.debug(
+                "Clean cycle terminated successfully for tau=%g ms", tau
+            )
 
         n_unique = np.count_nonzero(clean_components)
 

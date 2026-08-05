@@ -99,9 +99,7 @@ def reconstruct(
 ) -> np.ndarray:
     """Reconstruct the intrinsic pulse shape from clean components."""
     if rest_func is None:
-        logger.warning(
-            "No valid restoring function provided, using a delta function"
-        )
+        logger.warning("No valid restoring function provided, using a delta function")
         rest_func = np.zeros_like(clean_components)
         rest_func[rest_func.size // 2] = 1
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 from scipy.integrate import simpson as simps
@@ -74,7 +75,9 @@ class UniformKernel(Kernel):
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         _ = x0
         old_settings = np.seterr(divide="ignore", invalid="ignore")
-        h = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(-tau * np.pi**2 / (4 * t))
+        h = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
+            -tau * np.pi**2 / (4 * t)
+        )
         np.seterr(**old_settings)
         return h
 
@@ -109,7 +112,9 @@ class UniformExpKernel(Kernel):
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         expdelay = np.log(2)
         old_settings = np.seterr(divide="ignore", invalid="ignore")
-        h1 = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(-tau * np.pi**2 / (4 * t))
+        h1 = np.sqrt((np.pi**5 * tau**3) / (8 * t**5)) * np.exp(
+            -tau * np.pi**2 / (4 * t)
+        )
         h1[np.where(np.isnan(h1))] = 0
         np.seterr(**old_settings)
 
@@ -128,7 +133,7 @@ class UniformExpKernel(Kernel):
 class KernelRegistry:
     """Kernel lookup registry."""
 
-    _registry: dict[str, type[Kernel]] = {
+    _registry: ClassVar[dict[str, type[Kernel]]] = {
         "thin": ThinKernel,
         "thick": ThickKernel,
         "uniform": UniformKernel,

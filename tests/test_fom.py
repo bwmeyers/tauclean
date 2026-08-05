@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """
 Copyright 2019 Bradley Meyers
 Licensed under the Academic Free License version 3.0
@@ -14,16 +13,19 @@ from tauclean.fom import consistence, positivity, skewness
 
 np.random.seed(12345)
 
-TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
+TEST_DIR = "/".join(os.path.realpath(__file__).split("/")[0:-1])
 
-results = pickle.load(open(f"{TEST_DIR}/test_sample.p", "rb"))
+with open(f"{TEST_DIR}/test_sample.p", "rb") as handle:
+    results = pickle.load(handle)
 
 
 def test_consistence_zeros():
     nbins = 256
 
     residuals = np.zeros(nbins)
-    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150))
+    nf = consistence(
+        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150)
+    )
     if np.isnan(nf):
         raise AssertionError()
     if not nf == 50:
@@ -35,14 +37,18 @@ def test_consistence_random():
     residuals = np.random.normal(size=nbins)
 
     # With 256 elements, we would expect << 1 sample to be greater than 10-sigma
-    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=10)
+    nf = consistence(
+        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=10
+    )
     if np.isnan(nf):
         raise AssertionError()
     if not nf == 50:
         raise AssertionError()
 
     # With 256 elements, we would expect ~1 sample to be greater than 3-sigma
-    nf = consistence(residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=3)
+    nf = consistence(
+        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=3
+    )
     if np.isnan(nf):
         raise AssertionError()
     if not (49 <= nf <= 50):
@@ -54,7 +60,9 @@ def test_consistence_random_offset():
     residuals = np.random.normal(size=nbins)
     offrms = np.std(residuals)
     offmean = np.mean(residuals)
-    residuals[100:150] += 1000  # make sure on-pulse region is well above 3-sigma threshold
+    residuals[100:150] += (
+        1000  # make sure on-pulse region is well above 3-sigma threshold
+    )
     nf = consistence(residuals, offrms, offmean, onlims=(100, 150))
 
     if np.isnan(nf):
@@ -68,7 +76,9 @@ def test_positivity_zeros():
     residuals = np.zeros(nbins)
     offrms = np.std(residuals)
 
-    f_r = positivity(residuals, offrms)  # should be NaN as np.all(residuals) == 0 is true
+    f_r = positivity(
+        residuals, offrms
+    )  # should be NaN as np.all(residuals) == 0 is true
 
     if not np.isnan(f_r):
         raise AssertionError()
@@ -169,5 +179,6 @@ def test_skewness_cluster_left_skew():
 
     if not gamma < -1:
         raise AssertionError()
+
 
 # TODO: write tests for error estimation

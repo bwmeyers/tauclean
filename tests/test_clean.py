@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """
 Copyright 2019 Bradley Meyers
 Licensed under the Academic Free License version 3.0
@@ -35,9 +34,7 @@ def run_clean(taus, data, clean_kwargs):
 
     pool = mp.Pool(processes=1)
     for t in taus:
-        results = pool.apply_async(
-            clean, (data, t), clean_kwargs, callback=log_results
-        )
+        pool.apply_async(clean, (data, t), clean_kwargs, callback=log_results)
 
     pool.close()
     pool.join()
@@ -52,7 +49,7 @@ def check_clean_finite(sorted_results):
     finite, and that the correct object was returned by the function
     """
     if not isinstance(sorted_results, list):
-        raise AssertionError()
+        raise TypeError()
     if not np.isfinite(sorted_results[0]["init_rms"]):
         raise AssertionError()
     if not np.isfinite(sorted_results[0]["off_rms"]):
@@ -128,9 +125,7 @@ def test_reconstruction_simple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(
-        diff, np.zeros_like(profile), decimal=4
-    )
+    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
     # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
@@ -140,9 +135,7 @@ def test_reconstruction_simple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(
-        diff, np.zeros_like(profile), decimal=4
-    )
+    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
 
 def test_reconstruction_multiple():
@@ -164,9 +157,7 @@ def test_reconstruction_multiple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(
-        diff, np.zeros_like(profile), decimal=4
-    )
+    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
     # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
@@ -177,9 +168,7 @@ def test_reconstruction_multiple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(
-        diff, np.zeros_like(profile), decimal=4
-    )
+    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
 
 
 # TODO: should nominally also test when profile width is NOT equal to the restoring function width, but for now this
@@ -188,9 +177,7 @@ def test_reconstruction_multiple():
 
 def test_clean_invalid_pbf():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
-    data = np.genfromtxt(
-        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
-    )
+    data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
 
     ret_val = clean(data, 20, [], pbftype="unknown")
 
@@ -199,107 +186,93 @@ def test_clean_invalid_pbf():
 
 def test_clean_iteration_limit():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
-    data = np.genfromtxt(
-        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
-    )
+    data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
     taus = [20.0]
     ilim = 1000
 
-    clean_kwargs = dict(
-        period=500,
-        gain=0.05,
-        pbftype="thin",
-        on_start=440,
-        on_end=900,
-        rest_width=500 / len(data),
-        iter_limit=ilim,
-    )
+    clean_kwargs = {
+        "period": 500,
+        "gain": 0.05,
+        "pbftype": "thin",
+        "on_start": 440,
+        "on_end": 900,
+        "rest_width": 500 / len(data),
+        "iter_limit": ilim,
+    }
 
     sorted_results = run_clean(taus, data, clean_kwargs)
     print(sorted_results)
 
     if not isinstance(sorted_results, list):
-        raise AssertionError()
+        raise TypeError()
     if not sorted_results[0]["niter"] == ilim:
         raise AssertionError()
 
 
 def test_clean_thin():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
-    data = np.genfromtxt(
-        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
-    )
-    intrinsic = np.genfromtxt(
-        f"{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt"
-    )
+    data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
+    intrinsic = np.genfromtxt(f"{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt")
     taus = [20.0]
 
-    clean_kwargs = dict(
-        period=500,
-        gain=0.05,
-        pbftype="thin",
-        on_start=440,
-        on_end=900,
-        rest_width=500 / len(data),
-    )
+    clean_kwargs = {
+        "period": 500,
+        "gain": 0.05,
+        "pbftype": "thin",
+        "on_start": 440,
+        "on_end": 900,
+        "rest_width": 500 / len(data),
+    }
 
     sorted_results = run_clean(taus, data, clean_kwargs)
 
     check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (
-        abs(intrinsic.max() - sorted_results[0]["recon"].max())
-        < 0.05 * intrinsic.max()
+        abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
     ):
         raise AssertionError()
 
 
 def test_clean_thick():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k thick -t 1.0 -p 500
-    data = np.genfromtxt(
-        f"{TEST_DIR}/simulated_profile_tau1ms_thick.txt"
-    )
-    intrinsic = np.genfromtxt(
-        f"{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt"
-    )
+    data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau1ms_thick.txt")
+    intrinsic = np.genfromtxt(f"{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt")
     taus = [1.0]
 
-    clean_kwargs = dict(
-        period=500,
-        gain=0.05,
-        pbftype="thick",
-        on_start=128,
-        on_end=700,
-        rest_width=500 / len(data),
-    )
+    clean_kwargs = {
+        "period": 500,
+        "gain": 0.05,
+        "pbftype": "thick",
+        "on_start": 128,
+        "on_end": 700,
+        "rest_width": 500 / len(data),
+    }
 
     sorted_results = run_clean(taus, data, clean_kwargs)
 
     check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (
-        abs(intrinsic.max() - sorted_results[0]["recon"].max())
-        < 0.05 * intrinsic.max()
+        abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
     ):
         raise AssertionError()
 
 
 def test_clean_uniform():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k uniform -t 3.0 -p 500
-    data = np.genfromtxt(
-        f"{TEST_DIR}/simulated_profile_tau3ms_uniform.txt"
-    )
+    data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau3ms_uniform.txt")
     # intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
     taus = [3.0]
 
-    clean_kwargs = dict(
-        period=500,
-        gain=0.05,
-        pbftype="uniform",
-        on_start=128,
-        on_end=700,
-        rest_width=500 / len(data),
-    )
+    clean_kwargs = {
+        "period": 500,
+        "gain": 0.05,
+        "pbftype": "uniform",
+        "on_start": 128,
+        "on_end": 700,
+        "rest_width": 500 / len(data),
+    }
 
     sorted_results = run_clean(taus, data, clean_kwargs)
 

@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import argparse
 import logging
 import multiprocessing as mp
@@ -32,9 +30,7 @@ def main():
     parser = argparse.ArgumentParser(
         prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    obs_group = parser.add_argument_group(
-        "Observing and de-dispersion details"
-    )
+    obs_group = parser.add_argument_group("Observing and de-dispersion details")
 
     parser.add_argument(
         "profile",
@@ -251,9 +247,7 @@ def execute_tauclean(args):
     chan_cntr_low = args.freq - args.bw / 2
     chan_ledge_lo = chan_cntr_low - chan_bw / 2
     chan_ledge_hi = chan_cntr_low + chan_bw / 2
-    dm_smear_width = dm_delay(
-        args.dm, chan_ledge_lo, chan_ledge_hi
-    )  # in ms
+    dm_smear_width = dm_delay(args.dm, chan_ledge_lo, chan_ledge_hi)  # in ms
     prof_bin_width = args.period / nbins  # in ms
     backend_dt_width = args.native_dt / 1000  # in ms
     post_dt_width = 0  # in ms
@@ -271,28 +265,24 @@ def execute_tauclean(args):
         r_pd_width=post_dt_width,
         fast=True,
     )
-    restoring_fn = get_restoring_function(
-        data, args.period, inst_resp_width
-    )
+    restoring_fn = get_restoring_function(data, args.period, inst_resp_width)
 
-    logger.info(
-        "Effective instrumental response width: %g ms", inst_resp_width
-    )
+    logger.info("Effective instrumental response width: %g ms", inst_resp_width)
     logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
     kernel = get_kernel(args.kernel)
 
     # Setup for the deconvolution (potentially distributed across multiple processes)
-    clean_kwargs = dict(
-        period=args.period,
-        gain=args.gain,
-        kernel=kernel,
-        iter_limit=args.iterlim,
-        threshold=args.thresh,
-        inst_resp_func=inst_resp_fn,
-        rest_func=restoring_fn,
-        onpulse_estimator=args.onpulse,
-    )
+    clean_kwargs = {
+        "period": args.period,
+        "gain": args.gain,
+        "kernel": kernel,
+        "iter_limit": args.iterlim,
+        "threshold": args.thresh,
+        "inst_resp_func": inst_resp_fn,
+        "rest_func": restoring_fn,
+        "onpulse_estimator": args.onpulse,
+    }
 
     # Create a master list that will contain the output for each trial
     result_list = []
@@ -308,9 +298,7 @@ def execute_tauclean(args):
     with mp.Pool(processes=args.ncpus) as pool:
         for tau in taus:
             logger.debug("Started async. job for tau=%g ms", tau)
-            pool.apply_async(
-                clean, (data, tau), clean_kwargs, callback=log_results
-            )
+            pool.apply_async(clean, (data, tau), clean_kwargs, callback=log_results)
         pool.close()
         pool.join()
     logger.debug("Worker pool closed.")
@@ -338,23 +326,20 @@ def execute_tauclean(args):
         fom_set = sorted_results[0].figures_of_merit
         logger.info("f_r ~ positivity: %s", fom_set.positivity)
         logger.info("gamma ~ skewnesss: %s", fom_set.skewness)
-        logger.info(
-            f"f_c = f_r / gamma: {fom_set.combined}"
-        )
+        logger.info(f"f_c = f_r / gamma: {fom_set.combined}")
         logger.info(
             f"nf ~ consistence: {fom_set.consistence} ({100 * fom_set.consistence / sorted_results[0].nbins_on}%)"
         )
 
     # Make all of the diagnostic plots and write relevant files to disk
-    if not args.noplot_f:
-        if len(taus) > 1:
-            logger.info("Plotting figures of merit...")
-            plotting.plot_figures_of_merit(
-                sorted_results,
-                true_tau=args.truth,
-                best_tau=best,
-                best_tau_err=err,
-            )
+    if not args.noplot_f and len(taus) > 1:
+        logger.info("Plotting figures of merit...")
+        plotting.plot_figures_of_merit(
+            sorted_results,
+            true_tau=args.truth,
+            best_tau=best,
+            best_tau_err=err,
+        )
 
     if not args.noplot_r:
         logger.info("Plotting clean residuals...")
@@ -369,9 +354,7 @@ def execute_tauclean(args):
         logger.info("Done plotting reconstruction.")
 
     if not args.nowrite:
-        logger.debug(
-            "Writing output products (reconstruction + clean component list"
-        )
+        logger.debug("Writing output products (reconstruction + clean component list")
         plotting.write_output(sorted_results)
 
 
