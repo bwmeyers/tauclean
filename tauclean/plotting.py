@@ -176,7 +176,9 @@ def plot_figures_of_merit(
         elif fom["alt_operation"] != None:
             fn = fom["alt_operation"]
             idx = fn(fom["values"])
-            ax.plot(taus[idx], fom["values"][idx], marker="*", ms=10, color="C1")
+            ax.plot(
+                taus[idx], fom["values"][idx], marker="*", ms=10, color="C1"
+            )
 
         if fom["ylims"] != None:
             ax.set_ylim(fom["ylims"])
@@ -185,7 +187,9 @@ def plot_figures_of_merit(
             ax.axvline(true_tau, color="k", ls="--", label="truth", zorder=0.5)
 
         if best_tau is not None:
-            ax.axvline(best_tau, color="r", ls="-.", label="best tau", zorder=0.5)
+            ax.axvline(
+                best_tau, color="r", ls="-.", label="best tau", zorder=0.5
+            )
 
         if best_tau_err is not None:
             ylims = ax.get_ylim()
@@ -211,10 +215,10 @@ def plot_figures_of_merit(
     plt.close(fig)
 
     # In this case, also write the figures of merit to a file
-    header_fmt = "{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<8}  {5:<5}  {6:<5} {7:<7}\n"
-    line_fmt = (
-        "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
+    header_fmt = (
+        "{0:<7}  {1:<8}  {2:<8} {3:<8} {4:<8}  {5:<5}  {6:<5} {7:<7}\n"
     )
+    line_fmt = "{0:7.5f} {1: 8.6f} {2: 8.6f} {3: 8.6f} {4: 8.6f} {5:<5d} {6:<5d} {7:7.5f}\n"
     with open("tauclean_fom.txt", "w") as f:
         f.write(
             header_fmt.format(
@@ -246,7 +250,9 @@ def plot_figures_of_merit(
     return not plt.fignum_exists(fig.number)
 
 
-def plot_clean_residuals(initial_data, results: list[CleanResult], period=100.0):
+def plot_clean_residuals(
+    initial_data, results: list[CleanResult], period=100.0
+):
     nbins = len(initial_data)
     x = period * np.linspace(0, 1, nbins)
     dt = period / nbins
@@ -262,7 +268,9 @@ def plot_clean_residuals(initial_data, results: list[CleanResult], period=100.0)
     neg_thresh = off_mean - thresh * off_rms
 
     for i, t in enumerate(taus):
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharex="all", figsize=(20, 8))
+        fig, (ax1, ax2) = plt.subplots(
+            nrows=1, ncols=2, sharex="all", figsize=(20, 8)
+        )
         fig.suptitle(rf"Residuals ($\rm \tau = {t:g}\ ms$)")
 
         ax1.plot(x, initial_data, label="initial data")
@@ -409,7 +417,9 @@ def write_output(results: list[CleanResult]):
     clean_components = np.array([a.cc for a in results])
     pbftype = np.array([a.pbftype for a in results])
     # stack the reconstructed profile with the residuals
-    recon_resid = np.array([np.column_stack((a.recon, a.profile)) for a in results])
+    recon_resid = np.array(
+        [np.column_stack((a.recon, a.profile)) for a in results]
+    )
 
     for i, t in enumerate(taus):
         np.savetxt(

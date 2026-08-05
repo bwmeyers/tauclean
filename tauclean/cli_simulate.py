@@ -86,9 +86,9 @@ def create_scattered_profile(
     # - some Gaussian radiometer noise
     # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
     # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(intrinsic, restoring_function, mode="full") / np.sum(
-        restoring_function
-    )
+    response = np.convolve(
+        intrinsic, restoring_function, mode="full"
+    ) / np.sum(restoring_function)
     response = response[nbins // 2 : -(nbins // 2) + 1]
 
     scattered = np.convolve(response, h, mode="full") / np.sum(h)
@@ -176,7 +176,9 @@ def plot_simulated(
     ax_sim.set_xlabel(xlab)
 
     ax_obs.plot(x, observed, color="k")
-    ax_obs.set_title(rf"Observed pulse profile (noise added, $\rm SNR \approx {snr}$)")
+    ax_obs.set_title(
+        rf"Observed pulse profile (noise added, $\rm SNR \approx {snr}$)"
+    )
     ax_obs.axhline(0, ls="--", color="r", lw=1)
     step = x.max() / 16.0
     ax_obs.set_xticks(np.arange(0, x.max() + step, step))
@@ -222,7 +224,9 @@ def main():
         prog="simulate", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument("-n", type=int, default=2048, help="number of profile bins")
+    parser.add_argument(
+        "-n", type=int, default=2048, help="number of profile bins"
+    )
     parser.add_argument(
         "-m",
         nargs="+",
@@ -249,7 +253,9 @@ def main():
     parser.add_argument(
         "-t", type=float, default=5.0, help="scattering time scale (in ms)"
     )
-    parser.add_argument("-p", type=float, default=100.0, help="pulsar period (in ms)")
+    parser.add_argument(
+        "-p", type=float, default=100.0, help="pulsar period (in ms)"
+    )
     parser.add_argument(
         "-d",
         "--dm",
@@ -332,7 +338,9 @@ def main():
     lochan = args.freq - (args.bw / 2)
     hichan = lochan + chan_bw
 
-    logger.debug(f"Lowest channel edges: {lochan * 1000:g}-{hichan * 1000:g} MHz")
+    logger.debug(
+        f"Lowest channel edges: {lochan * 1000:g}-{hichan * 1000:g} MHz"
+    )
     dmdelay = dm_delay(args.dm, lochan, hichan)
     logger.info(f"Dispersion smearing in lowest channel: {dmdelay:g} ms")
 

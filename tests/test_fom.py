@@ -38,7 +38,11 @@ def test_consistence_random():
 
     # With 256 elements, we would expect << 1 sample to be greater than 10-sigma
     nf = consistence(
-        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=10
+        residuals,
+        np.std(residuals),
+        np.mean(residuals),
+        onlims=(100, 150),
+        thresh=10,
     )
     if np.isnan(nf):
         raise AssertionError()
@@ -47,7 +51,11 @@ def test_consistence_random():
 
     # With 256 elements, we would expect ~1 sample to be greater than 3-sigma
     nf = consistence(
-        residuals, np.std(residuals), np.mean(residuals), onlims=(100, 150), thresh=3
+        residuals,
+        np.std(residuals),
+        np.mean(residuals),
+        onlims=(100, 150),
+        thresh=3,
     )
     if np.isnan(nf):
         raise AssertionError()

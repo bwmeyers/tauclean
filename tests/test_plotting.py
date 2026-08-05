@@ -25,7 +25,9 @@ TEST_DIR = "/".join(os.path.realpath(__file__).split("/")[0:-1])
 init_data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
 with open(f"{TEST_DIR}/test_sample.p", "rb") as handle:
     results = pickle.load(handle)
-results[-1]["fr"] = 100  # fake one fo the FoM to ensure that testing covers all code
+results[-1]["fr"] = (
+    100  # fake one fo the FoM to ensure that testing covers all code
+)
 
 
 def remove_files(pattern):

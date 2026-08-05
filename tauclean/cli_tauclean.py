@@ -9,7 +9,11 @@ from . import plotting
 from .domain.clean_api import clean
 from .domain.figures_of_merit import TauSearchAnalyzer
 from .domain.kernels import KernelRegistry, get_kernel
-from .domain.response import dm_delay, get_instrumental_response, get_restoring_function
+from .domain.response import (
+    dm_delay,
+    get_instrumental_response,
+    get_restoring_function,
+)
 
 # Set up the logging configuration
 logger = logging.getLogger(__name__)
@@ -30,7 +34,9 @@ def main():
     parser = argparse.ArgumentParser(
         prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    obs_group = parser.add_argument_group("Observing and de-dispersion details")
+    obs_group = parser.add_argument_group(
+        "Observing and de-dispersion details"
+    )
 
     parser.add_argument(
         "profile",
@@ -267,7 +273,9 @@ def execute_tauclean(args):
     )
     restoring_fn = get_restoring_function(data, args.period, inst_resp_width)
 
-    logger.info("Effective instrumental response width: %g ms", inst_resp_width)
+    logger.info(
+        "Effective instrumental response width: %g ms", inst_resp_width
+    )
     logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
     kernel = get_kernel(args.kernel)
@@ -298,7 +306,9 @@ def execute_tauclean(args):
     with mp.Pool(processes=args.ncpus) as pool:
         for tau in taus:
             logger.debug("Started async. job for tau=%g ms", tau)
-            pool.apply_async(clean, (data, tau), clean_kwargs, callback=log_results)
+            pool.apply_async(
+                clean, (data, tau), clean_kwargs, callback=log_results
+            )
         pool.close()
         pool.join()
     logger.debug("Worker pool closed.")
@@ -354,7 +364,9 @@ def execute_tauclean(args):
         logger.info("Done plotting reconstruction.")
 
     if not args.nowrite:
-        logger.debug("Writing output products (reconstruction + clean component list")
+        logger.debug(
+            "Writing output products (reconstruction + clean component list"
+        )
         plotting.write_output(sorted_results)
 
 

@@ -25,7 +25,9 @@ class NoiseEstimator(ABC):
     """Strategy for identifying profile on/off-pulse regions."""
 
     @abstractmethod
-    def estimate_regions(self, samples: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def estimate_regions(
+        self, samples: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Return off-pulse and on-pulse bin indices."""
 
 
@@ -35,18 +37,27 @@ class AutoWindowNoiseEstimator(NoiseEstimator):
     def __init__(self, windowsize: int | None = None):
         self.windowsize = windowsize
 
-    def estimate_regions(self, samples: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def estimate_regions(
+        self, samples: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         nbins = len(samples)
         bins = np.arange(nbins)
-        windowsize = self.windowsize if self.windowsize is not None else nbins // 8
+        windowsize = (
+            self.windowsize if self.windowsize is not None else nbins // 8
+        )
 
         integral = np.zeros_like(samples)
         for idx in range(nbins):
-            win = np.arange(idx - windowsize // 2, idx + windowsize // 2) % nbins
+            win = (
+                np.arange(idx - windowsize // 2, idx + windowsize // 2) % nbins
+            )
             integral[idx] = np.trapz(samples[win])
 
         minidx = np.argmin(integral)
-        off_bins = np.arange(minidx - windowsize // 2, minidx + windowsize // 2) % nbins
+        off_bins = (
+            np.arange(minidx - windowsize // 2, minidx + windowsize // 2)
+            % nbins
+        )
         on_bins = bins[np.logical_not(np.in1d(bins, off_bins))]
         return off_bins, on_bins
 
@@ -59,11 +70,15 @@ class UserDefinedOnPulseNoiseEstimator(NoiseEstimator):
         self.on_end = on_end
 
     @classmethod
-    def from_string(cls, onpulse_estimator: str) -> UserDefinedOnPulseNoiseEstimator:
+    def from_string(
+        cls, onpulse_estimator: str
+    ) -> UserDefinedOnPulseNoiseEstimator:
         start, end = onpulse_estimator.split(" ")
         return cls(int(start), int(end))
 
-    def estimate_regions(self, samples: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def estimate_regions(
+        self, samples: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         nbins = len(samples)
         bins = np.arange(nbins)
         on_bins = bins[self.on_start : self.on_end]

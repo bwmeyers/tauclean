@@ -81,12 +81,16 @@ class FigureOfMeritEvaluator:
         if np.all(residuals == 0):
             return np.nan
 
-        return float((m / (len(residuals) * off_rms**2)) * np.sum(mask * residuals**2))
+        return float(
+            (m / (len(residuals) * off_rms**2)) * np.sum(mask * residuals**2)
+        )
 
     def skewness(
         self, clean_components: np.ndarray, pulsar_period: float = 100.0
     ) -> float:
-        component_times = pulsar_period * np.linspace(0, 1, len(clean_components))
+        component_times = pulsar_period * np.linspace(
+            0, 1, len(clean_components)
+        )
         moment_1 = np.average(component_times, weights=clean_components)
         moment_2 = np.average(
             (component_times - moment_1) ** 2, weights=clean_components
@@ -96,7 +100,9 @@ class FigureOfMeritEvaluator:
         )
 
         if np.count_nonzero(clean_components) == 1:
-            self.logger.warning("Clean components skewness is undefined. Setting to 0.")
+            self.logger.warning(
+                "Clean components skewness is undefined. Setting to 0."
+            )
             return 0.0
         return float(moment_3 / (moment_2**1.5))
 
@@ -136,22 +142,33 @@ class TauSearchAnalyzer:
     def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
-    def build_series(self, results) -> tuple[np.ndarray, list[FigureOfMeritSeries]]:
+    def build_series(
+        self, results
+    ) -> tuple[np.ndarray, list[FigureOfMeritSeries]]:
         taus = np.array([result.tau for result in results])
-        f_r = np.array([result.figures_of_merit.positivity for result in results])
-        gamma = np.array([result.figures_of_merit.skewness for result in results])
+        f_r = np.array(
+            [result.figures_of_merit.positivity for result in results]
+        )
+        gamma = np.array(
+            [result.figures_of_merit.skewness for result in results]
+        )
         f_c = (f_r + gamma) / 2.0
         r_sigma = np.array(
             [result.figures_of_merit.residual_ratio for result in results]
         )
         r_phi = np.array(
-            [result.figures_of_merit.consistence_fraction for result in results]
+            [
+                result.figures_of_merit.consistence_fraction
+                for result in results
+            ]
         )
 
         return taus, [
             FigureOfMeritSeries("f_r", f_r, r"$f_r$", True, np.argmin),
             FigureOfMeritSeries("gamma", gamma, r"$\Gamma$", True, np.argmin),
-            FigureOfMeritSeries("f_c", f_c, r"$f_c = (f_r + \Gamma)/2$", False, None),
+            FigureOfMeritSeries(
+                "f_c", f_c, r"$f_c = (f_r + \Gamma)/2$", False, None
+            ),
             FigureOfMeritSeries(
                 "r_sigma",
                 r_sigma,
@@ -329,9 +346,13 @@ class TauSearchAnalyzer:
         weights = np.array(
             [fom_weights[name] for name in fom_names if name in fom_weights]
         )
-        fom_wt_mean_tau = np.average(fom_tau_estimates, weights=np.array(weights))
+        fom_wt_mean_tau = np.average(
+            fom_tau_estimates, weights=np.array(weights)
+        )
         fom_wt_std_tau = np.sqrt(
-            np.average((fom_tau_estimates - fom_wt_mean_tau) ** 2, weights=weights)
+            np.average(
+                (fom_tau_estimates - fom_wt_mean_tau) ** 2, weights=weights
+            )
         )
         d_tau = taus[1] - taus[0]
         wt_err = np.sqrt(fom_wt_std_tau**2 + d_tau**2)
@@ -341,4 +362,6 @@ class TauSearchAnalyzer:
             fom_wt_mean_tau,
             wt_err,
         )
-        return TauEstimate(best_tau=float(fom_wt_mean_tau), uncertainty=float(wt_err))
+        return TauEstimate(
+            best_tau=float(fom_wt_mean_tau), uncertainty=float(wt_err)
+        )

@@ -125,7 +125,9 @@ def test_reconstruction_simple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
+    np.testing.assert_array_almost_equal(
+        diff, np.zeros_like(profile), decimal=4
+    )
 
     # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
@@ -135,7 +137,9 @@ def test_reconstruction_simple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
+    np.testing.assert_array_almost_equal(
+        diff, np.zeros_like(profile), decimal=4
+    )
 
 
 def test_reconstruction_multiple():
@@ -157,7 +161,9 @@ def test_reconstruction_multiple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
+    np.testing.assert_array_almost_equal(
+        diff, np.zeros_like(profile), decimal=4
+    )
 
     # test when the clean component is offset from the peak of the profile
     ccs = np.zeros_like(x)
@@ -168,7 +174,9 @@ def test_reconstruction_multiple():
     diff = recon - profile
 
     # check that the difference is 0 to within 4 decimal places (0.1%)
-    np.testing.assert_array_almost_equal(diff, np.zeros_like(profile), decimal=4)
+    np.testing.assert_array_almost_equal(
+        diff, np.zeros_like(profile), decimal=4
+    )
 
 
 # TODO: should nominally also test when profile width is NOT equal to the restoring function width, but for now this
@@ -212,7 +220,9 @@ def test_clean_iteration_limit():
 def test_clean_thin():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
-    intrinsic = np.genfromtxt(f"{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt")
+    intrinsic = np.genfromtxt(
+        f"{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt"
+    )
     taus = [20.0]
 
     clean_kwargs = {
@@ -229,7 +239,8 @@ def test_clean_thin():
     check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (
-        abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
+        abs(intrinsic.max() - sorted_results[0]["recon"].max())
+        < 0.05 * intrinsic.max()
     ):
         raise AssertionError()
 
@@ -237,7 +248,9 @@ def test_clean_thin():
 def test_clean_thick():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k thick -t 1.0 -p 500
     data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau1ms_thick.txt")
-    intrinsic = np.genfromtxt(f"{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt")
+    intrinsic = np.genfromtxt(
+        f"{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt"
+    )
     taus = [1.0]
 
     clean_kwargs = {
@@ -254,7 +267,8 @@ def test_clean_thick():
     check_clean_finite(sorted_results)
     # allow 5% error in amplitude of reconstruction
     if not (
-        abs(intrinsic.max() - sorted_results[0]["recon"].max()) < 0.05 * intrinsic.max()
+        abs(intrinsic.max() - sorted_results[0]["recon"].max())
+        < 0.05 * intrinsic.max()
     ):
         raise AssertionError()
 

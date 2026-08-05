@@ -21,7 +21,9 @@ def _smooth(
     k = (0.09 / scale) * 30
     blend = 0.5 * (1 + np.tanh(k * (x_array - x_offset)))
     smoothed = fn1 + blend * (fn2 - fn1)
-    smoothed[:peak_idx] = fn1[:peak_idx] / np.max(fn1[:peak_idx]) * smoothed[peak_idx]
+    smoothed[:peak_idx] = (
+        fn1[:peak_idx] / np.max(fn1[:peak_idx]) * smoothed[peak_idx]
+    )
     return smoothed
 
 
@@ -63,7 +65,9 @@ class ThickKernel(Kernel):
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         _ = x0
         old_settings = np.seterr(divide="ignore", invalid="ignore")
-        h = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(-tau * np.pi**2 / (16 * t))
+        h = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
+            -tau * np.pi**2 / (16 * t)
+        )
         np.seterr(**old_settings)
         return h
 
@@ -89,7 +93,9 @@ class ThickExpKernel(Kernel):
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         expdelay = np.log(4 / np.pi)
         old_settings = np.seterr(divide="ignore", invalid="ignore")
-        h1 = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(-tau * np.pi**2 / (16 * t))
+        h1 = np.sqrt((np.pi * tau) / (4 * t**3)) * np.exp(
+            -tau * np.pi**2 / (16 * t)
+        )
         h1[np.where(np.isnan(h1))] = 0
         np.seterr(**old_settings)
 
@@ -102,7 +108,9 @@ class ThickExpKernel(Kernel):
         h2 = np.exp(-t / tau)
         h2 = (h2 / h2[decay_start_idx]) * decay_amp
         h2[np.where(np.isnan(h2))] = 0
-        return _smooth(h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx)
+        return _smooth(
+            h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx
+        )
 
 
 class UniformExpKernel(Kernel):
@@ -127,7 +135,9 @@ class UniformExpKernel(Kernel):
         h2 = np.exp(-t / tau)
         h2 = (h2 / h2[decay_start_idx]) * decay_amp
         h2[np.where(np.isnan(h2))] = 0
-        return _smooth(h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx)
+        return _smooth(
+            h1, h2, tau, t, x_offset=decay_time, peak_idx=pbfmax_idx
+        )
 
 
 class KernelRegistry:
@@ -151,7 +161,9 @@ class KernelRegistry:
             return cls._registry[name]()
         except KeyError as exc:
             options = ", ".join(sorted(cls._registry.keys()))
-            raise ValueError(f"Unknown kernel '{name}'. Available: {options}") from exc
+            raise ValueError(
+                f"Unknown kernel '{name}'. Available: {options}"
+            ) from exc
 
 
 def get_kernel(name: str) -> Kernel:

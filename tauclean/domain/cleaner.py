@@ -52,7 +52,9 @@ class Cleaner:
         if isinstance(data, ProfileData):
             profile_data = data
         else:
-            profile_data = ProfileData(samples=np.asarray(data), period=self.period)
+            profile_data = ProfileData(
+                samples=np.asarray(data), period=self.period
+            )
 
         if self.kernel is None:
             raise ValueError("Cleaner requires a kernel object")
@@ -66,7 +68,9 @@ class Cleaner:
         filter_guess = self.kernel(x, tau)
         pbftype = self.kernel.name
 
-        active_logger.debug("Estimating initial profile statistics for tau=%g ms", tau)
+        active_logger.debug(
+            "Estimating initial profile statistics for tau=%g ms", tau
+        )
         if self.onpulse_estimator == "auto":
             estimator = AutoWindowNoiseEstimator()
         else:
@@ -113,12 +117,13 @@ class Cleaner:
         if rest_func is None:
             active_logger.warning(
                 "No valid restoring function defined. Assuming a Gaussian with "
-                "FWHM = 2x profile time resolution."
+                "sigma = 2x profile time resolution."
             )
             rest_func = gaussian(x, x[x.size // 2], 2 * prof_dt)
 
         active_logger.debug(
-            "restoring function area: %f (should be 1)", np.trapz(x=x, y=rest_func)
+            "restoring function area: %f (should be 1)",
+            np.trapz(x=x, y=rest_func),
         )
 
         preconv = convolve(inst_resp_func, filter_guess, mode="full")
@@ -127,12 +132,16 @@ class Cleaner:
 
         loop = True
         niter = 0
-        component_history = ComponentHistory() if self.track_components else None
+        component_history = (
+            ComponentHistory() if self.track_components else None
+        )
 
         active_logger.debug("Initiating clean loop for tau=%g ms", tau)
         while loop:
             if (self.iter_limit is not None) and (niter >= self.iter_limit):
-                active_logger.warning("Reached iteration limit for tau=%g ms", tau)
+                active_logger.warning(
+                    "Reached iteration limit for tau=%g ms", tau
+                )
                 break
             niter += 1
 
@@ -212,7 +221,9 @@ class Cleaner:
 
             on_pulse = profile_data.on_pulse(cleaned)
             off_pulse = profile_data.off_pulse(cleaned)
-            loop = _keep_cleaning(on_pulse, off_pulse, threshold=self.threshold)
+            loop = _keep_cleaning(
+                on_pulse, off_pulse, threshold=self.threshold
+            )
             profile = cleaned
 
         if niter <= 1:
@@ -277,7 +288,9 @@ class Cleaner:
         )
 
 
-def _keep_cleaning(on: np.ndarray, off: np.ndarray, threshold: float = 3.0) -> bool:
+def _keep_cleaning(
+    on: np.ndarray, off: np.ndarray, threshold: float = 3.0
+) -> bool:
     rms = np.std(off)
     mean = np.mean(off)
     datamax = np.max(on)
@@ -287,4 +300,7 @@ def _keep_cleaning(on: np.ndarray, off: np.ndarray, threshold: float = 3.0) -> b
 
 def _reconstruct(ccs: np.ndarray, rest_func: np.ndarray) -> np.ndarray:
     recon = convolve(ccs, rest_func, mode="same")
-    return recon / recon.max()
+    peak = np.max(np.abs(recon))
+    if peak <= 0 or not np.isfinite(peak):
+        return recon
+    return recon / peak
