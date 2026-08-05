@@ -53,5 +53,10 @@ Issues = "https://github.com/bwmeyers/tauclean/issues"
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.version.raw-options]
+tag_regex = "^(?:[vV])?(?P<version>.+)$"
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+
 [tool.hatch.build.hooks.vcs]
 version-file = "tauclean/_version.py"
