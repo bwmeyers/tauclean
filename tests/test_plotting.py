@@ -12,19 +12,24 @@ import pickle
 
 import numpy as np
 
-from tauclean.plotting import (plot_figures_of_merit, plot_clean_components, plot_clean_residuals,
-                               plot_reconstruction, write_output)
+from tauclean.plotting import (
+    plot_clean_components,
+    plot_clean_residuals,
+    plot_figures_of_merit,
+    plot_reconstruction,
+    write_output,
+)
 
 np.random.seed(12345)
 TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
 
-init_data = np.genfromtxt("{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(TEST_DIR=TEST_DIR))
-results = pickle.load(open("{TEST_DIR}/test_sample.p".format(TEST_DIR=TEST_DIR), "rb"))
+init_data = np.genfromtxt(f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt")
+results = pickle.load(open(f"{TEST_DIR}/test_sample.p", "rb"))
 results[-1]["fr"] = 100  # fake one fo the FoM to ensure that testing covers all code
 
 
 def remove_files(pattern):
-    flist = glob.glob("{0}/{1}".format(os.getcwd(), pattern))
+    flist = glob.glob(f"{os.getcwd()}/{pattern}")
     for f in flist:
         try:
             os.remove(f)

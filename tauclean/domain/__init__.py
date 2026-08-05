@@ -1,9 +1,9 @@
 """Domain models for the object-oriented tauclean refactor."""
 
-from .components import ComponentHistory, SubtractedComponent
 from .clean_api import clean
-from .cleaner import Cleaner
 from .clean_run import CleanResult
+from .cleaner import Cleaner
+from .components import ComponentHistory, SubtractedComponent
 from .figures_of_merit import (
     FigureOfMeritEvaluator,
     FigureOfMeritSeries,
@@ -29,26 +29,26 @@ from .response import (
 
 __all__ = [
     "AutoWindowNoiseEstimator",
-    "Cleaner",
     "CleanResult",
+    "Cleaner",
     "ComponentHistory",
-    "clean",
-    "dm_delay",
     "FigureOfMeritEvaluator",
     "FigureOfMeritSeries",
     "FigureOfMeritSet",
-    "gaussian",
-    "get_instrumental_response",
     "Kernel",
     "KernelRegistry",
     "NoiseEstimator",
     "NoiseStats",
     "ProfileData",
-    "get_restoring_function",
-    "reconstruct",
     "SubtractedComponent",
     "TauEstimate",
     "TauSearchAnalyzer",
     "UserDefinedOnPulseNoiseEstimator",
+    "clean",
+    "dm_delay",
+    "gaussian",
+    "get_instrumental_response",
     "get_kernel",
+    "get_restoring_function",
+    "reconstruct",
 ]

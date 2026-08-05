@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import logging
+
 import matplotlib.pyplot as plt
-from matplotlib.scale import SymmetricalLogScale
 import numpy as np
-from scipy.signal import savgol_filter, find_peaks
+from scipy.signal import find_peaks, savgol_filter
 
 from .domain.clean_run import CleanResult
 from .domain.figures_of_merit import TauSearchAnalyzer
@@ -138,8 +138,7 @@ def plot_figures_of_merit(
                 wlen = fom["values"].size // 8
                 if wlen <= 3:
                     wlen = 5
-                if wlen > max_window:
-                    wlen = max_window
+                wlen = min(wlen, max_window)
                 if wlen % 2 == 0:
                     wlen -= 1
 
@@ -235,9 +234,7 @@ def plot_figures_of_merit(
                 "nf_frac",
             )
         )
-        for i, t in enumerate(taus):
-            f.write(
-                line_fmt.format(
+        f.writelines(line_fmt.format(
                     t,
                     f_r[i],
                     gamma[i],
@@ -246,8 +243,7 @@ def plot_figures_of_merit(
                     niter[i],
                     nuniq[i],
                     r_phi[i],
-                )
-            )
+                ) for i, t in enumerate(taus))
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
@@ -272,7 +268,7 @@ def plot_clean_residuals(initial_data, results: list[CleanResult], period=100.0)
         fig, (ax1, ax2) = plt.subplots(
             nrows=1, ncols=2, sharex="all", figsize=(20, 8)
         )
-        fig.suptitle(r"Residuals ($\rm \tau = {0:g}\ ms$)".format(t))
+        fig.suptitle(rf"Residuals ($\rm \tau = {t:g}\ ms$)")
 
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
@@ -302,7 +298,7 @@ def plot_clean_residuals(initial_data, results: list[CleanResult], period=100.0)
         ax2.set_ylim(-2 * thresh[i] * off_rms[i], 2 * thresh[i] * off_rms[i])
 
         plt.savefig(
-            "clean_residuals_{0}-tau{1:g}.png".format(pbftype[i], t),
+            f"clean_residuals_{pbftype[i]}-tau{t:g}.png",
             bbox_inches="tight",
         )
         plt.close(fig)
@@ -333,7 +329,7 @@ def plot_clean_components(results: list[CleanResult], period=100.0):
         ax.set_title(title)
 
         plt.savefig(
-            "clean_components_{0}-tau{1:g}.png".format(pbftype[i], t),
+            f"clean_components_{pbftype[i]}-tau{t:g}.png",
             bbox_inches="tight",
         )
         plt.close(fig)
@@ -401,12 +397,12 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         ax.set_xlabel("Time (ms)", fontsize=15)
         ax.set_ylabel("Intensity", fontsize=15)
         ax.set_title(
-            r"Profile reconstruction for $\rm \tau = {0:g}\ ms$".format(t)
+            rf"Profile reconstruction for $\rm \tau = {t:g}\ ms$"
         )
         ax.legend(fontsize=15)
 
         plt.savefig(
-            "reconstruction_{0}-tau{1:g}.png".format(pbftype[i], t),
+            f"reconstruction_{pbftype[i]}-tau{t:g}.png",
             bbox_inches="tight",
         )
         plt.close(fig)
@@ -426,11 +422,11 @@ def write_output(results: list[CleanResult]):
 
     for i, t in enumerate(taus):
         np.savetxt(
-            "clean_components_{0}-tau{1:g}.txt".format(pbftype[i], t),
+            f"clean_components_{pbftype[i]}-tau{t:g}.txt",
             clean_components[i],
         )
         np.savetxt(
-            "reconstruction_{0}-tau{1:g}.txt".format(pbftype[i], t),
+            f"reconstruction_{pbftype[i]}-tau{t:g}.txt",
             recon_resid[i],
             header="Recon Residuals",
         )

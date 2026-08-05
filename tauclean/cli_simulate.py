@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
-from .domain.kernels import get_kernel
-from .domain.kernels import KernelRegistry
+from .domain.kernels import KernelRegistry, get_kernel
 from .domain.response import dm_delay, gaussian
 
 logger = logging.getLogger(__name__)
@@ -75,7 +74,7 @@ def create_scattered_profile(
     try:
         kernel = get_kernel(pbftype)
     except ValueError:
-        logger.error("Invalid PBF type requested ({0})".format(pbftype))
+        logger.error(f"Invalid PBF type requested ({pbftype})")
         logger.warning("Defaulting to thin screen...")
         kernel = get_kernel("thin")
     h = kernel(x, tau)
@@ -150,7 +149,7 @@ def plot_simulated(
         x = np.linspace(0, nbins, nbins).astype(int)
         xlab = "Bins"
     else:
-        logger.error("Unknown x-unit: {0}".format(xunit))
+        logger.error(f"Unknown x-unit: {xunit}")
         sys.exit(1)
 
     fig = plt.figure(figsize=(10, 8))
@@ -170,7 +169,7 @@ def plot_simulated(
     ax_int.set_xticks(np.arange(0, x.max() + step, step))
 
     ax_ker.plot(
-        x, kernel, color="C1", label=r"$\rm \tau = {0:g} ms$".format(tau)
+        x, kernel, color="C1", label=rf"$\rm \tau = {tau:g} ms$"
     )
     ax_ker.set_title("Scattering kernel")
     ax_ker.set_xlabel(xlab)
@@ -182,9 +181,7 @@ def plot_simulated(
 
     ax_obs.plot(x, observed, color="k")
     ax_obs.set_title(
-        r"Observed pulse profile (noise added, $\rm SNR \approx {0}$)".format(
-            snr
-        )
+        rf"Observed pulse profile (noise added, $\rm SNR \approx {snr}$)"
     )
     ax_obs.axhline(0, ls="--", color="r", lw=1)
     step = x.max() / 16.0
@@ -196,7 +193,7 @@ def plot_simulated(
     plt.subplots_adjust(wspace=0.25)
     if save:
         plt.savefig(
-            "simulated-profile_{0}-tau{1:g}.png".format(pbftype, tau),
+            f"simulated-profile_{pbftype}-tau{tau:g}.png",
             dpi=300,
             bbox_inches="tight",
         )
@@ -217,18 +214,16 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     """
 
     np.savetxt(
-        "sim-intrinsic_{0}-tau{1:g}.txt".format(pbftype, tau), intrinsic
+        f"sim-intrinsic_{pbftype}-tau{tau:g}.txt", intrinsic
     )
-    np.savetxt("sim-kernel_{0}-tau{1:g}.txt".format(pbftype, tau), kernel)
+    np.savetxt(f"sim-kernel_{pbftype}-tau{tau:g}.txt", kernel)
     np.savetxt(
-        "sim-scattered_{0}-tau{1:g}.txt".format(pbftype, tau), scattered
+        f"sim-scattered_{pbftype}-tau{tau:g}.txt", scattered
     )
-    np.savetxt("sim-profile_{0}-tau{1:g}.txt".format(pbftype, tau), observed)
+    np.savetxt(f"sim-profile_{pbftype}-tau{tau:g}.txt", observed)
 
     logger.info(
-        "Wrote final scattered profile to: sim-profile_{0}-tau{1:g}.txt".format(
-            pbftype, tau
-        )
+        f"Wrote final scattered profile to: sim-profile_{pbftype}-tau{tau:g}.txt"
     )
 
 
@@ -342,27 +337,25 @@ def main():
         args.a = [args.a[0]]
 
     time_sample = args.p / args.n
-    logger.info("Time sample: {0:g} ms".format(time_sample))
+    logger.info(f"Time sample: {time_sample:g} ms")
     # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
     # nominal width of the restoring function
     chan_bw = args.bw / args.nchan
 
-    logger.debug("Frequency channel size: {0:g} MHz".format(chan_bw * 1000))
+    logger.debug(f"Frequency channel size: {chan_bw * 1000:g} MHz")
     lochan = args.freq - (args.bw / 2)
     hichan = lochan + chan_bw
 
     logger.debug(
-        "Lowest channel edges: {0:g}-{1:g} MHz".format(
-            lochan * 1000, hichan * 1000
-        )
+        f"Lowest channel edges: {lochan * 1000:g}-{hichan * 1000:g} MHz"
     )
     dmdelay = dm_delay(args.dm, lochan, hichan)
     logger.info(
-        "Dispersion smearing in lowest channel: {0:g} ms".format(dmdelay)
+        f"Dispersion smearing in lowest channel: {dmdelay:g} ms"
     )
 
     restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
-    logger.info("Restoring function width: {0:g} ms".format(restoring_width))
+    logger.info(f"Restoring function width: {restoring_width:g} ms")
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
     k, s, o = create_scattered_profile(

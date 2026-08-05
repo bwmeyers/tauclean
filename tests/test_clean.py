@@ -11,13 +11,12 @@ import os
 
 import numpy as np
 from scipy.integrate import simps
-
 from tauclean.clean import (
-    keep_cleaning,
+    clean,
     dm_delay,
     gaussian,
+    keep_cleaning,
     reconstruct,
-    clean,
 )
 
 np.random.seed(12345)
@@ -190,9 +189,7 @@ def test_reconstruction_multiple():
 def test_clean_invalid_pbf():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt(
-        "{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
     )
 
     ret_val = clean(data, 20, [], pbftype="unknown")
@@ -203,9 +200,7 @@ def test_clean_invalid_pbf():
 def test_clean_iteration_limit():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt(
-        "{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
     )
     taus = [20.0]
     ilim = 1000
@@ -232,14 +227,10 @@ def test_clean_iteration_limit():
 def test_clean_thin():
     # simulate -n 1024 -m 500 -a 12 -w 10 -k thin -t 20.0 -p 500
     data = np.genfromtxt(
-        "{TEST_DIR}/simulated_profile_tau20ms_thin.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_profile_tau20ms_thin.txt"
     )
     intrinsic = np.genfromtxt(
-        "{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_intrinsic_tau20ms_thin.txt"
     )
     taus = [20.0]
 
@@ -266,14 +257,10 @@ def test_clean_thin():
 def test_clean_thick():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k thick -t 1.0 -p 500
     data = np.genfromtxt(
-        "{TEST_DIR}/simulated_profile_tau1ms_thick.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_profile_tau1ms_thick.txt"
     )
     intrinsic = np.genfromtxt(
-        "{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_intrinsic_tau1ms_thick.txt"
     )
     taus = [1.0]
 
@@ -300,9 +287,7 @@ def test_clean_thick():
 def test_clean_uniform():
     # simulate -n 1024 -m 200 -a 12 -w 10 -k uniform -t 3.0 -p 500
     data = np.genfromtxt(
-        "{TEST_DIR}/simulated_profile_tau3ms_uniform.txt".format(
-            TEST_DIR=TEST_DIR
-        )
+        f"{TEST_DIR}/simulated_profile_tau3ms_uniform.txt"
     )
     # intrinsic = np.genfromtxt("{TEST_DIR}/simulated_intrinsic_tau3ms_uniform.txt".format(TEST_DIR=TEST_DIR))
     taus = [3.0]

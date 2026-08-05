@@ -65,7 +65,7 @@ class UserDefinedOnPulseNoiseEstimator(NoiseEstimator):
         self.on_end = on_end
 
     @classmethod
-    def from_string(cls, onpulse_estimator: str) -> "UserDefinedOnPulseNoiseEstimator":
+    def from_string(cls, onpulse_estimator: str) -> UserDefinedOnPulseNoiseEstimator:
         start, end = onpulse_estimator.split(" ")
         return cls(int(start), int(end))
 

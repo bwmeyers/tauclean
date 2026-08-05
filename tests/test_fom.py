@@ -10,14 +10,13 @@ import os
 import pickle
 
 import numpy as np
-
 from tauclean.fom import consistence, positivity, skewness
 
 np.random.seed(12345)
 
 TEST_DIR = '/'.join(os.path.realpath(__file__).split('/')[0:-1])
 
-results = pickle.load(open("{TEST_DIR}/test_sample.p".format(TEST_DIR=TEST_DIR), "rb"))
+results = pickle.load(open(f"{TEST_DIR}/test_sample.p", "rb"))
 
 
 def test_consistence_zeros():

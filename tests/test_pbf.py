@@ -8,8 +8,7 @@ Test pbf.py
 
 import numpy as np
 from scipy.integrate import simps
-
-from tauclean.pbf import thin, thick, uniform
+from tauclean.pbf import thick, thin, uniform
 
 np.random.seed(12345)
 
