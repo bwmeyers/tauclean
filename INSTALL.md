@@ -11,3 +11,7 @@ Change into the downloaded directory (`tauclean`) and run:
 ```bash
 pip install .
 ```
+OR
+```bash
+uv sync
+```
