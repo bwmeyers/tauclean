@@ -5,7 +5,10 @@ import matplotlib.pyplot as plt
 from matplotlib.scale import SymmetricalLogScale
 import numpy as np
 from scipy.signal import savgol_filter, find_peaks
-from . import pbf
+
+from .domain.clean_run import CleanResult
+from .domain.figures_of_merit import TauSearchAnalyzer
+from .domain.kernels import get_kernel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -18,22 +21,54 @@ ch.setFormatter(fmt)
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
+tau_search_analyzer = TauSearchAnalyzer(logger=logger)
+
+
+def plot_cleaner_debug_component_alignment(
+    initial_data: np.ndarray,
+    cleaned: np.ndarray,
+    clean_component: np.ndarray,
+    impulse_response: np.ndarray,
+    subtracted_response: np.ndarray,
+    raw_convolved_response: np.ndarray,
+    peak_index: int,
+    threshold: float,
+    init_off_rms: float,
+    iteration: int,
+    iter_limit: int,
+):
+    """Plot cleaner state when a convolved component is misaligned."""
+    plt.plot(1e-5 + initial_data, color="k", alpha=0.2)
+    plt.plot(1e-5 + cleaned, label="profile")
+    plt.plot(1e-5 + clean_component, label="cc")
+    plt.plot(1e-5 + impulse_response, ls="--", label="inst_resp ^ pbf")
+    plt.plot(1e-5 + subtracted_response, ls="-.", label="component")
+    plt.plot(1e-5 + raw_convolved_response, ls="-.", label="component1")
+    plt.axvline(peak_index, ls="--", color="k")
+    plt.axvline(np.argmax(subtracted_response), ls=":", color="r")
+    plt.axhline(threshold * init_off_rms, ls=":", color="k")
+    plt.ylim(-1.1 * init_off_rms, 1.1 * cleaned.max())
+    plt.xlim(0, len(initial_data))
+    plt.title(
+        f"Iteration={iteration}/{iter_limit}  "
+        f"Current imax={peak_index}  "
+        f"conv.comp idx={np.argmax(raw_convolved_response)}"
+    )
+    plt.legend()
+    plt.show()
+
 
 def plot_figures_of_merit(
-    results, true_tau=None, best_tau=None, best_tau_err=None
+    results: list[CleanResult], true_tau=None, best_tau=None, best_tau_err=None
 ):
-    taus = np.array([a["tau"] for a in results])
-    f_r = np.array([a["fr"] for a in results])
-    gamma = np.array([a["gamma"] for a in results])
-    f_c = (f_r + gamma) / 2.0
-    niter = [a["niter"] for a in results]
-    nuniq = [a["ncc"] for a in results]
-    r_sigma = np.array([a["total_rms"] for a in results]) / np.array(
-        [a["init_off_rms"] for a in results]
-    )
-    r_phi = np.array([a["nf"] for a in results]) / np.array(
-        [a["nbins"] for a in results]
-    )
+    taus, base_foms = tau_search_analyzer.build_series(results)
+    f_r = base_foms[0].values
+    gamma = base_foms[1].values
+    f_c = base_foms[2].values
+    niter = [a.niter for a in results]
+    nuniq = [a.ncc for a in results]
+    r_sigma = base_foms[3].values
+    r_phi = base_foms[4].values
 
     foms = [
         {
@@ -95,36 +130,52 @@ def plot_figures_of_merit(
 
         if fom["use_jerk"]:
             tax = ax.twinx()
-            wlen = (
-                fom["values"].size // 8 if fom["values"].size // 8 > 3 else 4
-            )
-            der3 = savgol_filter(
-                fom["values"],
-                window_length=wlen,
-                polyorder=3,
-                deriv=3,
-            )
-            norm_abs_der3 = np.abs(der3) / np.abs(der3).max()
-            pidx, _ = find_peaks(
-                np.abs(norm_abs_der3),
-                prominence=(0.05, None),
-                height=(None, None),
-            )
-            tax.plot(
-                taus,
-                norm_abs_der3,
-                ls=":",
-                color="k",
-                label="|norm. 3rd deriv.|",
-            )
-            tax.scatter(
-                taus[pidx],
-                norm_abs_der3[pidx],
-                marker="x",
-                color="C1",
-                label="peaks",
-            )
-            tax.set_ylabel("abs(normalsed 3rd deriv.)")
+            max_window = fom["values"].size
+            if max_window % 2 == 0:
+                max_window -= 1
+
+            if max_window > 3:
+                wlen = fom["values"].size // 8
+                if wlen <= 3:
+                    wlen = 5
+                if wlen > max_window:
+                    wlen = max_window
+                if wlen % 2 == 0:
+                    wlen -= 1
+
+                der3 = savgol_filter(
+                    fom["values"],
+                    window_length=wlen,
+                    polyorder=3,
+                    deriv=3,
+                )
+                norm_abs_der3 = np.abs(der3) / np.abs(der3).max()
+                pidx, _ = find_peaks(
+                    np.abs(norm_abs_der3),
+                    prominence=(0.05, None),
+                    height=(None, None),
+                )
+                tax.plot(
+                    taus,
+                    norm_abs_der3,
+                    ls=":",
+                    color="k",
+                    label="|norm. 3rd deriv.|",
+                )
+                tax.scatter(
+                    taus[pidx],
+                    norm_abs_der3[pidx],
+                    marker="x",
+                    color="C1",
+                    label="peaks",
+                )
+                tax.set_ylabel("abs(normalsed 3rd deriv.)")
+            else:
+                logger.warning(
+                    "Too few points (%d) to plot 3rd-derivative jerk for %s",
+                    fom["values"].size,
+                    fom["name"],
+                )
         elif fom["alt_operation"] != None:
             fn = fom["alt_operation"]
             idx = fn(fom["values"])
@@ -202,16 +253,17 @@ def plot_figures_of_merit(
     return not plt.fignum_exists(fig.number)
 
 
-def plot_clean_residuals(initial_data, results, period=100.0):
+def plot_clean_residuals(initial_data, results: list[CleanResult], period=100.0):
     nbins = len(initial_data)
     x = period * np.linspace(0, 1, nbins)
     dt = period / nbins
-    taus = np.array([a["tau"] for a in results])
-    residuals = np.array([a["profile"] for a in results])
-    off_rms = np.array([a["off_rms"] for a in results])
-    off_mean = np.array([a["off_mean"] for a in results])
-    thresh = np.array([a["threshold"] for a in results])
-    pbftype = np.array([a["pbftype"] for a in results])
+    _ = dt
+    taus = np.array([a.tau for a in results])
+    residuals = np.array([a.profile for a in results])
+    off_rms = np.array([a.off_rms for a in results])
+    off_mean = np.array([a.off_mean for a in results])
+    thresh = np.array([a.threshold for a in results])
+    pbftype = np.array([a.pbftype for a in results])
 
     pos_thresh = off_mean + thresh * off_rms
     neg_thresh = off_mean - thresh * off_rms
@@ -259,12 +311,12 @@ def plot_clean_residuals(initial_data, results, period=100.0):
     return not plt.fignum_exists(fig.number)
 
 
-def plot_clean_components(results, period=100.0):
-    taus = np.array([a["tau"] for a in results])
-    clean_components = np.array([a["cc"] for a in results])
-    nunique = np.array([a["ncc"] for a in results])
-    ntotal = np.array([a["niter"] for a in results])
-    pbftype = np.array([a["pbftype"] for a in results])
+def plot_clean_components(results: list[CleanResult], period=100.0):
+    taus = np.array([a.tau for a in results])
+    clean_components = np.array([a.cc for a in results])
+    nunique = np.array([a.ncc for a in results])
+    ntotal = np.array([a.niter for a in results])
+    pbftype = np.array([a.pbftype for a in results])
 
     nbins = len(clean_components[0])
     x = period * np.linspace(0, 1, nbins)
@@ -290,28 +342,28 @@ def plot_clean_components(results, period=100.0):
     return not plt.fignum_exists(fig.number)
 
 
-def plot_reconstruction(results, original, period=100.0):
-    taus = np.array([a["tau"] for a in results])
-    recons = np.array([a["recon"] for a in results])
-    restoring = np.array([a["rest_func"] for a in results])
-    residuals = np.array([a["profile"] for a in results])
-    pbftype = np.array([a["pbftype"] for a in results])
+def plot_reconstruction(results: list[CleanResult], original, period=100.0):
+    taus = np.array([a.tau for a in results])
+    recons = np.array([a.recon for a in results])
+    restoring = np.array([a.rest_func for a in results])
+    residuals = np.array([a.profile for a in results])
+    pbftype = np.array([a.pbftype for a in results])
 
     nbins = len(recons[0])
     x = period * np.linspace(0, 1, nbins)
 
     for i, t in enumerate(taus):
         try:
-            pbffn = getattr(pbf, pbftype[i])
-        except AttributeError as e:
+            kernel = get_kernel(pbftype[i])
+        except ValueError as e:
             logger.error(e)
             logger.warning(
                 f"Cannot find pbf function '{pbftype[i]}'! Assuming 'thin' model."
             )
-            pbffn = pbf.thin
+            kernel = get_kernel("thin")
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
         norm_rest = rest / rest.max()
-        norm_pbf = pbffn(x, t, x0=x[len(x) // 20])
+        norm_pbf = kernel(x, t, x0=x[len(x) // 20])
         norm_pbf = norm_pbf / norm_pbf.max()
 
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
@@ -363,13 +415,13 @@ def plot_reconstruction(results, original, period=100.0):
     return not plt.fignum_exists(fig.number)
 
 
-def write_output(results):
-    taus = np.array([a["tau"] for a in results])
-    clean_components = np.array([a["cc"] for a in results])
-    pbftype = np.array([a["pbftype"] for a in results])
+def write_output(results: list[CleanResult]):
+    taus = np.array([a.tau for a in results])
+    clean_components = np.array([a.cc for a in results])
+    pbftype = np.array([a.pbftype for a in results])
     # stack the reconstructed profile with the residuals
     recon_resid = np.array(
-        [np.column_stack((a["recon"], a["profile"])) for a in results]
+        [np.column_stack((a.recon, a.profile)) for a in results]
     )
 
     for i, t in enumerate(taus):
