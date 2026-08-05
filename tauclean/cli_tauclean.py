@@ -7,7 +7,11 @@ import sys
 
 import numpy as np
 
-from . import plotting, clean, fom
+from . import plotting
+from .domain.clean_api import clean
+from .domain.figures_of_merit import TauSearchAnalyzer
+from .domain.kernels import KernelRegistry, get_kernel
+from .domain.response import dm_delay, get_instrumental_response, get_restoring_function
 
 # Set up the logging configuration
 logger = logging.getLogger(__name__)
@@ -20,6 +24,8 @@ ch = logging.StreamHandler()
 ch.setFormatter(fmt)
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
+
+tau_search_analyzer = TauSearchAnalyzer(logger=logger)
 
 
 def main():
@@ -126,7 +132,7 @@ def main():
         "--kernel",
         metavar="pbf",
         default="thin",
-        choices=["thin", "thick", "uniform", "thick_exp", "uniform_exp"],
+        choices=KernelRegistry.choices(),
         help="The type of PBF kernel to use during the deconvolution."
         "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
@@ -211,7 +217,6 @@ def execute_tauclean(args):
     # Load the data (assumes single column, 1 bin per line)
     data = np.loadtxt(args.profile)
     nbins = len(data)
-    bins = np.arange(nbins)
 
     # Check tau values and adjust if necessary
     if args.tau is None:
@@ -246,7 +251,7 @@ def execute_tauclean(args):
     chan_cntr_low = args.freq - args.bw / 2
     chan_ledge_lo = chan_cntr_low - chan_bw / 2
     chan_ledge_hi = chan_cntr_low + chan_bw / 2
-    dm_smear_width = clean.dm_delay(
+    dm_smear_width = dm_delay(
         args.dm, chan_ledge_lo, chan_ledge_hi
     )  # in ms
     prof_bin_width = args.period / nbins  # in ms
@@ -257,7 +262,7 @@ def execute_tauclean(args):
     if not args.coherent:
         logger.info("DM smearing within lowest channel: %g ms", dm_smear_width)
 
-    inst_resp_fn, inst_resp_width = clean.get_inst_resp(
+    inst_resp_fn, inst_resp_width = get_instrumental_response(
         data,
         args.period,
         r_dm_width=dm_smear_width,
@@ -266,7 +271,7 @@ def execute_tauclean(args):
         r_pd_width=post_dt_width,
         fast=True,
     )
-    restoring_fn = clean.get_restoring_function(
+    restoring_fn = get_restoring_function(
         data, args.period, inst_resp_width
     )
 
@@ -275,11 +280,13 @@ def execute_tauclean(args):
     )
     logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
+    kernel = get_kernel(args.kernel)
+
     # Setup for the deconvolution (potentially distributed across multiple processes)
     clean_kwargs = dict(
         period=args.period,
         gain=args.gain,
-        pbftype=args.kernel,
+        kernel=kernel,
         iter_limit=args.iterlim,
         threshold=args.thresh,
         inst_resp_func=inst_resp_fn,
@@ -292,7 +299,7 @@ def execute_tauclean(args):
 
     # Define a small callback function that simply appends output from Pool workers to "master" list
     def log_results(worker_results):
-        logger.debug("Finished work for tau=%s", worker_results["tau"])
+        logger.debug("Finished work for tau=%s", worker_results.tau)
         result_list.append(worker_results)
 
     logger.info("Starting deconvolution cycles...")
@@ -302,7 +309,7 @@ def execute_tauclean(args):
         for tau in taus:
             logger.debug("Started async. job for tau=%g ms", tau)
             pool.apply_async(
-                clean.clean, (data, tau), clean_kwargs, callback=log_results
+                clean, (data, tau), clean_kwargs, callback=log_results
             )
         pool.close()
         pool.join()
@@ -310,11 +317,13 @@ def execute_tauclean(args):
 
     # Sort the results based on the trial value of tau
     logger.info("Done. Sorting output...")
-    sorted_results = sorted(result_list, key=lambda r: r["tau"])
+    sorted_results = sorted(result_list, key=lambda r: r.tau)
 
     logger.info("Attempting to determine best tau from figures-of-merit...")
     if ntaus > 1:
-        best, err = fom.get_best_tau_jerk(sorted_results)
+        tau_estimate = tau_search_analyzer.estimate_best_tau(sorted_results)
+        best = tau_estimate.best_tau
+        err = tau_estimate.uncertainty
         if not np.isfinite(err):
             logger.warning(
                 "Undefined uncertainty. "
@@ -326,13 +335,14 @@ def execute_tauclean(args):
                 "Review figures of merit - perhaps adjust your search bounds?"
             )
     else:
-        logger.info("f_r ~ positivity: %s", sorted_results[0]["fr"])
-        logger.info("gamma ~ skewnesss: %s", sorted_results[0]["gamma"])
+        fom_set = sorted_results[0].figures_of_merit
+        logger.info("f_r ~ positivity: %s", fom_set.positivity)
+        logger.info("gamma ~ skewnesss: %s", fom_set.skewness)
         logger.info(
-            f"f_c = f_r / gamma: {(sorted_results[0]['fr']+sorted_results[0]['gamma']) / 2}"
+            f"f_c = f_r / gamma: {fom_set.combined}"
         )
         logger.info(
-            f"nf ~ consistence: {sorted_results[0]['nf']} ({100*sorted_results[0]['nf']/sorted_results[0]['nbins_on']}%)"
+            f"nf ~ consistence: {fom_set.consistence} ({100 * fom_set.consistence / sorted_results[0].nbins_on}%)"
         )
 
     # Make all of the diagnostic plots and write relevant files to disk

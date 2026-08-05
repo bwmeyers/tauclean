@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
-from . import pbf
-from .clean import dm_delay
+from .domain.kernels import get_kernel
+from .domain.kernels import KernelRegistry
+from .domain.response import dm_delay, gaussian
 
 logger = logging.getLogger(__name__)
 # Set the seed for numpy's random functions so that the same result can be
@@ -46,7 +47,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     # For each (position, width, amplitude) set, create and add a component to the intrinsic pulse profile
     for p, w, a in zip(position, width, amps):
         logger.debug("added gaussian comp.")
-        g = pbf.gaussian(x, float(p), float(w))
+        g = gaussian(x, float(p), float(w))
         f += a * (g / g.max())
 
     return f
@@ -71,22 +72,15 @@ def create_scattered_profile(
     x = period * np.linspace(0, 1, nbins)
 
     # Decide which PBF model to use
-    if pbftype == "thin":
-        h = pbf.thin(x, tau)
-    elif pbftype == "thick":
-        h = pbf.thick(x, tau)
-    elif pbftype == "uniform":
-        h = pbf.uniform(x, tau)
-    elif pbftype == "thick_exp":
-        h = pbf.thick_exp(x, tau)
-    elif pbftype == "uniform_exp":
-        h = pbf.uniform_exp(x, tau)
-    else:
+    try:
+        kernel = get_kernel(pbftype)
+    except ValueError:
         logger.error("Invalid PBF type requested ({0})".format(pbftype))
         logger.warning("Defaulting to thin screen...")
-        h = pbf.thin(x, tau)
+        kernel = get_kernel("thin")
+    h = kernel(x, tau)
 
-    restoring_function = pbf.gaussian(x, x[x.size // 2], rest_width)
+    restoring_function = gaussian(x, x[x.size // 2], rest_width)
 
     # The observed pulse shape is the convolution of:
     # - the true signal,
@@ -265,7 +259,7 @@ def main():
         "-k",
         metavar="pbf",
         default="thin",
-        choices=["thin", "thick", "uniform", "thick_exp", "uniform_exp"],
+        choices=KernelRegistry.choices(),
         help="The type of PBF kernel to use during the deconvolution."
         "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
