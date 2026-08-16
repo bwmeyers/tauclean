@@ -29,6 +29,7 @@ The built documentation will be in `_build/html/index.html`.
 ### Other build targets
 
 - `make clean` - Remove all build artifacts
+- `make html` - Build HTML files
 - `make latex` - Build LaTeX files
 - `make latexpdf` - Build PDF documentation (requires LaTeX)
 - `make epub` - Build EPUB format

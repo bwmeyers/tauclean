@@ -21,7 +21,7 @@ Young, O., & Lam, M. T. 2024, *The Astrophysical Journal*, 962, 131.
 **Redeveloping a CLEAN Deconvolution Algorithm for Scatter-broadened Radio Pulsar Signals**
 
 - DOI: `10.3847/1538-4357/ad1ce7 <https://doi.org/10.3847/1538-4357/ad1ce7>`_
-- arXiv: `2401.xxxxx <https://arxiv.org>`_
+- arXiv: `arXiv:2306.06046 <https://arxiv.org/abs/2306.06046>`_
 
 Citation Format
 ~~~~~~~~~~~~~~~
@@ -63,7 +63,7 @@ BibTeX Entry:
       pages = {131},
       doi = {10.3847/1538-4357/ad1ce7},
       archivePrefix = {arXiv},
-      eprint = {2401.xxxxx},
+      eprint = {2306.06046},
       primaryClass = {astro-ph.HE}
    }
 
