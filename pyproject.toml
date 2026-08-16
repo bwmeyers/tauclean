@@ -38,6 +38,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "pytest-cov>=5.0",
 ]
 docs = [
     "sphinx>=7.0",
@@ -66,3 +67,24 @@ version-file = "tauclean/_version.py"
 
 [tool.ruff]
 line-length = 79
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--cov=tauclean",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["tauclean"]
+omit = ["tauclean/_version.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
