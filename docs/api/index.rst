@@ -1,11 +1,6 @@
 API Reference
 =============
 
-.. toctree::
-   :maxdepth: 2
-
-   modules
-
 Modules
 -------
 
@@ -13,30 +8,13 @@ Modules
    :toctree: modules
    :recursive:
 
-   tauclean.clean
-   tauclean.fom
-   tauclean.pbf
+   tauclean.domain.clean_api
+   tauclean.domain.clean_run
+   tauclean.domain.cleaner
+   tauclean.domain.components
+   tauclean.domain.figures_of_merit
+   tauclean.domain.kernels
+   tauclean.domain.noise
+   tauclean.domain.profile
+   tauclean.domain.response
    tauclean.plotting
-
-Core Modules
-~~~~~~~~~~~~
-
-.. automodule:: tauclean.clean
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: tauclean.fom
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: tauclean.pbf
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: tauclean.plotting
-   :members:
-   :undoc-members:
-   :show-inheritance:

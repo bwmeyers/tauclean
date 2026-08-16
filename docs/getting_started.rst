@@ -19,13 +19,13 @@ Using pip:
 Basic Usage
 ~~~~~~~~~~~
 
-The main deconvolution function is :func:`tauclean.clean.clean`. 
+The main deconvolution function is :func:`tauclean.domain.clean_api.clean`.
 Here's a simple example:
 
 .. code-block:: python
 
     import numpy as np
-    from tauclean.clean import clean
+    from tauclean.domain import clean
 
     # Create or load a pulsar profile
     profile = np.array([...])  # your profile data
@@ -40,8 +40,8 @@ Here's a simple example:
     )
 
     # Access results
-    clean_components = result['cc']
-    reconstructed = result['reconstruction']
+    clean_components = result.cc
+    reconstructed = result.recon
 
 Command-Line Interface
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -63,7 +63,7 @@ The package includes two command-line scripts:
 Parameters
 ~~~~~~~~~~
 
-Key parameters for the :func:`tauclean.clean.clean` function:
+Key parameters for the :func:`tauclean.domain.clean_api.clean` function:
 
 - **data** (np.ndarray): The observed pulse profile
 - **tau** (float): Scattering timescale in milliseconds
@@ -79,21 +79,23 @@ Key parameters for the :func:`tauclean.clean.clean` function:
 - **gain** (float): Loop gain for component scaling (default: 0.05)
 - **threshold** (float): Noise threshold for termination (default: 3.0)
 - **iter_limit** (int): Maximum iterations (default: 1000)
-- **onpulse_estimator** (str or list): On-pulse region definition:
-  
+- **onpulse_estimator** (str): On-pulse region definition:
   - ``'auto'`` - Automatically determine on/off-pulse regions
-  - A list with bin indices for custom regions
+  - A string of the form ``"START END"`` for an explicit on-pulse range
 
 Returns
 ~~~~~~~
 
-The :func:`tauclean.clean.clean` function returns a dictionary containing:
+The :func:`tauclean.domain.clean_api.clean` function returns a
+:class:`tauclean.domain.clean_run.CleanResult` object. Its commonly used
+attributes include:
 
-- ``'cc'`` - Clean component positions and amplitudes
-- ``'reconstruction'`` - Reconstructed intrinsic profile
-- ``'fom'`` - Figures of merit for each iteration
-- ``'n_iter'`` - Number of iterations performed
-- And other analysis metrics
+- ``cc`` - Clean component amplitudes
+- ``recon`` - Reconstructed intrinsic profile
+- ``figures_of_merit`` - A
+    :class:`tauclean.domain.figures_of_merit.FigureOfMeritSet` for the run
+- ``niter`` - Number of iterations performed
+- ``profile``, ``off_rms``, and ``on_rms`` - Final residual and noise metrics
 
 Advanced Usage
 ~~~~~~~~~~~~~~
@@ -103,12 +105,16 @@ response functions:
 
 .. code-block:: python
 
-    from tauclean.clean import clean, get_restoring_function, get_inst_resp
+    from tauclean.domain import (
+        clean,
+        get_instrumental_response,
+        get_restoring_function,
+    )
 
     # Pre-compute functions
-    inst_resp, inst_width = get_inst_resp(
-        profile=profile,
-        pulse_period=100.0,
+    inst_resp, inst_width = get_instrumental_response(
+        data=profile,
+        period=100.0,
         r_dm_width=0.1,
         r_pb_width=0.05,
         r_av_width=0.0,

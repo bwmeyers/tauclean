@@ -51,7 +51,7 @@ Basic usage:
 
 .. code-block:: python
 
-    from tauclean.clean import clean
+    from tauclean.domain import clean
 
     # Load your pulsar profile data
     profile = ...  # your profile data

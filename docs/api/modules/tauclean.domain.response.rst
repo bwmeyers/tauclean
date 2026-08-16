@@ -1,18 +1,16 @@
-﻿tauclean.clean
-==============
+﻿tauclean.domain.response
+========================
 
-.. automodule:: tauclean.clean
+.. automodule:: tauclean.domain.response
 
    
    .. rubric:: Functions
 
    .. autosummary::
    
-      clean
       dm_delay
+      gaussian
       get_instrumental_response
-      get_offpulse_region
       get_restoring_function
-      keep_cleaning
       reconstruct
    

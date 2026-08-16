@@ -7,13 +7,13 @@ This directory contains the Sphinx documentation for tauclean.
 Install the documentation dependencies:
 
 ```bash
-uv pip install -e ".[docs]"
+uv sync --group docs
 ```
 
 Or with pip:
 
 ```bash
-pip install -e ".[docs]"
+python -m pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
 ```
 
 ## Building
@@ -21,7 +21,7 @@ pip install -e ".[docs]"
 To build the HTML documentation:
 
 ```bash
-make html
+uv run sphinx-build -b html . _build/html
 ```
 
 The built documentation will be in `_build/html/index.html`.
