@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from tauclean.response import (
+    ResponseComponent,
     get_instrumental_response,
     get_restoring_function,
     reconstruct,
@@ -137,6 +138,52 @@ def test_mixed_boxcars_are_finite_and_order_robust() -> None:
     assert np.isclose(_area(resp_b), 1.0, rtol=2e-3)
     assert np.isclose(width_a, width_b, rtol=2e-2)
     assert np.allclose(resp_a, resp_b, rtol=3e-2, atol=2e-4)
+
+
+def test_return_components_yields_one_labelled_component_per_nonzero_width() -> (
+    None
+):
+    profile = _profile_with_peak()
+
+    response, resp_width, components = get_instrumental_response(
+        profile,
+        PERIOD_MS,
+        r_dm_width=2.0,
+        r_pb_width=0.0,
+        r_av_width=6.0,
+        r_pd_width=0.0,
+        fast=False,
+        return_components=True,
+    )
+
+    labels = [component.label for component in components]
+    assert labels == ["DM smearing", "Backend sampling"]
+    assert all(isinstance(c, ResponseComponent) for c in components)
+    assert [c.width for c in components] == [2.0, 6.0]
+    for component in components:
+        assert component.response.shape == response.shape
+        assert np.all(np.isfinite(component.response))
+        assert np.isclose(_area(component.response), 1.0, rtol=2e-3)
+    assert resp_width > 0
+
+
+def test_fast_mode_with_return_components_yields_no_components() -> None:
+    profile = _profile_with_peak()
+
+    response, resp_width, components = get_instrumental_response(
+        profile,
+        PERIOD_MS,
+        r_dm_width=np.nan,
+        r_pb_width=np.nan,
+        r_av_width=np.nan,
+        r_pd_width=np.nan,
+        fast=True,
+        return_components=True,
+    )
+
+    assert components == []
+    assert np.count_nonzero(response) == 1
+    assert resp_width > 0
 
 
 def test_fast_mode_returns_delta_at_profile_peak() -> None:

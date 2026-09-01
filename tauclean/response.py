@@ -3,12 +3,31 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 from scipy.signal import convolve
 
 logger = logging.getLogger(__name__)
+
+# Order matches the r_dm_width/r_pb_width/r_av_width/r_pd_width arguments of
+# get_instrumental_response().
+_RESPONSE_ELEMENT_LABELS = (
+    "DM smearing",
+    "Profile bin width",
+    "Backend sampling",
+    "Post-detection filtering",
+)
+
+
+@dataclass(frozen=True)
+class ResponseComponent:
+    """A single named contribution to the instrumental response function."""
+
+    label: str
+    width: float
+    response: np.ndarray
 
 
 def _equivalent_width_to_sigma(width: float) -> float:
@@ -39,14 +58,28 @@ def get_instrumental_response(
     r_av_width: float,
     r_pd_width: float,
     fast: bool = False,
-) -> tuple[np.ndarray, float]:
-    """Compute the instrumental response function."""
+    return_components: bool = False,
+) -> (
+    tuple[np.ndarray, float]
+    | tuple[np.ndarray, float, list[ResponseComponent]]
+):
+    """Compute the instrumental response function.
+
+    If ``return_components`` is True, a third value is returned: a list of
+    :class:`ResponseComponent` objects, one per named contribution with a
+    non-zero width (e.g. DM smearing, profile bin width), decimated onto the
+    same time grid as the returned response. This is intended for
+    visualising how each element shapes the total response - see
+    :func:`tauclean.plotting.plot_instrumental_response`.
+    """
     upscale_factor = 10
 
     if fast:
         decimated_resp = np.zeros_like(profile)
         decimated_resp[np.argmax(profile)] = 1
         resp_width = pulse_period / len(profile)
+        if return_components:
+            return decimated_resp, resp_width, []
         return decimated_resp, resp_width
 
     raw_elements = np.array(
@@ -55,14 +88,17 @@ def get_instrumental_response(
     if not np.all(np.isfinite(raw_elements)):
         raise ValueError("All instrumental response widths must be finite.")
 
-    elements = [
-        response_width for response_width in raw_elements if response_width > 0
+    named_elements = [
+        (label, width)
+        for label, width in zip(_RESPONSE_ELEMENT_LABELS, raw_elements)
+        if width > 0
     ]
-    if not elements:
+    if not named_elements:
         raise ValueError(
             "At least one instrumental response width must be > 0."
         )
 
+    elements = [width for _, width in named_elements]
     logger.debug("Restoring elements = %s ms", elements)
     narrowest_element = min(elements)
     oversamp_nbins = int(upscale_factor * (pulse_period / narrowest_element))
@@ -70,7 +106,8 @@ def get_instrumental_response(
     logger.debug("Upsampled nbins=%s & dt=%sms", oversamp_nbins, oversamp_dt)
 
     response = np.zeros(oversamp_nbins)
-    for element in elements:
+    raw_contributions = []
+    for label, element in named_elements:
         contribution = np.zeros(oversamp_nbins)
         width_bins = max(1, int(np.round(element / oversamp_dt)))
         center_bin = oversamp_nbins // 2
@@ -78,6 +115,7 @@ def get_instrumental_response(
         stop_bin = min(oversamp_nbins, start_bin + width_bins)
         start_bin = max(0, stop_bin - width_bins)
         contribution[start_bin:stop_bin] = 1
+        raw_contributions.append((label, element, contribution))
         if response.sum() <= 0:
             response = response + contribution
         else:
@@ -95,6 +133,30 @@ def get_instrumental_response(
         y=decimated_resp, dx=pulse_period / profile.size
     )
     resp_width = np.trapz(dx=oversamp_dt, y=response) / response.max()
+
+    if return_components:
+        dt = pulse_period / profile.size
+        components = []
+        for label, element, contribution in raw_contributions:
+            if contribution.sum() > 0:
+                contribution = contribution / contribution.sum()
+            comp_interp = PchipInterpolator(
+                oversampled_x, contribution, extrapolate=False
+            )
+            decimated_comp = comp_interp(original_x)
+            decimated_comp = np.nan_to_num(
+                decimated_comp, nan=0, posinf=0, neginf=0
+            )
+            area = np.trapz(y=decimated_comp, dx=dt)
+            if area > 0:
+                decimated_comp = decimated_comp / area
+            components.append(
+                ResponseComponent(
+                    label=label, width=element, response=decimated_comp
+                )
+            )
+        return decimated_resp, resp_width, components
+
     return decimated_resp, resp_width
 
 

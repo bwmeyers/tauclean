@@ -37,6 +37,7 @@ from .noise import (
 )
 from .profile import ProfileData
 from .response import (
+    ResponseComponent,
     dm_delay,
     gaussian,
     get_instrumental_response,
@@ -57,6 +58,7 @@ __all__ = [
     "NoiseEstimator",
     "NoiseStats",
     "ProfileData",
+    "ResponseComponent",
     "SubtractedComponent",
     "TauEstimate",
     "TauSearchAnalyzer",

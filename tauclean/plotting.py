@@ -7,6 +7,7 @@ from scipy.signal import find_peaks, savgol_filter
 from .clean_run import CleanResult
 from .figures_of_merit import TauSearchAnalyzer
 from .kernels import get_kernel
+from .response import ResponseComponent
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -407,6 +408,51 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
             bbox_inches="tight",
         )
         plt.close(fig)
+
+    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    return not plt.fignum_exists(fig.number)
+
+
+def plot_instrumental_response(
+    response: np.ndarray,
+    width: float,
+    period: float,
+    components: list[ResponseComponent] | None = None,
+    filename: str = "instrumental_response.png",
+):
+    """Plot the total instrumental response and (optionally) its components.
+
+    :param response: the decimated total instrumental response function.
+    :param width: the equivalent width (area/peak) of the total response, in ms.
+    :param period: the pulsar period, in ms (used to build the time axis).
+    :param components: per-element contributions, as returned by
+        ``get_instrumental_response(..., return_components=True)``. If
+        omitted or empty, only the total response is plotted.
+    :param filename: path to save the resulting figure to.
+    """
+    x = period * np.linspace(0, 1, len(response), endpoint=False)
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    for component in components or []:
+        ax.plot(
+            x,
+            component.response,
+            ls="--",
+            alpha=0.7,
+            label=f"{component.label} (width={component.width:.3g} ms)",
+        )
+
+    ax.plot(x, response, color="k", lw=2, label=f"Total (width={width:.3g} ms)")
+    ax.set_xlabel("Time (ms)")
+    ax.set_ylabel("Normalised response")
+    ax.set_xlim(x.min(), x.max())
+    ax.set_ylim(0, None)
+    ax.set_title("Instrumental response function")
+    ax.legend()
+
+    plt.savefig(filename, bbox_inches="tight")
+    plt.close(fig)
 
     # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)

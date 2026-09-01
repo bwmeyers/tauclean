@@ -11,9 +11,38 @@ from tauclean.plotting import (
     plot_clean_components,
     plot_clean_residuals,
     plot_figures_of_merit,
+    plot_instrumental_response,
     plot_reconstruction,
     write_output,
 )
+from tauclean.response import get_instrumental_response
+
+
+def test_plot_instrumental_response_with_and_without_components(
+    thin_profile: np.ndarray, tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    response, width, components = get_instrumental_response(
+        thin_profile,
+        500.0,
+        r_dm_width=2.0,
+        r_pb_width=0.5,
+        r_av_width=0.0,
+        r_pd_width=0.0,
+        fast=False,
+        return_components=True,
+    )
+
+    assert plot_instrumental_response(
+        response, width, 500.0, components=components
+    )
+    assert (tmp_path / "instrumental_response.png").exists()
+
+    assert plot_instrumental_response(
+        response, width, 500.0, filename="no_components.png"
+    )
+    assert (tmp_path / "no_components.png").exists()
 
 
 def test_plotting_functions_write_expected_pngs(

@@ -352,6 +352,28 @@ def execute_tauclean(args):
         )
 
     if not args.noplot_r:
+        logger.info("Plotting instrumental response...")
+        try:
+            plot_resp, plot_resp_width, plot_resp_components = (
+                get_instrumental_response(
+                    data,
+                    args.period,
+                    r_dm_width=dm_smear_width,
+                    r_pb_width=prof_bin_width,
+                    r_av_width=backend_dt_width,
+                    r_pd_width=post_dt_width,
+                    return_components=True,
+                )
+            )
+            plotting.plot_instrumental_response(
+                plot_resp,
+                plot_resp_width,
+                args.period,
+                components=plot_resp_components,
+            )
+        except ValueError as e:
+            logger.warning("Could not plot instrumental response: %s", e)
+
         logger.info("Plotting clean residuals...")
         plotting.plot_clean_residuals(data, sorted_results, period=args.period)
 
