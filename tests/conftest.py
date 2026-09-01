@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
 import matplotlib
 
@@ -15,12 +14,10 @@ import pytest
 
 from tauclean.clean_api import clean
 from tauclean.cleaner import CleanResult
+from tauclean.scripts.cli_simulate import create_intrinsic_pulse, create_scattered_profile
 
-
-@pytest.fixture(scope="session")
-def test_data_dir() -> Path:
-    """Return the directory containing static profile fixtures."""
-    return Path(__file__).parent
+SIMULATED_PERIOD_MS = 500.0
+SIMULATED_NBINS = 1024
 
 
 @pytest.fixture
@@ -30,19 +27,52 @@ def rng() -> np.random.Generator:
 
 
 @pytest.fixture
-def thin_profile(test_data_dir: Path) -> np.ndarray:
-    """Load the canonical thin-screen integration profile."""
-    return np.loadtxt(test_data_dir / "simulated_profile_tau20ms_thin.txt")
+def simulated_profile_factory() -> Callable[[str, float], np.ndarray]:
+    """Build synthetic scattered pulse profiles on demand.
+
+    Replaces the previous static tests/*.txt fixtures with profiles
+    generated via the same simulate helpers used by the ``simulate`` CLI.
+    """
+
+    def build(
+        pbftype: str,
+        tau: float,
+        nbins: int = SIMULATED_NBINS,
+        period: float = SIMULATED_PERIOD_MS,
+    ) -> np.ndarray:
+        # Reseed so the generated profile is independent of test execution order.
+        np.random.seed(12345)
+        intrinsic = create_intrinsic_pulse(
+            [nbins // 8], [nbins / 200], [1.0], nbins=nbins
+        )
+        _, _, observed = create_scattered_profile(
+            intrinsic,
+            tau=tau,
+            rest_width=period / nbins,
+            pbftype=pbftype,
+            period=period,
+            snr=200.0,
+        )
+        return observed
+
+    return build
+
+
+@pytest.fixture
+def thin_profile(
+    simulated_profile_factory: Callable[[str, float], np.ndarray]
+) -> np.ndarray:
+    """Return a synthetic thin-screen scattered profile."""
+    return simulated_profile_factory("thin", 20.0)
 
 
 @pytest.fixture
 def clean_kwargs() -> dict[str, object]:
     """Return standard CLEAN arguments for integration tests."""
     return {
-        "period": 500.0,
+        "period": SIMULATED_PERIOD_MS,
         "gain": 0.05,
         "pbftype": "thin",
-        "onpulse_estimator": "440 900",
         "iter_limit": 400,
     }
 

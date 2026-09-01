@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable
 
 import numpy as np
 import pytest
@@ -13,26 +13,23 @@ from tauclean.kernels import get_kernel
 
 
 @pytest.mark.parametrize(
-    ("filename", "tau", "pbftype", "onpulse"),
+    ("pbftype", "tau"),
     [
-        ("simulated_profile_tau20ms_thin.txt", 20.0, "thin", "440 900"),
-        ("simulated_profile_tau1ms_thick.txt", 1.0, "thick", "128 700"),
-        ("simulated_profile_tau3ms_uniform.txt", 3.0, "uniform", "128 700"),
+        ("thin", 20.0),
+        ("thick", 1.0),
+        ("uniform", 3.0),
     ],
 )
 def test_clean_returns_finite_typed_result(
-    test_data_dir: Path,
-    filename: str,
-    tau: float,
+    simulated_profile_factory: Callable[[str, float], np.ndarray],
     pbftype: str,
-    onpulse: str,
+    tau: float,
 ) -> None:
     result = clean(
-        np.loadtxt(test_data_dir / filename),
+        simulated_profile_factory(pbftype, tau),
         tau,
         period=500.0,
         pbftype=pbftype,
-        onpulse_estimator=onpulse,
         iter_limit=25,
     )
 
@@ -51,7 +48,6 @@ def test_clean_honors_iteration_limit(thin_profile: np.ndarray) -> None:
         thin_profile,
         20.0,
         period=500.0,
-        onpulse_estimator="440 900",
         iter_limit=1,
     )
 
@@ -63,7 +59,6 @@ def test_clean_tracks_component_history(thin_profile: np.ndarray) -> None:
         thin_profile,
         20.0,
         period=500.0,
-        onpulse_estimator="440 900",
         iter_limit=3,
         track_components=True,
     )
@@ -80,7 +75,6 @@ def test_explicit_kernel_overrides_pbftype(thin_profile: np.ndarray) -> None:
         period=500.0,
         pbftype="thin",
         kernel=get_kernel("thick"),
-        onpulse_estimator="440 900",
         iter_limit=1,
     )
 
