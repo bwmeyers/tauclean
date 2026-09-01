@@ -1,7 +1,7 @@
-﻿tauclean.figures\_of\_merit
-==================================
+tauclean.fom
+============
 
-.. automodule:: tauclean.figures_of_merit
+.. automodule:: tauclean.fom
 
    
    .. rubric:: Classes
@@ -13,4 +13,3 @@
       FigureOfMeritSet
       TauEstimate
       TauSearchAnalyzer
-   

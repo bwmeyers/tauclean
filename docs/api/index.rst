@@ -11,7 +11,7 @@ Modules
    tauclean.clean_api
    tauclean.cleaner
    tauclean.components
-   tauclean.figures_of_merit
+   tauclean.fom
    tauclean.kernels
    tauclean.noise
    tauclean.profile

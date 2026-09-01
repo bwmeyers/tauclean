@@ -93,7 +93,7 @@ attributes include:
 - ``cc`` - Clean component amplitudes
 - ``recon`` - Reconstructed intrinsic profile
 - ``figures_of_merit`` - A
-    :class:`tauclean.figures_of_merit.FigureOfMeritSet` for the run
+    :class:`tauclean.fom.FigureOfMeritSet` for the run
 - ``niter`` - Number of iterations performed
 - ``profile``, ``off_rms``, and ``on_rms`` - Final residual and noise metrics
 

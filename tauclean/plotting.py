@@ -5,7 +5,7 @@ import numpy as np
 from scipy.signal import find_peaks, savgol_filter
 
 from .cleaner import CleanResult
-from .figures_of_merit import TauSearchAnalyzer
+from .fom import TauSearchAnalyzer
 from .kernels import get_kernel
 from .response import ResponseComponent
 

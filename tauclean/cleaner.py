@@ -9,7 +9,7 @@ import numpy as np
 from scipy.signal import convolve
 
 from .components import ComponentHistory, SubtractedComponent
-from .figures_of_merit import FigureOfMeritEvaluator, FigureOfMeritSet
+from .fom import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
 from .noise import AutoWindowNoiseEstimator, UserDefinedOnPulseNoiseEstimator
 from .profile import ProfileData

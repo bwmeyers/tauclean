@@ -20,7 +20,7 @@ except ImportError:
 from .clean_api import clean
 from .cleaner import CleanResult, Cleaner
 from .components import ComponentHistory, SubtractedComponent
-from .figures_of_merit import (
+from .fom import (
     FigureOfMeritEvaluator,
     FigureOfMeritSeries,
     FigureOfMeritSet,

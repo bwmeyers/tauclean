@@ -7,7 +7,7 @@ import numpy as np
 
 from .. import plotting
 from ..clean_api import clean
-from ..figures_of_merit import TauSearchAnalyzer
+from ..fom import TauSearchAnalyzer
 from ..kernels import KernelRegistry, get_kernel
 from ..response import (
     dm_delay,
