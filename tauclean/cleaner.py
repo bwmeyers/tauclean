@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import convolve
 
-from .. import plotting
+from . import plotting
 from .clean_run import CleanResult
 from .components import ComponentHistory, SubtractedComponent
 from .figures_of_merit import FigureOfMeritEvaluator
@@ -17,7 +17,7 @@ from .noise import AutoWindowNoiseEstimator, UserDefinedOnPulseNoiseEstimator
 from .profile import ProfileData
 from .response import gaussian
 
-logger = logging.getLogger(__name__.replace("domain.", ""))
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 if not logger.handlers:
     fmt = logging.Formatter(

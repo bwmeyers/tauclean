@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from tauclean.domain.clean_api import clean
-from tauclean.domain.clean_run import CleanResult
-from tauclean.domain.kernels import get_kernel
+from tauclean.clean_api import clean
+from tauclean.clean_run import CleanResult
+from tauclean.kernels import get_kernel
 
 
 @pytest.mark.parametrize(

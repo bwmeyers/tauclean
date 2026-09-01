@@ -1,7 +1,7 @@
-﻿tauclean.domain.clean\_api
+﻿tauclean.clean\_api
 ==========================
 
-.. automodule:: tauclean.domain.clean_api
+.. automodule:: tauclean.clean_api
 
    
    .. rubric:: Functions

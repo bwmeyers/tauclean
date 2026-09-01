@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from tauclean.domain.figures_of_merit import (
+from tauclean.figures_of_merit import (
     FigureOfMeritEvaluator,
     FigureOfMeritSet,
     TauSearchAnalyzer,

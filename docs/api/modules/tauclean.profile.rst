@@ -1,12 +1,12 @@
-﻿tauclean.domain.cleaner
+﻿tauclean.profile
 =======================
 
-.. automodule:: tauclean.domain.cleaner
+.. automodule:: tauclean.profile
 
    
    .. rubric:: Classes
 
    .. autosummary::
    
-      Cleaner
+      ProfileData
    

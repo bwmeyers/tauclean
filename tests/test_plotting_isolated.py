@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from tauclean.domain.clean_run import CleanResult
+from tauclean.clean_run import CleanResult
 from tauclean.plotting import (
     plot_clean_components,
     plot_clean_residuals,

@@ -1,7 +1,7 @@
-﻿tauclean.domain.figures\_of\_merit
+﻿tauclean.figures\_of\_merit
 ==================================
 
-.. automodule:: tauclean.domain.figures_of_merit
+.. automodule:: tauclean.figures_of_merit
 
    
    .. rubric:: Classes

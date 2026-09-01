@@ -1,7 +1,7 @@
-﻿tauclean.domain.kernels
+﻿tauclean.kernels
 =======================
 
-.. automodule:: tauclean.domain.kernels
+.. automodule:: tauclean.kernels
 
    
    .. rubric:: Functions

@@ -47,8 +47,8 @@ docs = [
 ]
 
 [project.scripts]
-tauclean = "tauclean.cli_tauclean:main"
-simulate = "tauclean.cli_simulate:main"
+tauclean = "tauclean.scripts.cli_tauclean:main"
+simulate = "tauclean.scripts.cli_simulate:main"
 
 [project.urls]
 Repository = "https://github.com/bwmeyers/tauclean.git"

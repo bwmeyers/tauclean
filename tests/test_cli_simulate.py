@@ -7,8 +7,8 @@ import sys
 
 import numpy as np
 
-import tauclean.cli_simulate as cli_simulate
-from tauclean.cli_simulate import (
+import tauclean.scripts.cli_simulate as cli_simulate
+from tauclean.scripts.cli_simulate import (
     create_intrinsic_pulse,
     create_scattered_profile,
     write_data,
@@ -64,7 +64,7 @@ def test_simulate_main_parses_and_writes_data(tmp_path, monkeypatch) -> None:
 
 def test_simulate_module_help_exits_successfully() -> None:
     completed = subprocess.run(
-        [sys.executable, "-m", "tauclean.cli_simulate", "--help"],
+        [sys.executable, "-m", "tauclean.scripts.cli_simulate", "--help"],
         check=False,
         capture_output=True,
         text=True,

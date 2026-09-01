@@ -1,7 +1,7 @@
-﻿tauclean.domain.clean\_run
+﻿tauclean.clean\_run
 ==========================
 
-.. automodule:: tauclean.domain.clean_run
+.. automodule:: tauclean.clean_run
 
    
    .. rubric:: Classes

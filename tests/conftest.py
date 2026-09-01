@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from tauclean.domain.clean_api import clean
-from tauclean.domain.clean_run import CleanResult
+from tauclean.clean_api import clean
+from tauclean.clean_run import CleanResult
 
 
 @pytest.fixture(scope="session")
@@ -99,4 +99,4 @@ def serial_pool(monkeypatch: pytest.MonkeyPatch) -> None:
         def join(self) -> None:
             return None
 
-    monkeypatch.setattr("tauclean.cli_tauclean.mp.Pool", Pool)
+    monkeypatch.setattr("tauclean.scripts.cli_tauclean.mp.Pool", Pool)

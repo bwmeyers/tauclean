@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from tauclean.domain.response import (
+from tauclean.response import (
     get_instrumental_response,
     get_restoring_function,
     reconstruct,

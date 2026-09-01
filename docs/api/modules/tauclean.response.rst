@@ -1,7 +1,7 @@
-﻿tauclean.domain.response
+﻿tauclean.response
 ========================
 
-.. automodule:: tauclean.domain.response
+.. automodule:: tauclean.response
 
    
    .. rubric:: Functions

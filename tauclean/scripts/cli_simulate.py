@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
-from .domain.kernels import KernelRegistry, get_kernel
-from .domain.response import dm_delay, gaussian
+from ..kernels import KernelRegistry, get_kernel
+from ..response import dm_delay, gaussian
 
 logger = logging.getLogger(__name__)
 # Set the seed for numpy's random functions so that the same result can be

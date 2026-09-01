@@ -19,13 +19,13 @@ Using pip:
 Basic Usage
 ~~~~~~~~~~~
 
-The main deconvolution function is :func:`tauclean.domain.clean_api.clean`.
+The main deconvolution function is :func:`tauclean.clean_api.clean`.
 Here's a simple example:
 
 .. code-block:: python
 
     import numpy as np
-    from tauclean.domain import clean
+    from tauclean import clean
 
     # Create or load a pulsar profile
     profile = np.array([...])  # your profile data
@@ -63,7 +63,7 @@ The package includes two command-line scripts:
 Parameters
 ~~~~~~~~~~
 
-Key parameters for the :func:`tauclean.domain.clean_api.clean` function:
+Key parameters for the :func:`tauclean.clean_api.clean` function:
 
 - **data** (np.ndarray): The observed pulse profile
 - **tau** (float): Scattering timescale in milliseconds
@@ -86,14 +86,14 @@ Key parameters for the :func:`tauclean.domain.clean_api.clean` function:
 Returns
 ~~~~~~~
 
-The :func:`tauclean.domain.clean_api.clean` function returns a
-:class:`tauclean.domain.clean_run.CleanResult` object. Its commonly used
+The :func:`tauclean.clean_api.clean` function returns a
+:class:`tauclean.clean_run.CleanResult` object. Its commonly used
 attributes include:
 
 - ``cc`` - Clean component amplitudes
 - ``recon`` - Reconstructed intrinsic profile
 - ``figures_of_merit`` - A
-    :class:`tauclean.domain.figures_of_merit.FigureOfMeritSet` for the run
+    :class:`tauclean.figures_of_merit.FigureOfMeritSet` for the run
 - ``niter`` - Number of iterations performed
 - ``profile``, ``off_rms``, and ``on_rms`` - Final residual and noise metrics
 
@@ -105,7 +105,7 @@ response functions:
 
 .. code-block:: python
 
-    from tauclean.domain import (
+    from tauclean import (
         clean,
         get_instrumental_response,
         get_restoring_function,

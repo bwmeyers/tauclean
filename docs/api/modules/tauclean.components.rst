@@ -1,7 +1,7 @@
-﻿tauclean.domain.components
+﻿tauclean.components
 ==========================
 
-.. automodule:: tauclean.domain.components
+.. automodule:: tauclean.components
 
    
    .. rubric:: Classes

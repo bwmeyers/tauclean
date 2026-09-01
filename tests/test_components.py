@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from tauclean.domain.components import ComponentHistory, SubtractedComponent
+from tauclean.components import ComponentHistory, SubtractedComponent
 
 
 def test_component_history_preserves_component_order() -> None:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from tauclean.domain.noise import UserDefinedOnPulseNoiseEstimator
-from tauclean.domain.profile import ProfileData
+from tauclean.noise import UserDefinedOnPulseNoiseEstimator
+from tauclean.profile import ProfileData
 
 
 def test_profile_initializes_regions_baseline_and_noise() -> None:

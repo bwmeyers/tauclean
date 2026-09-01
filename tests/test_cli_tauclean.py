@@ -9,7 +9,7 @@ import sys
 import numpy as np
 import pytest
 
-from tauclean.cli_tauclean import execute_tauclean, main
+from tauclean.scripts.cli_tauclean import execute_tauclean, main
 
 
 def _args(profile: str, **overrides: object) -> argparse.Namespace:
@@ -94,7 +94,7 @@ def test_execute_tauclean_rejects_invalid_search_ranges(
 
 def test_tauclean_module_help_exits_successfully() -> None:
     completed = subprocess.run(
-        [sys.executable, "-m", "tauclean.cli_tauclean", "--help"],
+        [sys.executable, "-m", "tauclean.scripts.cli_tauclean", "--help"],
         check=False,
         capture_output=True,
         text=True,

@@ -1,7 +1,7 @@
-﻿tauclean.domain.noise
+﻿tauclean.noise
 =====================
 
-.. automodule:: tauclean.domain.noise
+.. automodule:: tauclean.noise
 
    
    .. rubric:: Classes

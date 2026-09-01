@@ -5,11 +5,11 @@ import sys
 
 import numpy as np
 
-from . import plotting
-from .domain.clean_api import clean
-from .domain.figures_of_merit import TauSearchAnalyzer
-from .domain.kernels import KernelRegistry, get_kernel
-from .domain.response import (
+from .. import plotting
+from ..clean_api import clean
+from ..figures_of_merit import TauSearchAnalyzer
+from ..kernels import KernelRegistry, get_kernel
+from ..response import (
     dm_delay,
     get_instrumental_response,
     get_restoring_function,

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.integrate import simpson
 
-from tauclean.domain.kernels import KernelRegistry, get_kernel
+from tauclean.kernels import KernelRegistry, get_kernel
 
 
 @pytest.mark.parametrize("name", KernelRegistry.choices())

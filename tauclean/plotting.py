@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks, savgol_filter
 
-from .domain.clean_run import CleanResult
-from .domain.figures_of_merit import TauSearchAnalyzer
-from .domain.kernels import get_kernel
+from .clean_run import CleanResult
+from .figures_of_merit import TauSearchAnalyzer
+from .kernels import get_kernel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
