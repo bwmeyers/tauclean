@@ -76,8 +76,7 @@ If you made use of `tauclean` for your research, please give credit by
 
 - Citing the original technique description paper: [Bhat et al. 2003, ApJ, 584, 2](https://ui.adsabs.harvard.edu/abs/2003ApJ...584..782B/abstract "Original description paper")
 
-- Citing a recent update, which improves the uncertainty estimation and selection of optimal deconvolved profiles: [Young & Lam 2024, ApJ, 96, 2
-](https://ui.adsabs.harvard.edu/abs/2024ApJ...962..131Y/abstract "Python/notebook implementation and update paper")
+- Citing a recent update, which improves the uncertainty estimation and selection of optimal deconvolved profiles: [Young & Lam 2024, ApJ, 96, 2](https://ui.adsabs.harvard.edu/abs/2024ApJ...962..131Y/abstract "Python/notebook implementation and update paper")
 
 - Linking [this](https://github.com/bwmeyers/tauclean) GitHub page as a footnote or in the acknowledgments (and
     you could consider adding me as a co-author)
