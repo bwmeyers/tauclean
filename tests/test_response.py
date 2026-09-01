@@ -140,6 +140,46 @@ def test_mixed_boxcars_are_finite_and_order_robust() -> None:
     assert np.allclose(resp_a, resp_b, rtol=3e-2, atol=2e-4)
 
 
+def test_width_comparable_to_period_logs_warning(caplog) -> None:
+    profile = _profile_with_peak()
+
+    with caplog.at_level("WARNING", logger="tauclean.response"):
+        get_instrumental_response(
+            profile,
+            PERIOD_MS,
+            r_dm_width=0.6 * PERIOD_MS,
+            r_pb_width=1.0,
+            r_av_width=0.0,
+            r_pd_width=0.0,
+            fast=False,
+        )
+
+    assert any(
+        "comparable to the pulse period" in record.message
+        for record in caplog.records
+    )
+
+
+def test_width_exceeding_period_logs_stronger_warning(caplog) -> None:
+    profile = _profile_with_peak()
+
+    with caplog.at_level("WARNING", logger="tauclean.response"):
+        get_instrumental_response(
+            profile,
+            PERIOD_MS,
+            r_dm_width=1.5 * PERIOD_MS,
+            r_pb_width=1.0,
+            r_av_width=0.0,
+            r_pd_width=0.0,
+            fast=False,
+        )
+
+    assert any(
+        "will be truncated to span the full period" in record.message
+        for record in caplog.records
+    )
+
+
 def test_return_components_yields_one_labelled_component_per_nonzero_width() -> (
     None
 ):

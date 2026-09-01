@@ -20,6 +20,11 @@ _RESPONSE_ELEMENT_LABELS = (
     "Post-detection filtering",
 )
 
+# Above this fraction of the pulse period, a boxcar element is wide enough
+# that its contribution is likely unphysical (a pulsar profile is periodic,
+# so smearing comparable to a full period doesn't have a clean interpretation).
+_WIDTH_PERIOD_WARN_FRACTION = 0.5
+
 
 @dataclass(frozen=True)
 class ResponseComponent:
@@ -100,6 +105,24 @@ def get_instrumental_response(
 
     elements = [width for _, width in named_elements]
     logger.debug("Restoring elements = %s ms", elements)
+    for label, element in named_elements:
+        if element >= pulse_period:
+            logger.warning(
+                "%s width (%g ms) is >= the pulse period (%g ms); its "
+                "contribution will be truncated to span the full period, "
+                "which is likely unphysical.",
+                label,
+                element,
+                pulse_period,
+            )
+        elif element >= _WIDTH_PERIOD_WARN_FRACTION * pulse_period:
+            logger.warning(
+                "%s width (%g ms) is comparable to the pulse period (%g ms); "
+                "the resulting response may be unreliable.",
+                label,
+                element,
+                pulse_period,
+            )
     narrowest_element = min(elements)
     oversamp_nbins = int(upscale_factor * (pulse_period / narrowest_element))
     oversamp_dt = pulse_period / oversamp_nbins
