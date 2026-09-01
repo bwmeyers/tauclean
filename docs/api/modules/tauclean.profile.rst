@@ -1,5 +1,5 @@
 ﻿tauclean.profile
-=======================
+================
 
 .. automodule:: tauclean.profile
 

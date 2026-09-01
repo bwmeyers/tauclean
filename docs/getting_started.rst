@@ -113,8 +113,8 @@ response functions:
 
     # Pre-compute functions
     inst_resp, inst_width = get_instrumental_response(
-        data=profile,
-        period=100.0,
+        profile=profile,
+        pulse_period=100.0,
         r_dm_width=0.1,
         r_pb_width=0.05,
         r_av_width=0.0,

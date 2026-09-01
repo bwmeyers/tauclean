@@ -1,5 +1,5 @@
 ﻿tauclean.cleaner
-=======================
+================
 
 .. automodule:: tauclean.cleaner
 

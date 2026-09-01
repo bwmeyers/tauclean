@@ -1,5 +1,5 @@
 ﻿tauclean.response
-========================
+=================
 
 .. automodule:: tauclean.response
 
@@ -13,4 +13,10 @@
       get_instrumental_response
       get_restoring_function
       reconstruct
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      ResponseComponent
    

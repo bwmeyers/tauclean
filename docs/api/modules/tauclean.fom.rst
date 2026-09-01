@@ -1,4 +1,4 @@
-tauclean.fom
+﻿tauclean.fom
 ============
 
 .. automodule:: tauclean.fom
@@ -13,3 +13,4 @@ tauclean.fom
       FigureOfMeritSet
       TauEstimate
       TauSearchAnalyzer
+   

@@ -1,5 +1,5 @@
 ﻿tauclean.kernels
-=======================
+================
 
 .. automodule:: tauclean.kernels
 

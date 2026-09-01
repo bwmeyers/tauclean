@@ -1,5 +1,5 @@
 ﻿tauclean.components
-==========================
+===================
 
 .. automodule:: tauclean.components
 

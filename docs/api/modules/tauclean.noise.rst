@@ -1,5 +1,5 @@
 ﻿tauclean.noise
-=====================
+==============
 
 .. automodule:: tauclean.noise
 

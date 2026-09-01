@@ -1,5 +1,5 @@
 ﻿tauclean.clean\_api
-==========================
+===================
 
 .. automodule:: tauclean.clean_api
 
