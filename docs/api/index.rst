@@ -9,7 +9,6 @@ Modules
    :recursive:
 
    tauclean.clean_api
-   tauclean.clean_run
    tauclean.cleaner
    tauclean.components
    tauclean.figures_of_merit

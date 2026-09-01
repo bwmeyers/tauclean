@@ -87,7 +87,7 @@ Returns
 ~~~~~~~
 
 The :func:`tauclean.clean_api.clean` function returns a
-:class:`tauclean.clean_run.CleanResult` object. Its commonly used
+:class:`tauclean.cleaner.CleanResult` object. Its commonly used
 attributes include:
 
 - ``cc`` - Clean component amplitudes

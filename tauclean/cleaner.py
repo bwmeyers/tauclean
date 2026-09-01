@@ -8,10 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import convolve
 
-from . import plotting
-from .clean_run import CleanResult
 from .components import ComponentHistory, SubtractedComponent
-from .figures_of_merit import FigureOfMeritEvaluator
+from .figures_of_merit import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
 from .noise import AutoWindowNoiseEstimator, UserDefinedOnPulseNoiseEstimator
 from .profile import ProfileData
@@ -28,6 +26,50 @@ if not logger.handlers:
     ch.setFormatter(fmt)
     ch.setLevel(logging.INFO)
     logger.addHandler(ch)
+
+
+@dataclass
+class CleanResult:
+    """Typed output for a single CLEAN run at one tau value."""
+
+    profile: np.ndarray
+    init_off_rms: float
+    init_on_rms: float
+    nbins: int
+    nbins_on: int
+    nbins_off: int
+    rest_func: np.ndarray
+    inst_resp_func: np.ndarray
+    tau: float
+    pbftype: str
+    niter: int
+    cc: np.ndarray
+    ncc: int
+    off_bins: np.ndarray
+    on_bins: np.ndarray
+    off_rms: float
+    off_mean: float
+    on_rms: float
+    on_mean: float
+    total_mean: float
+    total_rms: float
+    recon: np.ndarray
+    threshold: float
+    profile_data: ProfileData
+    figures_of_merit: FigureOfMeritSet
+    component_history: ComponentHistory | None = None
+
+    @property
+    def nf(self) -> int:
+        return self.figures_of_merit.consistence
+
+    @property
+    def fr(self) -> float:
+        return self.figures_of_merit.positivity
+
+    @property
+    def gamma(self) -> float:
+        return self.figures_of_merit.skewness
 
 
 @dataclass
@@ -182,6 +224,9 @@ class Cleaner:
                     self.iter_limit,
                     tau,
                 )
+                # Imported lazily to avoid a circular import with plotting (which depends on CleanResult).
+                from . import plotting
+
                 plotting.plot_cleaner_debug_component_alignment(
                     initial_data=profile_data.samples,
                     cleaned=cleaned,

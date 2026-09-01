@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks, savgol_filter
 
-from .clean_run import CleanResult
+from .cleaner import CleanResult
 from .figures_of_merit import TauSearchAnalyzer
 from .kernels import get_kernel
 from .response import ResponseComponent

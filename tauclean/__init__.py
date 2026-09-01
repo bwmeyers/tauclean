@@ -18,8 +18,7 @@ except ImportError:
     __version__ = "0.0.0.dev0"
 
 from .clean_api import clean
-from .clean_run import CleanResult
-from .cleaner import Cleaner
+from .cleaner import CleanResult, Cleaner
 from .components import ComponentHistory, SubtractedComponent
 from .figures_of_merit import (
     FigureOfMeritEvaluator,

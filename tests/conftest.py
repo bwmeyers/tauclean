@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from tauclean.clean_api import clean
-from tauclean.clean_run import CleanResult
+from tauclean.cleaner import CleanResult
 
 
 @pytest.fixture(scope="session")
