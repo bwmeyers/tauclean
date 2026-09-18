@@ -226,16 +226,16 @@ class TauSearchAnalyzer:
         fom_tau_estimates = []
 
         for series in fom_series:
-            if series.name in ["r_phi", "r_sigma"]:
-                fn = series.alt_operation
-                best_tau_fom = taus[fn(series.values)]
-                fom_tau_estimates.append(best_tau_fom)
-                self.logger.info(
-                    "Best tau from metric=%7s is: %.2f ms",
-                    series.name,
-                    np.squeeze(best_tau_fom),
-                )
-                continue
+            # if series.name in ["r_phi", "r_sigma"]:
+            #     fn = series.alt_operation
+            #     best_tau_fom = taus[fn(series.values)]
+            #     fom_tau_estimates.append(best_tau_fom)
+            #     self.logger.info(
+            #         "Best tau from metric=%7s is: %.2f ms",
+            #         series.name,
+            #         np.squeeze(best_tau_fom),
+            #     )
+            #     continue
 
             self.logger.debug(
                 "Finding 'best' tau from FOM=%7s via 3rd deriv.", series.name
@@ -294,7 +294,7 @@ class TauSearchAnalyzer:
             norm_deriv = deriv / deriv.max()
             pidx, _ = find_peaks(
                 np.abs(norm_deriv),
-                prominence=(0.05, norm_fom_peak_prominance),
+                prominence=(0.2, norm_fom_peak_prominance),
                 height=(None, norm_fom_peak_height),
             )
 
