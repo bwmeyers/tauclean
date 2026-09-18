@@ -98,7 +98,7 @@ def plot_figures_of_merit(
             "name": "r_sigma",
             "values": np.array(r_sigma),
             "label": r"$r_\sigma = \sigma_{\rm offc}/\sigma_{\rm off}$",
-            "use_jerk": False,
+            "use_jerk": True,
             "alt_operation": np.argmin,
             "ylims": (1, 3),
         },
@@ -114,7 +114,7 @@ def plot_figures_of_merit(
             "name": "r_phi",
             "values": np.array(r_phi),
             "label": r"$r_\phi=N_f / N_{\rm tot}$",
-            "use_jerk": False,
+            "use_jerk": True,
             "alt_operation": np.argmax,
             "ylims": None,
         },
@@ -150,7 +150,7 @@ def plot_figures_of_merit(
                 norm_abs_der3 = np.abs(der3) / np.abs(der3).max()
                 pidx, _ = find_peaks(
                     np.abs(norm_abs_der3),
-                    prominence=(0.05, None),
+                    prominence=(0.2, None),
                     height=(None, None),
                 )
                 tax.plot(
@@ -366,16 +366,16 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
             )
             kernel = get_kernel("thin")
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
-        norm_rest = rest / rest.max()
-        norm_pbf = kernel(x, t, x0=x[len(x) // 20])
-        norm_pbf = norm_pbf / norm_pbf.max()
+        pbf = kernel(x, t, x0=x[len(x) // 20])
+        recon = residuals[i] + recons[i]
+        rest_scaled = (rest / rest.max()) * pbf.max()
 
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
         ax.plot(
             x,
-            (recons[i] * original.max() + residuals[i]),
+            recon,
             color="k",
-            label="reconstruction (scaled)",
+            label="reconstruction",
         )
         ax.plot(
             x,
@@ -386,20 +386,21 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         )
         ax.plot(
             x,
-            original.max() * norm_pbf,
+            pbf,
             color="C0",
             alpha=0.5,
             ls=":",
-            label="PBF (scaled, shifted)",
+            label="PBF (shifted)",
         )
         ax.plot(
             x,
-            original.max() * norm_rest,
+            rest_scaled,
             color="C1",
             alpha=0.5,
             ls="--",
-            label="restoring function (shifted)",
+            label="restoring function (scaled, shifted)",
         )
+
         ax.axhline(0, ls=":", lw=1, color="k")
         ax.set_xlim(x[0], x[-1])
         ax.set_xlabel("Time (ms)", fontsize=15)
