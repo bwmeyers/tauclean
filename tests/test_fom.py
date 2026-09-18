@@ -20,7 +20,7 @@ def evaluator() -> FigureOfMeritEvaluator:
 
 
 def test_consistence_counts_values_within_threshold(
-    evaluator: FigureOfMeritEvaluator
+    evaluator: FigureOfMeritEvaluator,
 ) -> None:
     profile = np.array([0.0, 0.5, -0.5, 4.0])
 
@@ -28,14 +28,14 @@ def test_consistence_counts_values_within_threshold(
 
 
 def test_positivity_handles_zero_and_negative_residuals(
-    evaluator: FigureOfMeritEvaluator
+    evaluator: FigureOfMeritEvaluator,
 ) -> None:
     assert np.isnan(evaluator.positivity(np.zeros(4), off_rms=1.0))
     assert evaluator.positivity(np.array([0.0, -3.0]), off_rms=1.0) > 0
 
 
 def test_skewness_of_single_component_is_zero(
-    evaluator: FigureOfMeritEvaluator
+    evaluator: FigureOfMeritEvaluator,
 ) -> None:
     components = np.zeros(8)
     components[3] = 1.0

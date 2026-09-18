@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 
-from .cleaner import CleanResult, Cleaner
+from .cleaner import Cleaner, CleanResult
 from .kernels import Kernel, get_kernel
 from .profile import ProfileData
 

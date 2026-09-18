@@ -18,7 +18,7 @@ except ImportError:
     __version__ = "0.0.0.dev0"
 
 from .clean_api import clean
-from .cleaner import CleanResult, Cleaner
+from .cleaner import Cleaner, CleanResult
 from .components import ComponentHistory, SubtractedComponent
 from .fom import (
     FigureOfMeritEvaluator,
@@ -67,6 +67,7 @@ __all__ = [
     "dm_delay",
     "gaussian",
     "get_instrumental_response",
+    "get_kernel",
     "get_restoring_function",
     "reconstruct",
 ]

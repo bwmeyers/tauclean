@@ -20,7 +20,9 @@ def test_profile_initializes_regions_baseline_and_noise() -> None:
     assert profile.baseline == 2.0
     np.testing.assert_array_equal(profile.on_bins, [2, 3])
     np.testing.assert_array_equal(profile.off_bins, [0, 1, 4, 5])
-    np.testing.assert_array_equal(profile.baseline_corrected, [0, 0, 2, 6, 0, 0])
+    np.testing.assert_array_equal(
+        profile.baseline_corrected, [0, 0, 2, 6, 0, 0]
+    )
     assert profile.initial_noise == profile.current_noise
 
 

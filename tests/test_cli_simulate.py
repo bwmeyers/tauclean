@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 
-import tauclean.scripts.cli_simulate as cli_simulate
+from tauclean.scripts import cli_simulate
 from tauclean.scripts.cli_simulate import (
     create_intrinsic_pulse,
     create_scattered_profile,
@@ -37,7 +37,9 @@ def test_simulation_helpers_generate_finite_profile_and_files(
 
 def test_simulate_main_parses_and_writes_data(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli_simulate, "plot_simulated", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        cli_simulate, "plot_simulated", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(
         sys,
         "argv",

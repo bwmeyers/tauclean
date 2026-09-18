@@ -46,7 +46,10 @@ def test_plot_instrumental_response_with_and_without_components(
 
 
 def test_plotting_functions_write_expected_pngs(
-    clean_results: list[CleanResult], thin_profile: np.ndarray, tmp_path, monkeypatch
+    clean_results: list[CleanResult],
+    thin_profile: np.ndarray,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
 

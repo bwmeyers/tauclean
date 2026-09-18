@@ -13,9 +13,9 @@ from tauclean.noise import (
 def test_user_defined_estimator_partitions_profile() -> None:
     samples = np.zeros(10)
 
-    off_bins, on_bins = UserDefinedOnPulseNoiseEstimator(3, 7).estimate_regions(
-        samples
-    )
+    off_bins, on_bins = UserDefinedOnPulseNoiseEstimator(
+        3, 7
+    ).estimate_regions(samples)
 
     np.testing.assert_array_equal(on_bins, [3, 4, 5, 6])
     np.testing.assert_array_equal(off_bins, [0, 1, 2, 7, 8, 9])
@@ -32,9 +32,9 @@ def test_auto_window_estimator_selects_quiet_region() -> None:
     samples = np.zeros(32)
     samples[12:20] = 50.0
 
-    off_bins, on_bins = AutoWindowNoiseEstimator(windowsize=8).estimate_regions(
-        samples
-    )
+    off_bins, on_bins = AutoWindowNoiseEstimator(
+        windowsize=8
+    ).estimate_regions(samples)
 
     assert len(off_bins) == 8
     assert not np.intersect1d(off_bins, on_bins).size

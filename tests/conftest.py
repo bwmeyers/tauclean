@@ -14,7 +14,10 @@ import pytest
 
 from tauclean.clean_api import clean
 from tauclean.cleaner import CleanResult
-from tauclean.scripts.cli_simulate import create_intrinsic_pulse, create_scattered_profile
+from tauclean.scripts.cli_simulate import (
+    create_intrinsic_pulse,
+    create_scattered_profile,
+)
 
 SIMULATED_PERIOD_MS = 500.0
 SIMULATED_NBINS = 1024
@@ -60,7 +63,7 @@ def simulated_profile_factory() -> Callable[[str, float], np.ndarray]:
 
 @pytest.fixture
 def thin_profile(
-    simulated_profile_factory: Callable[[str, float], np.ndarray]
+    simulated_profile_factory: Callable[[str, float], np.ndarray],
 ) -> np.ndarray:
     """Return a synthetic thin-screen scattered profile."""
     return simulated_profile_factory("thin", 20.0)
@@ -91,7 +94,7 @@ def clean_result_factory(
 
 @pytest.fixture
 def clean_results(
-    clean_result_factory: Callable[[float], CleanResult]
+    clean_result_factory: Callable[[float], CleanResult],
 ) -> list[CleanResult]:
     """Return a small tau sweep for plotting and FOM integration tests."""
     return [clean_result_factory(tau) for tau in (15.0, 20.0, 25.0)]
