@@ -247,7 +247,8 @@ def plot_figures_of_merit(
             for i, t in enumerate(taus)
         )
 
-    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    # For the purposes of testing, return whether the figure was closed
+    # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
 
@@ -307,7 +308,8 @@ def plot_clean_residuals(
         )
         plt.close(fig)
 
-    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    # For the purposes of testing, return whether the figure was closed
+    # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
 
@@ -338,7 +340,8 @@ def plot_clean_components(results: list[CleanResult], period=100.0):
         )
         plt.close(fig)
 
-    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    # For the purposes of testing, return whether the figure was closed
+    # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
 
@@ -358,7 +361,8 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         except ValueError as e:
             logger.error(e)
             logger.warning(
-                f"Cannot find pbf function '{pbftype[i]}'! Assuming 'thin' model."
+                f"Cannot find pbf function '{pbftype[i]}'! "
+                "Assuming 'thin' model."
             )
             kernel = get_kernel("thin")
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
@@ -409,7 +413,8 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         )
         plt.close(fig)
 
-    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    # For the purposes of testing, return whether the figure was closed
+    # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
 
@@ -425,7 +430,8 @@ def plot_instrumental_response(
     """Plot the total instrumental response and (optionally) its components.
 
     :param response: the decimated total instrumental response function.
-    :param width: the equivalent width (area/peak) of the total response, in ms.
+    :param width: the equivalent width (area/peak) of the total response,
+        in ms.
     :param period: the pulsar period, in ms (used to build the time axis).
     :param components: per-element contributions, as returned by
         ``get_instrumental_response(..., return_components=True)``. If
@@ -453,7 +459,13 @@ def plot_instrumental_response(
             label=f"{component.label} (width={component.width:.3g} ms)",
         )
 
-    ax.plot(x, response, color="k", lw=2, label=f"Total (width={width:.3g} ms)")
+    ax.plot(
+        x,
+        response,
+        color="k",
+        lw=2,
+        label=f"Total (width={width:.3g} ms)",
+    )
     ax.set_xlabel("Time (ms)")
     ax.set_ylabel("Normalised response")
     ax.set_xlim(x.min(), x.max())
@@ -463,16 +475,24 @@ def plot_instrumental_response(
 
     if restoring_func is not None:
         rax = axs[1]
-        # the restoring function is centred on the array; shift its peak
-        # to a small positive offset so it is easy to see against the axis
+        # The restoring function is centred on the array; shift its peak
+        # to the centre of the array so it is easy to see against the axis
         shifted = np.roll(
             restoring_func,
-            -np.argmax(restoring_func) + len(restoring_func) // 40,
+            -np.argmax(restoring_func) + len(restoring_func) // 2,
         )
         label = "Restoring function"
         if restoring_width is not None:
             label += f" (width={restoring_width:.3g} ms)"
         rax.plot(x, shifted, color="C1", lw=2, label=label)
+        rax.plot(
+            x,
+            response,
+            color="k",
+            lw=2,
+            ls=":",
+            label=f"Instrumental response (width={width:.3g} ms)",
+        )
         rax.set_xlabel("Time (ms)")
         rax.set_ylabel("Normalised amplitude")
         rax.set_xlim(x.min(), x.max())
@@ -482,7 +502,8 @@ def plot_instrumental_response(
     plt.savefig(filename, bbox_inches="tight")
     plt.close(fig)
 
-    # For the purposes of testing, return whether the figure was closed successfully (implying nothing broke)
+    # For the purposes of testing, return whether the figure was closed
+    # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
 
 
