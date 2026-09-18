@@ -175,6 +175,17 @@ def main():
     )
 
     clean_group.add_argument(
+        "--cc-window",
+        metavar="WINDOW",
+        type=str,
+        default=None,
+        help="Restrict where clean components may be placed. One of "
+        "'onpulse'/'on', 'offpulse'/'off', 'all'/'total', or a "
+        "comma-separated list of 'START-END' bin ranges (end-exclusive), "
+        "e.g. '100-200,400-450'. Defaults to no restriction.",
+    )
+
+    clean_group.add_argument(
         "--ncpus",
         type=int,
         default=mp.cpu_count(),
@@ -290,6 +301,7 @@ def execute_tauclean(args):
         "inst_resp_func": inst_resp_fn,
         "rest_func": restoring_fn,
         "onpulse_estimator": args.onpulse,
+        "component_window": args.cc_window,
     }
 
     # Create a master list that will contain the output for each trial

@@ -23,10 +23,17 @@ def clean(
     kernel: Kernel | None = None,
     iter_limit: int = 1000,
     onpulse_estimator: str = "auto",
+    component_window: str | None = None,
     track_components: bool = False,
     logger: logging.Logger | None = None,
 ) -> CleanResult:
-    """Run CLEAN deconvolution using the canonical service implementation."""
+    """Run CLEAN deconvolution using the canonical service implementation.
+
+    :param component_window: restrict where clean components may be placed.
+        One of 'onpulse'/'on', 'offpulse'/'off', 'all'/'total', or a
+        comma-separated list of 'START-END' bin ranges (end-exclusive).
+        Defaults to no restriction.
+    """
     cleaner = Cleaner(
         period=period,
         rest_func=rest_func,
@@ -36,6 +43,7 @@ def clean(
         kernel=kernel if kernel is not None else get_kernel(pbftype),
         iter_limit=iter_limit,
         onpulse_estimator=onpulse_estimator,
+        component_window=component_window,
         track_components=track_components,
         logger=logger,
     )

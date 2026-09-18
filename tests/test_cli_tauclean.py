@@ -26,6 +26,7 @@ def _args(profile: str, **overrides: object) -> argparse.Namespace:
         "native_dt": 100.0,
         "kernel": "thin",
         "onpulse": "auto",
+        "cc_window": None,
         "thresh": 3.0,
         "gain": 0.05,
         "iterlim": 2,

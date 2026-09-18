@@ -84,6 +84,7 @@ class Cleaner:
     kernel: Kernel | None = None
     iter_limit: int = 1000
     onpulse_estimator: str = "auto"
+    component_window: str | None = None
     track_components: bool = False
     logger: logging.Logger | None = None
 
@@ -138,6 +139,10 @@ class Cleaner:
         init_off_rms = profile_data.initial_noise.off_rms
         init_on_rms = profile_data.initial_noise.on_rms
 
+        component_mask = _parse_component_window(
+            self.component_window, nbins, on_pulse_bins, off_pulse_bins
+        )
+
         clean_components = np.zeros_like(profile)
         delta = np.zeros_like(profile)
         delta[delta.size // 2] = 1.0
@@ -187,7 +192,11 @@ class Cleaner:
                 break
             niter += 1
 
-            imax = np.argmax(profile)
+            if component_mask is not None:
+                search_profile = np.where(component_mask, profile, -np.inf)
+            else:
+                search_profile = profile
+            imax = np.argmax(search_profile)
             dmax = profile[imax]
             cc_amp = dmax * self.gain
 
@@ -224,7 +233,8 @@ class Cleaner:
                     self.iter_limit,
                     tau,
                 )
-                # Imported lazily to avoid a circular import with plotting (which depends on CleanResult).
+                # Imported lazily to avoid a circular import with plotting
+                # (which depends on CleanResult).
                 from . import plotting
 
                 plotting.plot_cleaner_debug_component_alignment(
@@ -331,6 +341,76 @@ class Cleaner:
             figures_of_merit=figures_of_merit,
             component_history=component_history,
         )
+
+
+_COMPONENT_WINDOW_KEYWORDS = {
+    "onpulse": "on",
+    "on": "on",
+    "offpulse": "off",
+    "off": "off",
+    "all": "all",
+    "total": "all",
+}
+
+
+def _parse_component_window(
+    spec: str | None,
+    nbins: int,
+    on_bins: np.ndarray,
+    off_bins: np.ndarray,
+) -> np.ndarray | None:
+    """Resolve a clean-component window spec into a boolean bin mask.
+
+    ``spec`` may be one of 'onpulse'/'on', 'offpulse'/'off', 'all'/'total',
+    or a comma-separated list of 'START-END' bin ranges (end-exclusive).
+    Returns None if no restriction is requested (i.e. all bins allowed).
+    """
+    if spec is None:
+        return None
+
+    key = spec.strip().lower()
+    if key in _COMPONENT_WINDOW_KEYWORDS:
+        kind = _COMPONENT_WINDOW_KEYWORDS[key]
+        if kind == "all":
+            return None
+        mask = np.zeros(nbins, dtype=bool)
+        mask[on_bins if kind == "on" else off_bins] = True
+        return mask
+
+    mask = np.zeros(nbins, dtype=bool)
+    ranges = [r.strip() for r in spec.split(",") if r.strip()]
+    if not ranges:
+        raise ValueError(
+            f"Invalid clean component window specification: {spec!r}"
+        )
+    for r in ranges:
+        parts = r.split("-")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid range {r!r} in clean component window specification "
+                f"{spec!r}. Expected 'START-END', comma-separated for multiple "
+                "ranges, or one of 'onpulse'/'on', 'offpulse'/'off', "
+                "'all'/'total'."
+            )
+        try:
+            start, end = int(parts[0]), int(parts[1])
+        except ValueError:
+            raise ValueError(
+                f"Invalid range {r!r} in clean component window specification "
+                f"{spec!r}: bounds must be integers."
+            )
+        if start < 0 or end > nbins or start >= end:
+            raise ValueError(
+                f"Range {r!r} is out of bounds for a profile with {nbins} bins."
+            )
+        mask[start:end] = True
+
+    if not mask.any():
+        raise ValueError(
+            f"Clean component window specification {spec!r} does not allow "
+            "any bins."
+        )
+    return mask
 
 
 def _keep_cleaning(
