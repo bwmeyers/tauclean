@@ -370,6 +370,8 @@ def execute_tauclean(args):
                 plot_resp_width,
                 args.period,
                 components=plot_resp_components,
+                restoring_func=restoring_fn,
+                restoring_width=inst_resp_width,
             )
         except ValueError as e:
             logger.warning("Could not plot instrumental response: %s", e)

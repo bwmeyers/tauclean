@@ -418,6 +418,8 @@ def plot_instrumental_response(
     width: float,
     period: float,
     components: list[ResponseComponent] | None = None,
+    restoring_func: np.ndarray | None = None,
+    restoring_width: float | None = None,
     filename: str = "instrumental_response.png",
 ):
     """Plot the total instrumental response and (optionally) its components.
@@ -428,11 +430,19 @@ def plot_instrumental_response(
     :param components: per-element contributions, as returned by
         ``get_instrumental_response(..., return_components=True)``. If
         omitted or empty, only the total response is plotted.
+    :param restoring_func: the restoring function, as returned by
+        ``get_restoring_function()``. If provided, it is plotted alongside
+        the instrumental response on a second panel.
+    :param restoring_width: the equivalent width (area/peak) of the
+        restoring function, in ms, used in the legend label. Required if
+        ``restoring_func`` is provided.
     :param filename: path to save the resulting figure to.
     """
     x = period * np.linspace(0, 1, len(response), endpoint=False)
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    ncols = 2 if restoring_func is not None else 1
+    fig, axs = plt.subplots(1, ncols, figsize=(10 * ncols, 6))
+    ax = axs[0] if ncols > 1 else axs
 
     for component in components or []:
         ax.plot(
@@ -450,6 +460,24 @@ def plot_instrumental_response(
     ax.set_ylim(0, None)
     ax.set_title("Instrumental response function")
     ax.legend()
+
+    if restoring_func is not None:
+        rax = axs[1]
+        # the restoring function is centred on the array; shift its peak
+        # to a small positive offset so it is easy to see against the axis
+        shifted = np.roll(
+            restoring_func,
+            -np.argmax(restoring_func) + len(restoring_func) // 40,
+        )
+        label = "Restoring function"
+        if restoring_width is not None:
+            label += f" (width={restoring_width:.3g} ms)"
+        rax.plot(x, shifted, color="C1", lw=2, label=label)
+        rax.set_xlabel("Time (ms)")
+        rax.set_ylabel("Normalised amplitude")
+        rax.set_xlim(x.min(), x.max())
+        rax.set_title("Restoring function")
+        rax.legend()
 
     plt.savefig(filename, bbox_inches="tight")
     plt.close(fig)
