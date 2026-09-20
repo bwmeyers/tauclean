@@ -189,7 +189,15 @@ def main():
         "--ncpus",
         type=int,
         default=mp.cpu_count(),
-        help="Number of CPUs to use for parallel trial deconvolution.",
+        help="Number of CPUs to use for parallel trial deconvolution. Defaults to all available cores.",
+    )
+
+    clean_group.add_argument(
+        "--fast-response",
+        action="store_true",
+        default=False,
+        help="Use a fast (delta function) instrumental response during "
+        "deconvolution instead of modelling DM smearing/sampling effects.",
     )
 
     other_group = parser.add_argument_group("Other options")
@@ -280,7 +288,7 @@ def execute_tauclean(args):
         r_pb_width=prof_bin_width,
         r_av_width=backend_dt_width,
         r_pd_width=post_dt_width,
-        fast=True,
+        fast=args.fast_response,
     )
     restoring_fn = get_restoring_function(data, args.period, inst_resp_width)
 
