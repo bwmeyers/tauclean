@@ -32,7 +32,9 @@ tau_search_analyzer = TauSearchAnalyzer(logger=logger)
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="tauclean", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        prog="tauclean",
+        description="A tool for deconvolving pulsar pulse profiles.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     obs_group = parser.add_argument_group(
         "Observing and de-dispersion details"
@@ -40,7 +42,8 @@ def main():
 
     parser.add_argument(
         "profile",
-        help="The data file containing the folded pulse profile. Expects a single column, one value per line.",
+        help="The data file containing the folded pulse profile. "
+        "Expects a single column, one value per line.",
     )
 
     # Option group for observation and processing details
@@ -57,8 +60,9 @@ def main():
         "--coherent",
         action="store_true",
         default=False,
-        help="Whether the data are coherently de-dispersed (affects calculation of effective time "
-        "sampling for reconstruction). If yes, DM and frequency options are not required.",
+        help="Whether the data are coherently de-dispersed (affects "
+        "calculation of effective time sampling for reconstruction). "
+        "If yes, DM and frequency options are not required.",
     )
 
     obs_group.add_argument(
@@ -103,10 +107,12 @@ def main():
         metavar="NATIVE_TIME_RES",
         type=float,
         default=100.0,
-        help="Native time resolution of output data from back-end (pre-folding), in microseconds.",
+        help="Native time resolution of output data from back-end "
+        "(pre-folding), in microseconds.",
     )
 
-    # Option group specifying configuration of deconvolution, and how to perform it (i.e. to search or not)
+    # Option group specifying configuration of deconvolution, and how to 
+    # perform it (i.e. to search or not)
     clean_group = parser.add_argument_group("Deconvolution options")
     tau_group = clean_group.add_mutually_exclusive_group(required=True)
     tau_group.add_argument(
@@ -115,7 +121,8 @@ def main():
         metavar="tau",
         type=float,
         default=None,
-        help="Nominal pulse broadening time scale to use when deconvolving profile (in ms)",
+        help="Nominal pulse broadening time scale to use when deconvolving "
+        "profile (in ms)",
     )
 
     tau_group.add_argument(
@@ -136,7 +143,8 @@ def main():
         default="thin",
         choices=KernelRegistry.choices(),
         help="The type of PBF kernel to use during the deconvolution."
-        "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
+        "A '_exp' suffix implies a modified PBF that asymptotes to a "
+        "thin-screen approximation at large times.",
     )
 
     clean_group.add_argument(
@@ -145,8 +153,9 @@ def main():
         metavar="'START END' or 'auto'",
         type=str,
         default="auto",
-        help="""Boundaries of the on-pulse region. Format as 'START END', or if set to 'auto',
-        will automatically compute on- and off-pulse regions.""",
+        help="""Boundaries of the on-pulse region. Format as 'START END', or 
+        if set to 'auto', will automatically compute on- and off-pulse 
+        regions.""",
     )
 
     clean_group.add_argument(
@@ -154,7 +163,8 @@ def main():
         metavar="sigma",
         type=float,
         default=3.0,
-        help="On-pulse data threshold (units of off-pulse rms noise) to stop cleaning.",
+        help="On-pulse data threshold (units of off-pulse rms noise) to "
+        "stop cleaning.",
     )
 
     clean_group.add_argument(
@@ -163,7 +173,8 @@ def main():
         metavar="gain",
         type=float,
         default=0.01,
-        help="Loop gain (scaling factor << 1) used to weight component subtraction. Values around 0.01 are empirically good.",
+        help="Loop gain (scaling factor << 1) used to weight component "
+        "subtraction. Values around 0.01 are empirically good.",
     )
 
     clean_group.add_argument(
@@ -171,7 +182,8 @@ def main():
         metavar="N",
         type=int,
         default=100000,
-        help="Limit the number of iterations for each trial value, regardless of convergence factors.",
+        help="Limit the number of iterations for each trial value, regardless "
+        "of convergence factors.",
     )
 
     clean_group.add_argument(
@@ -189,7 +201,8 @@ def main():
         "--ncpus",
         type=int,
         default=mp.cpu_count(),
-        help="Number of CPUs to use for parallel trial deconvolution. Defaults to all available cores.",
+        help="Number of CPUs to use for parallel trial deconvolution. "
+        "Defaults to all available cores.",
     )
 
     clean_group.add_argument(
@@ -299,7 +312,7 @@ def execute_tauclean(args):
 
     kernel = get_kernel(args.kernel)
 
-    # Setup for the deconvolution (potentially distributed across multiple processes)
+    # Setup for the deconvolution (maybe distributed over multiple processes)
     clean_kwargs = {
         "period": args.period,
         "gain": args.gain,
@@ -315,13 +328,15 @@ def execute_tauclean(args):
     # Create a master list that will contain the output for each trial
     result_list = []
 
-    # Define a small callback function that simply appends output from Pool workers to "master" list
+    # Define a small callback function that simply appends output from 
+    # Pool workers to "master" list
     def log_results(worker_results):
         logger.debug("Finished work for tau=%s", worker_results.tau)
         result_list.append(worker_results)
 
     logger.info("Starting deconvolution cycles...")
-    # Create worker pool, where the number of workers is given by the user, or based on the number of CPUs available
+    # Create worker pool, where the number of workers is given by the user, 
+    # or based on the number of CPUs available
     logger.debug("Creating a pool of %s workers", args.ncpus)
     with mp.Pool(processes=args.ncpus) as pool:
         for tau in taus:
