@@ -192,10 +192,23 @@ def get_restoring_function(
 
     The provided ``inst_resp_width`` is interpreted as an equivalent width
     defined as area/peak of the instrumental response. This is converted to
-    Gaussian sigma via sigma = width / sqrt(2*pi).
+    Gaussian sigma via sigma = width / sqrt(2*pi). The width is floored at
+    the profile's native bin width, since a restoring function narrower
+    than one bin cannot meaningfully smooth the per-bin CLEAN components
+    and produces a jagged reconstruction.
     """
     if not np.isfinite(inst_resp_width) or inst_resp_width <= 0:
         raise ValueError("Instrumental response width must be finite and > 0.")
+
+    bin_width = pulse_period / len(profile)
+    if inst_resp_width < bin_width:
+        logger.debug(
+            "Restoring function width (%g ms) is narrower than the profile "
+            "bin width (%g ms); flooring to the bin width.",
+            inst_resp_width,
+            bin_width,
+        )
+        inst_resp_width = bin_width
 
     upfact = 10
     nbins = upfact * len(profile)
