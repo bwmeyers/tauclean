@@ -72,7 +72,7 @@ def create_scattered_profile(
     try:
         kernel = get_kernel(pbftype)
     except ValueError:
-        logger.error(f"Invalid PBF type requested ({pbftype})")
+        logger.error("Invalid PBF type requested (%s)", pbftype)
         logger.warning("Defaulting to thin screen...")
         kernel = get_kernel("thin")
     h = kernel(x, tau)
@@ -147,7 +147,7 @@ def plot_simulated(
         x = np.linspace(0, nbins, nbins).astype(int)
         xlab = "Bins"
     else:
-        logger.error(f"Unknown x-unit: {xunit}")
+        logger.error("Unknown x-unit: %s", xunit)
         sys.exit(1)
 
     fig = plt.figure(figsize=(10, 8))
@@ -215,7 +215,9 @@ def write_data(intrinsic, kernel, scattered, observed, pbftype, tau):
     np.savetxt(f"sim-profile_{pbftype}-tau{tau:g}.txt", observed)
 
     logger.info(
-        f"Wrote final scattered profile to: sim-profile_{pbftype}-tau{tau:g}.txt"
+        "Wrote final scattered profile to: sim-profile_%s-tau%g.txt",
+        pbftype,
+        tau,
     )
 
 
@@ -329,23 +331,23 @@ def main():
         args.a = [args.a[0]]
 
     time_sample = args.p / args.n
-    logger.info(f"Time sample: {time_sample:g} ms")
+    logger.info("Time sample: %g ms", time_sample)
     # Figure out the dispersion smearing in the worst case (i.e. in the lowest channel), and then determine the
     # nominal width of the restoring function
     chan_bw = args.bw / args.nchan
 
-    logger.debug(f"Frequency channel size: {chan_bw * 1000:g} MHz")
+    logger.debug("Frequency channel size: %g MHz", chan_bw * 1000)
     lochan = args.freq - (args.bw / 2)
     hichan = lochan + chan_bw
 
     logger.debug(
-        f"Lowest channel edges: {lochan * 1000:g}-{hichan * 1000:g} MHz"
+        "Lowest channel edges: %g-%g MHz", lochan * 1000, hichan * 1000
     )
     dmdelay = dm_delay(args.dm, lochan, hichan)
-    logger.info(f"Dispersion smearing in lowest channel: {dmdelay:g} ms")
+    logger.info("Dispersion smearing in lowest channel: %g ms", dmdelay)
 
     restoring_width = np.sqrt(time_sample**2 + dmdelay**2)
-    logger.info(f"Restoring function width: {restoring_width:g} ms")
+    logger.info("Restoring function width: %g ms", restoring_width)
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
     k, s, o = create_scattered_profile(

@@ -111,7 +111,7 @@ def main():
         "(pre-folding), in microseconds.",
     )
 
-    # Option group specifying configuration of deconvolution, and how to 
+    # Option group specifying configuration of deconvolution, and how to
     # perform it (i.e. to search or not)
     clean_group = parser.add_argument_group("Deconvolution options")
     tau_group = clean_group.add_mutually_exclusive_group(required=True)
@@ -328,14 +328,14 @@ def execute_tauclean(args):
     # Create a master list that will contain the output for each trial
     result_list = []
 
-    # Define a small callback function that simply appends output from 
+    # Define a small callback function that simply appends output from
     # Pool workers to "master" list
     def log_results(worker_results):
         logger.debug("Finished work for tau=%s", worker_results.tau)
         result_list.append(worker_results)
 
     logger.info("Starting deconvolution cycles...")
-    # Create worker pool, where the number of workers is given by the user, 
+    # Create worker pool, where the number of workers is given by the user,
     # or based on the number of CPUs available
     logger.debug("Creating a pool of %s workers", args.ncpus)
     with mp.Pool(processes=args.ncpus) as pool:
@@ -371,9 +371,11 @@ def execute_tauclean(args):
         fom_set = sorted_results[0].figures_of_merit
         logger.info("f_r ~ positivity: %s", fom_set.positivity)
         logger.info("gamma ~ skewnesss: %s", fom_set.skewness)
-        logger.info(f"f_c = f_r / gamma: {fom_set.combined}")
+        logger.info("f_c = f_r / gamma: %s", fom_set.combined)
         logger.info(
-            f"nf ~ consistence: {fom_set.consistence} ({100 * fom_set.consistence / sorted_results[0].nbins_on}%)"
+            "nf ~ consistence: %s (%s%%)",
+            fom_set.consistence,
+            100 * fom_set.consistence / sorted_results[0].nbins_on,
         )
 
     # Make all of the diagnostic plots and write relevant files to disk

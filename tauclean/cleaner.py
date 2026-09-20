@@ -287,7 +287,7 @@ class Cleaner:
             )
         elif niter >= self.iter_limit:
             active_logger.warning(
-                f"Clean cycle terminated prematurely for tau={tau:g} ms"
+                "Clean cycle terminated prematurely for tau=%g ms", tau
             )
         else:
             active_logger.debug(

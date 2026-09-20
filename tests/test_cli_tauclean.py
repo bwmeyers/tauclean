@@ -31,6 +31,7 @@ def _args(profile: str, **overrides: object) -> argparse.Namespace:
         "gain": 0.05,
         "iterlim": 2,
         "ncpus": 1,
+        "fast_response": False,
         "noplot_r": True,
         "noplot_f": True,
         "nowrite": True,

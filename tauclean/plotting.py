@@ -361,8 +361,8 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         except ValueError as e:
             logger.error(e)
             logger.warning(
-                f"Cannot find pbf function '{pbftype[i]}'! "
-                "Assuming 'thin' model."
+                "Cannot find pbf function '%s'! Assuming 'thin' model.",
+                pbftype[i],
             )
             kernel = get_kernel("thin")
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
