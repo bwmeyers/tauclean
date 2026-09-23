@@ -19,7 +19,7 @@ from ..response import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 fmt = logging.Formatter(
-    "%(asctime)s [pid %(process)d] :: %(name)-22s [%(lineno)d] :: "
+    "%(asctime)s [pid %(process)d] :: %(name)s [%(lineno)d] :: "
     "%(levelname)s - %(message)s"
 )
 ch = logging.StreamHandler()
