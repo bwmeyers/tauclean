@@ -212,10 +212,13 @@ class Cleaner:
             if not np.isfinite(component_peak) or component_peak <= 0:
                 active_logger.error(
                     "Convolved CLEAN component is degenerate (peak=%s) for "
-                    "tau=%g ms; the trial tau is likely too small relative to "
-                    "the profile time resolution/actual scattering time.",
+                    "tau=%g ms.",
                     component_peak,
                     tau,
+                )
+                active_logger.debug(
+                    "The trial tau is likely too small relative to "
+                    "the profile time resolution/actual scattering time."
                 )
                 raise ValueError(
                     f"Degenerate CLEAN component for tau={tau:g} ms "
