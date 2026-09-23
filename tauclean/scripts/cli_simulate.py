@@ -118,6 +118,9 @@ def plot_simulated(
     snr,
     period=100.0,
     xunit="time",
+    dm=None,
+    freq=None,
+    bw=None,
     save=False,
 ):
     """Plot the simulated data in the desired units
@@ -131,6 +134,9 @@ def plot_simulated(
     :param snr: nominal signal-to-noise ratio of observed profile [float]
     :param period: pulsar period (units: ms) [float]
     :param xunit: what units to plot along the x-axis [string]
+    :param dm: pulsar dispersion measure (units: pc/cm^3) [float]
+    :param freq: centre observing frequency (units: GHz) [float]
+    :param bw: observing bandwidth (units: GHz) [float]
     :param save: whether to save the plot to disk or note [boolean]
     :return: None
     """
@@ -185,6 +191,24 @@ def plot_simulated(
     ax_obs.set_xlim(0, x.max())
     ax_obs.grid(True)
     ax_obs.set_xlabel(xlab)
+
+    info_lines = [rf"Period = {period:g} ms"]
+    if dm is not None:
+        info_lines.append(rf"DM = {dm:g} pc cm$^{{-3}}$")
+    if freq is not None:
+        info_lines.append(rf"Freq = {freq:g} GHz")
+    if bw is not None:
+        info_lines.append(rf"BW = {bw:g} GHz")
+    ax_obs.text(
+        0.99,
+        0.95,
+        "\n".join(info_lines),
+        transform=ax_obs.transAxes,
+        ha="right",
+        va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
+    )
 
     plt.subplots_adjust(wspace=0.25)
     if save:
@@ -290,7 +314,7 @@ def main():
     )
     parser.add_argument(
         "-x",
-        default="bins",
+        default="time",
         choices=["time", "phase", "bins"],
         help="plot x-axis units",
     )
@@ -364,6 +388,9 @@ def main():
         snr=args.s,
         period=args.p,
         xunit=args.x,
+        dm=args.dm,
+        freq=args.freq,
+        bw=args.bw,
         save=args.saveplot,
     )
 
