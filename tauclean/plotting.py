@@ -367,8 +367,9 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
             kernel = get_kernel("thin")
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
         pbf = kernel(x, t, x0=x[len(x) // 20])
+        pbf_scaled = (pbf / pbf.max()) * 0.3
         recon = residuals[i] + recons[i]
-        rest_scaled = (rest / rest.max()) * pbf.max()
+        rest_scaled = (rest / rest.max()) * pbf_scaled.max()
 
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
         ax.plot(
@@ -386,11 +387,11 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
         )
         ax.plot(
             x,
-            pbf,
+            pbf_scaled,
             color="C0",
             alpha=0.5,
             ls=":",
-            label="PBF (shifted)",
+            label="PBF (scaled, shifted)",
         )
         ax.plot(
             x,
