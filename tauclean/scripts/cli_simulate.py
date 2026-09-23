@@ -157,40 +157,70 @@ def plot_simulated(
         sys.exit(1)
 
     fig = plt.figure(figsize=(10, 8))
-    gs = fig.add_gridspec(2, 3, hspace=0.3)
+    gs = fig.add_gridspec(2, 3, hspace=0.5)
+
+    # Extra headroom for the top row titles when a secondary bin axis is shown
+    title_pad = 10 if xunit != "bins" else None
 
     ax_int = fig.add_subplot(gs[0, 0])
     ax_ker = fig.add_subplot(gs[0, 1], sharex=ax_int)
     ax_sim = fig.add_subplot(gs[0, 2], sharex=ax_int)
     ax_obs = fig.add_subplot(gs[1, :])
 
+    # Bins are linear in both "time" and "phase" units, so a simple scale
+    # factor converts between them for the secondary (top) bin axis
+    if xunit == "time":
+        bins_per_unit = nbins / period
+    elif xunit == "phase":
+        bins_per_unit = nbins
+    else:
+        bins_per_unit = None
+
+    def add_bin_axis(ax):
+        if bins_per_unit is None:
+            return
+        secax = ax.secondary_xaxis(
+            "top", functions=(lambda v: v * bins_per_unit, lambda v: v / bins_per_unit)
+        )
+        # secax tick positions are in its own (bin) units, so the bottom
+        # axis' ticks must be converted before being applied here
+        bin_ticks = ax.get_xticks() * bins_per_unit
+        secax.set_xticks(bin_ticks)
+        secax.set_xticklabels([f"{round(b):d}" for b in bin_ticks])
+        secax.set_xlabel("Bins")
+
     ax_int.plot(x, intrinsic, color="C0")
-    ax_int.set_title("Intrinsic pulse")
+    ax_int.set_title("Intrinsic pulse", pad=title_pad)
     ax_int.set_ylabel("Intensity")
     ax_int.set_xlabel(xlab)
     ax_int.set_xlim(0, x.max())
     step = x.max() / 4.0
     ax_int.set_xticks(np.arange(0, x.max() + step, step))
+    add_bin_axis(ax_int)
 
     ax_ker.plot(x, kernel, color="C1", label=rf"$\rm \tau = {tau:g} ms$")
-    ax_ker.set_title("Scattering kernel")
+    ax_ker.set_title("Scattering kernel", pad=title_pad)
     ax_ker.set_xlabel(xlab)
     ax_ker.legend()
+    add_bin_axis(ax_ker)
 
     ax_sim.plot(x, scattered, color="C2")
-    ax_sim.set_title("Scattered profile")
+    ax_sim.set_title("Scattered profile", pad=title_pad)
     ax_sim.set_xlabel(xlab)
+    add_bin_axis(ax_sim)
 
     ax_obs.plot(x, observed, color="k")
     ax_obs.set_title(
-        rf"Observed pulse profile (noise added, $\rm SNR \approx {snr}$)"
+        rf"Observed pulse profile (noise added, $\rm SNR \approx {snr}$)",
+        pad=title_pad,
     )
     ax_obs.axhline(0, ls="--", color="r", lw=1)
-    step = x.max() / 16.0
+    step = x.max() / 8.0
     ax_obs.set_xticks(np.arange(0, x.max() + step, step))
     ax_obs.set_xlim(0, x.max())
     ax_obs.grid(True)
     ax_obs.set_xlabel(xlab)
+    add_bin_axis(ax_obs)
 
     info_lines = [rf"Period = {period:g} ms"]
     if dm is not None:
@@ -200,14 +230,14 @@ def plot_simulated(
     if bw is not None:
         info_lines.append(rf"BW = {bw:g} GHz")
     ax_obs.text(
-        0.99,
+        0.98,
         0.95,
         "\n".join(info_lines),
         transform=ax_obs.transAxes,
         ha="right",
         va="top",
         fontsize=9,
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
+        bbox={"boxstyle":"round", "facecolor":"white", "alpha":0.7},
     )
 
     plt.subplots_adjust(wspace=0.25)
