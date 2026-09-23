@@ -132,7 +132,9 @@ def find_fom_tau_peaks(
         )
     )
     deriv_abs_max = np.abs(deriv).max()
-    norm_deriv = deriv / deriv_abs_max if deriv_abs_max > 0 else np.zeros_like(deriv)
+    norm_deriv = (
+        deriv / deriv_abs_max if deriv_abs_max > 0 else np.zeros_like(deriv)
+    )
 
     pidx, _ = find_peaks(
         np.abs(norm_deriv),
@@ -142,12 +144,23 @@ def find_fom_tau_peaks(
 
     if len(pidx) == 1:
         return FomPeakSearchResult(
-            float(np.squeeze(taus[pidx])), pidx, np.abs(norm_deriv), False, False
+            float(np.squeeze(taus[pidx])),
+            pidx,
+            np.abs(norm_deriv),
+            False,
+            False,
         )
     elif len(pidx) > 1:
-        log.warning("Multiple peaks in the FOM (%s) derivative. Using first prominent peak.", name)
+        log.warning(
+            "Multiple peaks in the FOM (%s) derivative. Using first prominent peak.",
+            name,
+        )
         return FomPeakSearchResult(
-            float(np.squeeze(taus[pidx[0]])), pidx, np.abs(norm_deriv), True, False
+            float(np.squeeze(taus[pidx[0]])),
+            pidx,
+            np.abs(norm_deriv),
+            True,
+            False,
         )
         # return FomPeakSearchResult(
         #     float(np.mean(taus[pidx[:2]])), pidx, np.abs(norm_deriv), True, False
@@ -160,7 +173,9 @@ def find_fom_tau_peaks(
         log.warning("Resorting to heuristic selection (~ underestimates).")
         tau_estimate = float(np.squeeze(taus[alt_operation(values)]))
         used_heuristic = True
-    return FomPeakSearchResult(tau_estimate, pidx, np.abs(norm_deriv), False, used_heuristic)
+    return FomPeakSearchResult(
+        tau_estimate, pidx, np.abs(norm_deriv), False, used_heuristic
+    )
 
 
 class FigureOfMeritEvaluator:

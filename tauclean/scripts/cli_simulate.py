@@ -180,7 +180,11 @@ def plot_simulated(
         if bins_per_unit is None:
             return
         secax = ax.secondary_xaxis(
-            "top", functions=(lambda v: v * bins_per_unit, lambda v: v / bins_per_unit)
+            "top",
+            functions=(
+                lambda v: v * bins_per_unit,
+                lambda v: v / bins_per_unit,
+            ),
         )
         # secax tick positions are in its own (bin) units, so the bottom
         # axis' ticks must be converted before being applied here
@@ -237,7 +241,7 @@ def plot_simulated(
         ha="right",
         va="top",
         fontsize=9,
-        bbox={"boxstyle":"round", "facecolor":"white", "alpha":0.7},
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.7},
     )
 
     plt.subplots_adjust(wspace=0.25)

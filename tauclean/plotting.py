@@ -159,16 +159,24 @@ def plot_figures_of_merit(
             ax.plot(
                 taus[idx], fom["values"][idx], marker="*", ms=10, color="C1"
             )
-        
-        # Plot the current FOM's best tau as a vertical dashed line, 
+
+        # Plot the current FOM's best tau as a vertical dashed line,
         # regardless of whether it was found via the derivative or alt_op
-        if fom["use_jerk"] and result.peak_indices is not None and len(result.peak_indices) > 0:
-            fom_tau_idx = result.peak_indices[0]  # Use the first prominent peak
+        if (
+            fom["use_jerk"]
+            and result.peak_indices is not None
+            and len(result.peak_indices) > 0
+        ):
+            fom_tau_idx = result.peak_indices[
+                0
+            ]  # Use the first prominent peak
         elif fom["alt_operation"] != None:
             fom_tau_idx = fom["alt_operation"](fom["values"])
         else:
-            fom_tau_idx = np.argmin(fom["values"])  # Default to min if no method
-        
+            fom_tau_idx = np.argmin(
+                fom["values"]
+            )  # Default to min if no method
+
         ax.axvline(
             taus[fom_tau_idx],
             color="C1",
