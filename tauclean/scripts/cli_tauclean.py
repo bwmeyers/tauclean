@@ -29,6 +29,40 @@ logger.addHandler(ch)
 
 tau_search_analyzer = TauSearchAnalyzer(logger=logger)
 
+_VALID_FOM_NAMES = ("f_r", "gamma", "f_c", "r_sigma", "r_phi")
+
+
+def _parse_fom_weights(spec: str) -> dict:
+    """Parse a comma-separated NAME=WEIGHT string into a FOM weight dict."""
+    weights = {}
+    for pair in spec.split(","):
+        pair = pair.strip()
+        if not pair:
+            continue
+        if "=" not in pair:
+            raise argparse.ArgumentTypeError(
+                f"Invalid FOM weight specification {pair!r}; expected NAME=WEIGHT"
+            )
+        name, _, value = pair.partition("=")
+        name = name.strip()
+        if name not in _VALID_FOM_NAMES:
+            raise argparse.ArgumentTypeError(
+                f"Unknown FOM name {name!r}; expected one of "
+                f"{', '.join(_VALID_FOM_NAMES)}"
+            )
+        try:
+            weight = float(value.strip())
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"Invalid weight {value!r} for FOM {name!r}; must be a float"
+            )
+        if not (0 <= weight <= 1):
+            raise argparse.ArgumentTypeError(
+                f"Weight for FOM {name!r} must be in the range [0, 1], got {weight}"
+            )
+        weights[name] = weight
+    return weights
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -213,6 +247,18 @@ def main():
         "deconvolution instead of modelling DM smearing/sampling effects.",
     )
 
+    clean_group.add_argument(
+        "--fom-weights",
+        metavar="NAME=WEIGHT[,NAME=WEIGHT...]",
+        type=_parse_fom_weights,
+        default=None,
+        help="Override the default figure-of-merit weights used to select "
+        "the best tau from a search. Comma-separated NAME=WEIGHT pairs "
+        f"(names: {', '.join(_VALID_FOM_NAMES)}), e.g. "
+        "'f_r=1.0,gamma=0.2'. Weights must be floats in [0, 1]. FOMs not "
+        "mentioned keep their default weight.",
+    )
+
     other_group = parser.add_argument_group("Other options")
     other_group.add_argument(
         "--nowrite",
@@ -354,7 +400,9 @@ def execute_tauclean(args):
 
     logger.info("Attempting to determine best tau from figures-of-merit...")
     if ntaus > 1:
-        tau_estimate = tau_search_analyzer.estimate_best_tau(sorted_results)
+        tau_estimate = tau_search_analyzer.estimate_best_tau(
+            sorted_results, fom_weights=args.fom_weights
+        )
         best = tau_estimate.best_tau
         err = tau_estimate.uncertainty
         if not np.isfinite(err):

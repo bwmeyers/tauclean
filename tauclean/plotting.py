@@ -208,7 +208,11 @@ def plot_figures_of_merit(
     for ax in axs.flatten()[3:]:
         ax.set_xlabel(r"$\tau\ {\rm (ms)}$", fontsize=20)
         ax.set_xlim(min(taus) - min_tau_step, max(taus) + min_tau_step)
-    axs.flatten()[1].set_title("Figures of Merit summary")
+    axs.flatten()[1].set_title(
+        f"Figures of Merit summary :: best fit tau = ${best_tau:g} \\pm {best_tau_err:g}$ ms",
+        fontsize=16,
+        pad=10
+        )
     axs.flatten()[0].legend(loc="upper left")
 
     plt.subplots_adjust(hspace=0.05, wspace=0.4)

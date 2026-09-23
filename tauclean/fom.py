@@ -202,10 +202,10 @@ class TauSearchAnalyzer:
 
         default_fom_weights = {
             "f_r": 1.0,
-            "gamma": 0.2,
+            "gamma": 0.4,
             "f_c": 0.0,
-            "r_sigma": 0.5,
-            "r_phi": 0.5,
+            "r_sigma": 0.4,
+            "r_phi": 0.4,
         }
         if fom_weights is None:
             fom_weights = default_fom_weights
@@ -306,9 +306,10 @@ class TauSearchAnalyzer:
                 best_tau_fom = taus[pidx]
                 fom_tau_estimates.append(np.squeeze(best_tau_fom))
                 self.logger.info(
-                    "Best tau from metric=%7s is: %.2f ms",
+                    "Best tau from metric=%7s is: %.2f ms (wt=%g)",
                     series.name,
                     np.squeeze(best_tau_fom),
+                    fom_weights[series.name],
                 )
             elif len(pidx) > 1:
                 self.logger.debug(
@@ -318,9 +319,10 @@ class TauSearchAnalyzer:
                 best_tau_fom = np.mean(taus[pidx[:1]])
                 fom_tau_estimates.append(np.squeeze(best_tau_fom))
                 self.logger.info(
-                    "Best tau from metric=%7s is: %.2f ms",
+                    "Best tau from metric=%7s is: %.2f ms (wt=%g)",
                     series.name,
                     np.squeeze(best_tau_fom),
+                    fom_weights[series.name],
                 )
             else:
                 self.logger.warning(
