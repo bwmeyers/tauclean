@@ -52,6 +52,117 @@ class FigureOfMeritSeries:
     alt_operation: object | None
 
 
+@dataclass(frozen=True)
+class FomPeakSearchResult:
+    """Outcome of the 3rd-derivative peak search for one FOM series."""
+
+    tau_estimate: float | None
+    peak_indices: np.ndarray
+    norm_derivative: np.ndarray | None
+    multi_peak: bool
+    used_heuristic: bool
+
+
+def find_fom_tau_peaks(
+    taus: np.ndarray,
+    values: np.ndarray,
+    *,
+    alt_operation=None,
+    smoothing_window_size: int | None = None,
+    prominence_bounds: tuple[float | None, float | None] = (0.1, None),
+    height_bounds: tuple[float | None, float | None] = (None, None),
+    polyorder: int = 3,
+    deriv_order: int = 3,
+    logger: logging.Logger | None = None,
+    name: str = "",
+) -> FomPeakSearchResult:
+    """Locate 3rd-derivative peaks in a FOM series and estimate its 'best' tau.
+
+    This is the single canonical implementation of the smoothing/derivative/
+    peak-finding logic used to pick a per-FOM tau estimate; both
+    ``TauSearchAnalyzer.estimate_best_tau`` and ``plotting.plot_figures_of_merit``
+    call this function so their results stay consistent.
+    """
+    log = logger or logging.getLogger(__name__)
+
+    current_window = smoothing_window_size
+    if current_window is None:
+        current_window = len(values) // 8
+        if current_window <= polyorder:
+            current_window = polyorder + 1
+
+    max_window = values.size
+    if max_window % 2 == 0:
+        max_window -= 1
+
+    if max_window <= polyorder:
+        log.warning(
+            "Too few FOM points (%d) for derivative-based peak finding for "
+            "%s; falling back to heuristic selection.",
+            values.size,
+            name,
+        )
+        tau_estimate = None
+        if alt_operation is not None:
+            tau_estimate = float(np.squeeze(taus[alt_operation(values)]))
+        return FomPeakSearchResult(
+            tau_estimate, np.array([], dtype=int), None, False, True
+        )
+
+    current_window = min(current_window, max_window)
+    if current_window % 2 == 0:
+        current_window -= 1
+    if current_window <= polyorder:
+        current_window = polyorder + 2
+    if current_window > values.size:
+        log.error(
+            "Smoothing window size (%d) is greater than the number of FOM "
+            "values (%d)!",
+            current_window,
+            values.size,
+        )
+        current_window = max_window
+
+    deriv = np.array(
+        savgol_filter(
+            values,
+            window_length=current_window,
+            polyorder=polyorder,
+            deriv=deriv_order,
+        )
+    )
+    deriv_abs_max = np.abs(deriv).max()
+    norm_deriv = deriv / deriv_abs_max if deriv_abs_max > 0 else np.zeros_like(deriv)
+
+    pidx, _ = find_peaks(
+        np.abs(norm_deriv),
+        prominence=prominence_bounds,
+        height=height_bounds,
+    )
+
+    if len(pidx) == 1:
+        return FomPeakSearchResult(
+            float(np.squeeze(taus[pidx])), pidx, np.abs(norm_deriv), False, False
+        )
+    elif len(pidx) > 1:
+        log.warning("Multiple peaks in the FOM (%s) derivative. Using first prominent peak.", name)
+        return FomPeakSearchResult(
+            float(np.squeeze(taus[pidx[0]])), pidx, np.abs(norm_deriv), True, False
+        )
+        # return FomPeakSearchResult(
+        #     float(np.mean(taus[pidx[:2]])), pidx, np.abs(norm_deriv), True, False
+        # )
+
+    log.warning("Unable to find peaks in the FOM (%s) derivative.", name)
+    tau_estimate = None
+    used_heuristic = False
+    if alt_operation is not None:
+        log.warning("Resorting to heuristic selection (~ underestimates).")
+        tau_estimate = float(np.squeeze(taus[alt_operation(values)]))
+        used_heuristic = True
+    return FomPeakSearchResult(tau_estimate, pidx, np.abs(norm_deriv), False, used_heuristic)
+
+
 class FigureOfMeritEvaluator:
     """Evaluate per-run figures of merit."""
 
@@ -202,10 +313,10 @@ class TauSearchAnalyzer:
 
         default_fom_weights = {
             "f_r": 1.0,
-            "gamma": 0.4,
+            "gamma": 0.2,
             "f_c": 0.0,
-            "r_sigma": 0.4,
-            "r_phi": 0.4,
+            "r_sigma": 0.5,
+            "r_phi": 0.8,
         }
         if fom_weights is None:
             fom_weights = default_fom_weights
@@ -224,127 +335,45 @@ class TauSearchAnalyzer:
                 else:
                     fom_weights[key] = default_value
 
-        savgol_polyorder = 3
-        savgol_derorder = 3
         multi_peak_flag = 0
         fom_tau_estimates = []
 
         for series in fom_series:
-            # if series.name in ["r_phi", "r_sigma"]:
-            #     fn = series.alt_operation
-            #     best_tau_fom = taus[fn(series.values)]
-            #     fom_tau_estimates.append(best_tau_fom)
-            #     self.logger.info(
-            #         "Best tau from metric=%7s is: %.2f ms",
-            #         series.name,
-            #         np.squeeze(best_tau_fom),
-            #     )
-            #     continue
-
             self.logger.debug(
                 "Finding 'best' tau from FOM=%7s via 3rd deriv.", series.name
             )
 
-            current_window = smoothing_window_size
-            if current_window is None:
-                self.logger.debug(
-                    "No savgol_filter window size provided, choosing sensible value based on FOM series length."
-                )
-                current_window = len(series.values) // 8
-                if current_window <= savgol_polyorder:
-                    current_window = savgol_polyorder + 1
-                self.logger.debug("Window size set to %d bins", current_window)
-
-            max_window = series.values.size
-            if max_window % 2 == 0:
-                max_window -= 1
-
-            if max_window <= savgol_polyorder:
-                self.logger.warning(
-                    "Too few FOM points (%d) for derivative-based peak finding for %s; falling back to heuristic selection.",
-                    series.values.size,
-                    series.name,
-                )
-                if series.alt_operation is not None:
-                    fn = series.alt_operation
-                    best_tau_fom = taus[fn(series.values)]
-                    fom_tau_estimates.append(np.squeeze(best_tau_fom))
-                else:
-                    fom_weights.pop(series.name, None)
-                continue
-
-            current_window = min(current_window, max_window)
-            if current_window % 2 == 0:
-                current_window -= 1
-            if current_window <= savgol_polyorder:
-                current_window = savgol_polyorder + 2
-
-            if current_window > series.values.size:
-                self.logger.error(
-                    "Smoothing window size (%d) is greater than the number of FOM values (%d)!",
-                    current_window,
-                    series.values.size,
-                )
-                current_window = max_window
-
-            deriv = np.array(
-                savgol_filter(
-                    series.values,
-                    window_length=current_window,
-                    polyorder=savgol_polyorder,
-                    deriv=savgol_derorder,
-                )
-            )
-            norm_deriv = deriv / deriv.max()
-            pidx, _ = find_peaks(
-                np.abs(norm_deriv),
-                prominence=(0.2, norm_fom_peak_prominance),
-                height=(None, norm_fom_peak_height),
+            result = find_fom_tau_peaks(
+                taus,
+                series.values,
+                alt_operation=series.alt_operation,
+                smoothing_window_size=smoothing_window_size,
+                prominence_bounds=(0.1, norm_fom_peak_prominance),
+                height_bounds=(None, norm_fom_peak_height),
+                logger=self.logger,
+                name=series.name,
             )
 
-            if len(pidx) == 1:
-                best_tau_fom = taus[pidx]
-                fom_tau_estimates.append(np.squeeze(best_tau_fom))
-                self.logger.info(
-                    "Best tau from metric=%7s is: %.2f ms (wt=%g)",
-                    series.name,
-                    np.squeeze(best_tau_fom),
-                    fom_weights[series.name],
-                )
-            elif len(pidx) > 1:
-                self.logger.debug(
-                    "Multiple peaks in FOM found, taking mean of first two instances..."
-                )
+            if result.multi_peak:
                 multi_peak_flag += 1
-                best_tau_fom = np.mean(taus[pidx[:1]])
-                fom_tau_estimates.append(np.squeeze(best_tau_fom))
+
+            if result.tau_estimate is not None:
+                fom_tau_estimates.append(result.tau_estimate)
                 self.logger.info(
                     "Best tau from metric=%7s is: %.2f ms (wt=%g)",
                     series.name,
-                    np.squeeze(best_tau_fom),
+                    result.tau_estimate,
                     fom_weights[series.name],
                 )
             else:
-                self.logger.warning(
-                    "Unable to find peaks in the FOM (%s) derivative.",
-                    series.name,
+                self.logger.debug(
+                    "Excluding FOM=%s from further analysis.", series.name
                 )
-                self.logger.warning(
-                    "Resorting to heuristic selection (~ underestimates)."
-                )
-                if series.alt_operation is not None:
-                    fn = series.alt_operation
-                    best_tau_fom = taus[fn(series.values)]
-                    fom_tau_estimates.append(best_tau_fom)
-                else:
-                    self.logger.debug(
-                        "Excluding FOM=%s from further analysis.", series.name
-                    )
-                    fom_weights.pop(series.name, None)
+                fom_weights.pop(series.name, None)
 
         if multi_peak_flag > 0:
             self.logger.info(
-                "There were %d FOMs with >1 peaks, so the mean of the first two peaks was used in each instance.",
+                "There were %d FOMs with >1 peaks.",
                 multi_peak_flag,
             )
 

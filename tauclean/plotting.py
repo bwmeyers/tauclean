@@ -2,10 +2,9 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import find_peaks, savgol_filter
 
 from .cleaner import CleanResult
-from .fom import TauSearchAnalyzer
+from .fom import TauSearchAnalyzer, find_fom_tau_peaks
 from .kernels import get_kernel
 from .response import ResponseComponent
 
@@ -129,56 +128,42 @@ def plot_figures_of_merit(
 
         if fom["use_jerk"]:
             tax = ax.twinx()
-            max_window = fom["values"].size
-            if max_window % 2 == 0:
-                max_window -= 1
+            result = find_fom_tau_peaks(
+                taus,
+                fom["values"],
+                alt_operation=fom["alt_operation"],
+                logger=logger,
+                name=fom["name"],
+            )
 
-            if max_window > 3:
-                wlen = fom["values"].size // 8
-                if wlen <= 3:
-                    wlen = 5
-                wlen = min(wlen, max_window)
-                if wlen % 2 == 0:
-                    wlen -= 1
-
-                der3 = savgol_filter(
-                    fom["values"],
-                    window_length=wlen,
-                    polyorder=3,
-                    deriv=3,
-                )
-                norm_abs_der3 = np.abs(der3) / np.abs(der3).max()
-                pidx, _ = find_peaks(
-                    np.abs(norm_abs_der3),
-                    prominence=(0.2, None),
-                    height=(None, None),
-                )
+            if result.norm_derivative is not None:
                 tax.plot(
                     taus,
-                    norm_abs_der3,
+                    result.norm_derivative,
                     ls=":",
                     color="k",
                     label="|norm. 3rd deriv.|",
                 )
                 tax.scatter(
-                    taus[pidx],
-                    norm_abs_der3[pidx],
-                    marker="x",
+                    taus[result.peak_indices],
+                    result.norm_derivative[result.peak_indices],
                     color="C1",
-                    label="peaks",
-                )
-                tax.set_ylabel("abs(normalsed 3rd deriv.)")
-            else:
-                logger.warning(
-                    "Too few points (%d) to plot 3rd-derivative jerk for %s",
-                    fom["values"].size,
-                    fom["name"],
+                    ls="--",
+                    label="prominent peak(s)",
+                    zorder=0.4,
                 )
         elif fom["alt_operation"] != None:
             fn = fom["alt_operation"]
             idx = fn(fom["values"])
             ax.plot(
                 taus[idx], fom["values"][idx], marker="*", ms=10, color="C1"
+            )
+            ax.axvline(
+                taus[idx],
+                color="C1",
+                ls="--",
+                label="this FOM's best tau",
+                zorder=0.4,
             )
 
         if fom["ylims"] != None:
@@ -208,11 +193,10 @@ def plot_figures_of_merit(
     for ax in axs.flatten()[3:]:
         ax.set_xlabel(r"$\tau\ {\rm (ms)}$", fontsize=20)
         ax.set_xlim(min(taus) - min_tau_step, max(taus) + min_tau_step)
-    axs.flatten()[1].set_title(
-        f"Figures of Merit summary :: best fit tau = ${best_tau:g} \\pm {best_tau_err:g}$ ms",
-        fontsize=16,
-        pad=10
-        )
+    title = "Figures of Merit summary"
+    if best_tau is not None and best_tau_err is not None:
+        title += f" :: best fit tau = ${best_tau:g} \\pm {best_tau_err:g}$ ms"
+    axs.flatten()[1].set_title(title, fontsize=16, pad=10)
     axs.flatten()[0].legend(loc="upper left")
 
     plt.subplots_adjust(hspace=0.05, wspace=0.4)
