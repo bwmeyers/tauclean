@@ -78,7 +78,11 @@ class FigureOfMeritEvaluator:
         mask = np.zeros_like(residuals)
         mask[residuals < -x * off_rms] = 1
 
-        if np.all(residuals == 0):
+        if np.all(residuals == 0) or off_rms == 0:
+            self.logger.warning(
+                "Positivity FOM is undefined (off_rms=%g); setting to NaN.",
+                off_rms,
+            )
             return np.nan
 
         return float(

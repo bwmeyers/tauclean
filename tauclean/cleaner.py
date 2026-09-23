@@ -208,7 +208,20 @@ class Cleaner:
             component1 = component1[nbins // 2 : -nbins // 2 + 1]
             didx = imax - np.argmax(component1)
             component = np.roll(component1, didx)
-            component = init_off_rms * (component / component.max())
+            component_peak = component.max()
+            if not np.isfinite(component_peak) or component_peak <= 0:
+                active_logger.error(
+                    "Convolved CLEAN component is degenerate (peak=%s) for "
+                    "tau=%g ms; the trial tau is likely too small relative to "
+                    "the profile time resolution/actual scattering time.",
+                    component_peak,
+                    tau,
+                )
+                raise ValueError(
+                    f"Degenerate CLEAN component for tau={tau:g} ms "
+                    f"(peak={component_peak})"
+                )
+            component = init_off_rms * (component / component_peak)
 
             if component.size != profile.size:
                 active_logger.error(
