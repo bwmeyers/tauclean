@@ -152,19 +152,30 @@ def plot_figures_of_merit(
                     label="prominent peak(s)",
                     zorder=0.4,
                 )
+                tax.set_ylabel("abs(normalsed 3rd deriv.)")
         elif fom["alt_operation"] != None:
             fn = fom["alt_operation"]
             idx = fn(fom["values"])
             ax.plot(
                 taus[idx], fom["values"][idx], marker="*", ms=10, color="C1"
             )
-            ax.axvline(
-                taus[idx],
-                color="C1",
-                ls="--",
-                label="this FOM's best tau",
-                zorder=0.4,
-            )
+        
+        # Plot the current FOM's best tau as a vertical dashed line, 
+        # regardless of whether it was found via the derivative or alt_op
+        if fom["use_jerk"] and result.peak_indices is not None and len(result.peak_indices) > 0:
+            fom_tau_idx = result.peak_indices[0]  # Use the first prominent peak
+        elif fom["alt_operation"] != None:
+            fom_tau_idx = fom["alt_operation"](fom["values"])
+        else:
+            fom_tau_idx = np.argmin(fom["values"])  # Default to min if no method
+        
+        ax.axvline(
+            taus[fom_tau_idx],
+            color="C1",
+            ls=":",
+            label="this FOM's best tau",
+            zorder=0.4,
+        )
 
         if fom["ylims"] != None:
             ax.set_ylim(fom["ylims"])
@@ -197,7 +208,7 @@ def plot_figures_of_merit(
     if best_tau is not None and best_tau_err is not None:
         title += f" :: best fit tau = ${best_tau:g} \\pm {best_tau_err:g}$ ms"
     axs.flatten()[1].set_title(title, fontsize=16, pad=10)
-    axs.flatten()[0].legend(loc="upper left")
+    axs.flatten()[0].legend()
 
     plt.subplots_adjust(hspace=0.05, wspace=0.4)
     plt.savefig("tauclean_fom.png", bbox_inches="tight")
