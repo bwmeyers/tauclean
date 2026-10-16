@@ -52,7 +52,13 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
 
 
 def create_scattered_profile(
-    intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0
+    intrinsic,
+    tau,
+    rest_width,
+    pbftype="thin",
+    period=100.0,
+    snr=500.0,
+    periodic_kernel=True,
 ):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
@@ -65,6 +71,7 @@ def create_scattered_profile(
     :param pbftype: the type of PBF to use [string]
     :param period: pulsar period (units: ms)
     :param snr: nominal desired signal-to-noise ration
+    :param periodic_kernel: wrap the scattering kernel around the pulse period (default) [bool]
 
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
     """
@@ -75,11 +82,11 @@ def create_scattered_profile(
 
     # Decide which PBF model to use
     try:
-        kernel = get_kernel(pbftype)
+        kernel = get_kernel(pbftype, periodic=periodic_kernel)
     except ValueError:
         logger.error("Invalid PBF type requested (%s)", pbftype)
         logger.warning("Defaulting to thin screen...")
-        kernel = get_kernel("thin")
+        kernel = get_kernel("thin", periodic=periodic_kernel)
     h = kernel(x, tau)
 
     # Both responses have their zero lag at bin 0 and the profile is cyclic,
@@ -313,6 +320,12 @@ def main():
         "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
     parser.add_argument(
+        "--no-periodic-kernel",
+        action="store_true",
+        help="Use a single-period PBF instead of wrapping it around the "
+        "pulse period (the default, since pulse profiles are cyclic).",
+    )
+    parser.add_argument(
         "-t", type=float, default=5.0, help="scattering time scale (in ms)"
     )
     parser.add_argument(
@@ -411,7 +424,13 @@ def main():
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
     k, s, o = create_scattered_profile(
-        i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s
+        i,
+        args.t,
+        restoring_width,
+        pbftype=args.k,
+        period=args.p,
+        snr=args.s,
+        periodic_kernel=not args.no_periodic_kernel,
     )
 
     plot_simulated(

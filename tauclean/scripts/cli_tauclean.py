@@ -182,6 +182,13 @@ def main():
     )
 
     clean_group.add_argument(
+        "--no-periodic-kernel",
+        action="store_true",
+        help="Use a single-period PBF instead of wrapping it around the "
+        "pulse period (the default, since pulse profiles are cyclic).",
+    )
+
+    clean_group.add_argument(
         "-o",
         "--onpulse",
         metavar="'START END[,START END...]' or 'auto'",
@@ -360,7 +367,7 @@ def execute_tauclean(args):
     )
     logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
-    kernel = get_kernel(args.kernel)
+    kernel = get_kernel(args.kernel, periodic=not args.no_periodic_kernel)
 
     # Setup for the deconvolution (maybe distributed over multiple processes)
     clean_kwargs = {

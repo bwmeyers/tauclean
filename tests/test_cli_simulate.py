@@ -117,3 +117,24 @@ def test_causal_kernel_does_not_move_peak_earlier() -> None:
     scattered = _noiseless(intrinsic, tau=30.0)
 
     assert np.argmax(scattered) >= np.argmax(intrinsic)
+
+
+def test_periodic_kernel_changes_thick_screen_and_can_be_disabled() -> None:
+    nbins = 256
+    intrinsic = create_intrinsic_pulse([200], [2.0], [1.0], nbins=nbins)
+    kwargs = {
+        "tau": 150.0,
+        "rest_width": 2.0,
+        "period": 500.0,
+        "snr": 1e12,
+        "pbftype": "thick",
+    }
+
+    _, s_per, _ = create_scattered_profile(intrinsic, **kwargs)
+    _, s_lin, _ = create_scattered_profile(
+        intrinsic, periodic_kernel=False, **kwargs
+    )
+
+    assert s_per.sum() == pytest.approx(intrinsic.sum(), rel=1e-6)
+    assert s_lin.sum() == pytest.approx(intrinsic.sum(), rel=1e-6)
+    assert not np.allclose(s_per, s_lin, rtol=1e-2, atol=1e-3)
