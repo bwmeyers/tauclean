@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
+from ..circular import bin_grid
 from ..kernels import KernelRegistry, get_kernel
 from ..response import dm_delay, gaussian
 
@@ -26,7 +27,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     :return: the intrinsic emission profile [array-like]
     """
 
-    x = np.linspace(0, nbins, nbins)
+    x = bin_grid(nbins, nbins)
 
     f = np.zeros_like(x)
 
@@ -66,7 +67,7 @@ def create_scattered_profile(
 
     nbins = len(intrinsic)
 
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     # Decide which PBF model to use
     try:
@@ -144,13 +145,13 @@ def plot_simulated(
     nbins = len(intrinsic)
 
     if xunit == "phase":
-        x = np.linspace(0, 1, nbins)
+        x = bin_grid(nbins)
         xlab = "Phase"
     elif xunit == "time":
-        x = period * np.linspace(0, 1, nbins)
+        x = bin_grid(nbins, period)
         xlab = "Time (ms)"
     elif xunit == "bins":
-        x = np.linspace(0, nbins, nbins).astype(int)
+        x = np.arange(nbins)
         xlab = "Bins"
     else:
         logger.error("Unknown x-unit: %s", xunit)

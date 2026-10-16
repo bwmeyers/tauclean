@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from tauclean.circular import (
+    bin_grid,
     center_to_origin,
     circ_convolve,
     circ_shift_to,
@@ -72,3 +73,22 @@ def test_wrap_indices():
     np.testing.assert_array_equal(wrap_indices(8, 2, 10), [8, 9, 0, 1])
     assert wrap_indices(3, 3, 10).size == 0
     np.testing.assert_array_equal(wrap_indices(-2, 1, 10), [8, 9, 0])
+
+
+def test_bin_grid_excludes_endpoint_and_has_uniform_spacing():
+    x = bin_grid(1024, 500.0)
+    assert x[0] == 0.0
+    np.testing.assert_allclose(np.diff(x), 500.0 / 1024)
+    assert x[-1] < 500.0
+
+
+def test_bin_grid_default_period_is_phase():
+    np.testing.assert_allclose(bin_grid(4), [0, 0.25, 0.5, 0.75])
+
+
+def test_kernel_area_on_bin_grid():
+    from tauclean.kernels import get_kernel
+
+    x = bin_grid(2048, 500.0)
+    h = get_kernel("thin")(x, 5.0)
+    assert np.sum(h) * (500.0 / 2048) == pytest.approx(1.0, rel=0.05)

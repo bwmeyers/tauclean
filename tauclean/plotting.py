@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .circular import bin_grid
 from .cleaner import CleanResult
 from .fom import TauSearchAnalyzer, find_fom_tau_peaks
 from .kernels import get_kernel
@@ -263,7 +264,7 @@ def plot_clean_residuals(
     initial_data, results: list[CleanResult], period=100.0
 ):
     nbins = len(initial_data)
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
     dt = period / nbins
     _ = dt
     taus = np.array([a.tau for a in results])
@@ -328,7 +329,7 @@ def plot_clean_components(results: list[CleanResult], period=100.0):
     pbftype = np.array([a.pbftype for a in results])
 
     nbins = len(clean_components[0])
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     for i, t in enumerate(taus):
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
@@ -360,7 +361,7 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
     pbftype = np.array([a.pbftype for a in results])
 
     nbins = len(recons[0])
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     for i, t in enumerate(taus):
         try:
@@ -453,7 +454,7 @@ def plot_instrumental_response(
         ``restoring_func`` is provided.
     :param filename: path to save the resulting figure to.
     """
-    x = period * np.linspace(0, 1, len(response), endpoint=False)
+    x = bin_grid(len(response), period)
 
     ncols = 2 if restoring_func is not None else 1
     fig, axs = plt.subplots(1, ncols, figsize=(10 * ncols, 6))

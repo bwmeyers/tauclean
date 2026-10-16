@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import convolve
 
+from .circular import bin_grid
 from .components import ComponentHistory, SubtractedComponent
 from .fom import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
@@ -105,7 +106,7 @@ class Cleaner:
         period = profile_data.period
         nbins = profile_data.nbins
         prof_dt = period / nbins
-        x = np.linspace(0, 1, nbins) * period
+        x = bin_grid(nbins, period)
 
         active_logger.debug("Computing PBF template for tau=%g ms", tau)
         filter_guess = self.kernel(x, tau)

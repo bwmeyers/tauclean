@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import find_peaks, savgol_filter
 
+from .circular import bin_grid
+
 
 @dataclass(frozen=True)
 class FigureOfMeritSet:
@@ -218,9 +220,7 @@ class FigureOfMeritEvaluator:
     def skewness(
         self, clean_components: np.ndarray, pulsar_period: float = 100.0
     ) -> float:
-        component_times = pulsar_period * np.linspace(
-            0, 1, len(clean_components)
-        )
+        component_times = bin_grid(len(clean_components), pulsar_period)
         moment_1 = np.average(component_times, weights=clean_components)
         moment_2 = np.average(
             (component_times - moment_1) ** 2, weights=clean_components

@@ -10,6 +10,15 @@ from __future__ import annotations
 import numpy as np
 
 
+def bin_grid(nbins: int, period: float = 1.0) -> np.ndarray:
+    """Bin start times ``period * i / nbins`` for a cyclic profile.
+
+    The endpoint is excluded: bin ``nbins`` is identical to bin 0, so the
+    spacing is exactly ``period / nbins``.
+    """
+    return period * np.arange(nbins) / nbins
+
+
 def circ_convolve(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Circularly convolve two equal-length arrays via FFT."""
     a = np.asarray(a, dtype=float)
