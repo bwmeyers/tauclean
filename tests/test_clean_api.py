@@ -125,3 +125,51 @@ def test_clean_handles_pulse_straddling_profile_edge() -> None:
     assert min(peak, 512 - peak) <= 15
     assert result.recon[-1] > 0.5
     assert result.recon[0] > 0.5
+
+
+def test_parse_component_window_wraps_and_validates() -> None:
+    from tauclean.cleaner import _parse_component_window
+
+    on = np.arange(10)
+    off = np.arange(10, 20)
+    mask = _parse_component_window("90-10", 100, on, off)
+    assert mask.sum() == 20
+    assert mask[95] and mask[5] and not mask[50]
+
+    mask = _parse_component_window("90-10,40-45", 100, on, off)
+    assert mask.sum() == 25
+
+    for bad in ("10-10", "10-101", "100-5", "-5-10"):
+        with pytest.raises(ValueError):
+            _parse_component_window(bad, 100, on, off)
+
+
+def test_clean_component_window_wrapping_the_profile_edge() -> None:
+    profile = _cyclic_scattered_profile(-100)
+    result = clean(
+        profile,
+        25.0,
+        period=500.0,
+        pbftype="thin",
+        iter_limit=300,
+        component_window="440-60",
+    )
+    allowed = np.zeros(512, dtype=bool)
+    allowed[440:] = True
+    allowed[:60] = True
+    assert result.ncc > 0
+    assert not np.any(result.cc[~allowed])
+
+
+def test_clean_accepts_multiple_onpulse_ranges() -> None:
+    profile = _cyclic_scattered_profile(-100)
+    result = clean(
+        profile,
+        25.0,
+        period=500.0,
+        pbftype="thin",
+        iter_limit=300,
+        onpulse_estimator="440 512,0 120",
+    )
+    assert result.nbins_on == 72 + 120
+    assert result.nbins_off == 512 - result.nbins_on

@@ -7,7 +7,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .circular import bin_grid, center_to_origin, circ_convolve
+from .circular import (
+    bin_grid,
+    center_to_origin,
+    circ_convolve,
+    wrap_indices,
+)
 from .components import ComponentHistory, SubtractedComponent
 from .fom import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
@@ -351,7 +356,9 @@ def _parse_component_window(
 
     ``spec`` may be one of 'onpulse'/'on', 'offpulse'/'off', 'all'/'total',
     or a comma-separated list of 'START-END' bin ranges (end-exclusive).
-    Returns None if no restriction is requested (i.e. all bins allowed).
+    Profiles are cyclic, so a range with START > END wraps through the end of
+    the profile (e.g. '900-100'). Returns None if no restriction is requested 
+    (i.e. all bins allowed).
     """
     if spec is None:
         return None
@@ -387,11 +394,11 @@ def _parse_component_window(
                 f"Invalid range {r!r} in clean component window specification "
                 f"{spec!r}: bounds must be integers."
             )
-        if start < 0 or end > nbins or start >= end:
+        if start < 0 or start >= nbins or end < 0 or end > nbins or start == end:
             raise ValueError(
                 f"Range {r!r} is out of bounds for a profile with {nbins} bins."
             )
-        mask[start:end] = True
+        mask[wrap_indices(start, end, nbins)] = True
 
     if not mask.any():
         raise ValueError(

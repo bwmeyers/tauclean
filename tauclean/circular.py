@@ -49,10 +49,13 @@ def wrap_indices(start: int, end: int, nbins: int) -> np.ndarray:
 
     If ``start < end`` this matches ``np.arange(start, end)``. If
     ``start > end`` the range wraps through the end of the profile. Indices
-    are taken modulo ``nbins``; ``start == end`` gives an empty range.
+    are taken modulo ``nbins``, except that ``end == nbins`` is allowed as an
+    exclusive upper bound; ``start == end`` gives an empty range.
     """
     if nbins <= 0:
         raise ValueError("nbins must be positive")
+    if 0 <= start <= end <= nbins:
+        return np.arange(start, end)
     start = int(start) % nbins
     end = int(end) % nbins
     if start <= end:

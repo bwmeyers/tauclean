@@ -92,3 +92,8 @@ def test_kernel_area_on_bin_grid():
     x = bin_grid(2048, 500.0)
     h = get_kernel("thin")(x, 5.0)
     assert np.sum(h) * (500.0 / 2048) == pytest.approx(1.0, rel=0.05)
+
+
+def test_wrap_indices_accepts_full_range_and_trailing_end():
+    np.testing.assert_array_equal(wrap_indices(0, 10, 10), np.arange(10))
+    np.testing.assert_array_equal(wrap_indices(7, 10, 10), [7, 8, 9])

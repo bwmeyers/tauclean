@@ -81,7 +81,11 @@ Key parameters for the :func:`tauclean.clean_api.clean` function:
 - **iter_limit** (int): Maximum iterations (default: 1000)
 - **onpulse_estimator** (str): On-pulse region definition:
   - ``'auto'`` - Automatically determine on/off-pulse regions
-  - A string of the form ``"START END"`` for an explicit on-pulse range
+  - A string of the form ``"START END"`` for an explicit on-pulse range.
+    Profiles are cyclic, so ``START`` may exceed ``END`` to wrap through the
+    end of the profile (e.g. ``"900 100"``). Multiple ranges may be given as a
+    comma-separated list (e.g. ``"100 200,400 450"``); the on-pulse region is
+    their union.
 
 Returns
 ~~~~~~~
