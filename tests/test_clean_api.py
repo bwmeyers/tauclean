@@ -173,3 +173,16 @@ def test_clean_accepts_multiple_onpulse_ranges() -> None:
     )
     assert result.nbins_on == 72 + 120
     assert result.nbins_off == 512 - result.nbins_on
+
+
+@pytest.mark.parametrize("periodic", [True, False])
+def test_clean_result_records_periodic_kernel_choice(periodic: bool) -> None:
+    result = clean(
+        _cyclic_scattered_profile(0),
+        25.0,
+        period=500.0,
+        iter_limit=20,
+        periodic_kernel=periodic,
+    )
+
+    assert result.periodic_kernel is periodic

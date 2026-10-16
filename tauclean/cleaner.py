@@ -63,6 +63,7 @@ class CleanResult:
     profile_data: ProfileData
     figures_of_merit: FigureOfMeritSet
     component_history: ComponentHistory | None = None
+    periodic_kernel: bool = True
 
     @property
     def nf(self) -> int:
@@ -333,6 +334,7 @@ class Cleaner:
             profile_data=profile_data,
             figures_of_merit=figures_of_merit,
             component_history=component_history,
+            periodic_kernel=self.kernel.periodic,
         )
 
 

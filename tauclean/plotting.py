@@ -359,20 +359,21 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
     restoring = np.array([a.rest_func for a in results])
     residuals = np.array([a.profile for a in results])
     pbftype = np.array([a.pbftype for a in results])
+    periodic = [a.periodic_kernel for a in results]
 
     nbins = len(recons[0])
     x = bin_grid(nbins, period)
 
     for i, t in enumerate(taus):
         try:
-            kernel = get_kernel(pbftype[i])
+            kernel = get_kernel(pbftype[i], periodic=periodic[i])
         except ValueError as e:
             logger.error(e)
             logger.warning(
                 "Cannot find pbf function '%s'! Assuming 'thin' model.",
                 pbftype[i],
             )
-            kernel = get_kernel("thin")
+            kernel = get_kernel("thin", periodic=periodic[i])
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
         pbf = kernel(x, t, x0=x[len(x) // 20])
         pbf_scaled = (pbf / pbf.max()) * 0.3
