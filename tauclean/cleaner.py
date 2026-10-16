@@ -6,15 +6,14 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.signal import convolve
 
-from .circular import bin_grid
+from .circular import bin_grid, center_to_origin, circ_convolve
 from .components import ComponentHistory, SubtractedComponent
 from .fom import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
 from .noise import AutoWindowNoiseEstimator, UserDefinedOnPulseNoiseEstimator
 from .profile import ProfileData
-from .response import gaussian
+from .response import gaussian, reconstruct
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -174,9 +173,12 @@ class Cleaner:
             np.trapz(x=x, y=rest_func),
         )
 
-        preconv = convolve(inst_resp_func, filter_guess, mode="full")
-        preconv = preconv[nbins // 2 : -nbins // 2 + 1]
-        preconv = preconv / np.trapz(preconv)
+        # Circular response with zero lag at index 0: the instrumental
+        # response (centred on bin nbins//2) convolved with the kernel.
+        preconv = circ_convolve(
+            center_to_origin(inst_resp_func), filter_guess
+        )
+        preconv = preconv / np.sum(preconv)
 
         loop = True
         niter = 0
@@ -205,8 +207,9 @@ class Cleaner:
             temp_clean_comp[imax] = cc_amp
             clean_components[imax] += cc_amp
 
-            component1 = convolve(temp_clean_comp, preconv, mode="full")
-            component1 = component1[nbins // 2 : -nbins // 2 + 1]
+            # A CLEAN component is the circular response placed at imax; it
+            # is then shifted (cyclically) so its peak sits on imax.
+            component1 = np.roll(preconv, imax)
             didx = imax - np.argmax(component1)
             component = np.roll(component1, didx)
             component_peak = component.max()
@@ -236,38 +239,6 @@ class Cleaner:
                 raise ValueError
 
             cleaned = profile - component
-
-            if np.argmax(component) != imax:
-                active_logger.error(
-                    "Component alignment error - convolved subtraction component "
-                    "position (%d) does not match data maximum (%d)!",
-                    np.argmax(component),
-                    imax,
-                )
-                active_logger.error(
-                    "Error on Iteration number = %d/%d for tau=%g ms",
-                    niter,
-                    self.iter_limit,
-                    tau,
-                )
-                # Imported lazily to avoid a circular import with plotting
-                # (which depends on CleanResult).
-                from . import plotting
-
-                plotting.plot_cleaner_debug_component_alignment(
-                    initial_data=profile_data.samples,
-                    cleaned=cleaned,
-                    clean_component=temp_clean_comp,
-                    impulse_response=preconv,
-                    subtracted_response=component,
-                    raw_convolved_response=component1,
-                    peak_index=imax,
-                    threshold=self.threshold,
-                    init_off_rms=init_off_rms,
-                    iteration=niter,
-                    iter_limit=self.iter_limit,
-                )
-                raise ValueError
 
             if component_history is not None:
                 current_noise = profile_data.update_noise(cleaned)
@@ -328,7 +299,7 @@ class Cleaner:
             off_mean=final_noise.off_mean,
             threshold=self.threshold,
         )
-        recon = _reconstruct(clean_components, rest_func)
+        recon = reconstruct(clean_components, rest_func)
 
         return CleanResult(
             profile=profile,
@@ -438,11 +409,3 @@ def _keep_cleaning(
     datamax = np.max(on)
     limit = mean + threshold * rms
     return datamax > limit
-
-
-def _reconstruct(ccs: np.ndarray, rest_func: np.ndarray) -> np.ndarray:
-    recon = convolve(ccs, rest_func, mode="same")
-    peak = np.max(np.abs(recon))
-    if peak <= 0 or not np.isfinite(peak):
-        return recon
-    return recon / peak
