@@ -23,40 +23,6 @@ logger.addHandler(ch)
 tau_search_analyzer = TauSearchAnalyzer(logger=logger)
 
 
-def plot_cleaner_debug_component_alignment(
-    initial_data: np.ndarray,
-    cleaned: np.ndarray,
-    clean_component: np.ndarray,
-    impulse_response: np.ndarray,
-    subtracted_response: np.ndarray,
-    raw_convolved_response: np.ndarray,
-    peak_index: int,
-    threshold: float,
-    init_off_rms: float,
-    iteration: int,
-    iter_limit: int,
-):
-    """Plot cleaner state when a convolved component is misaligned."""
-    plt.plot(1e-5 + initial_data, color="k", alpha=0.2)
-    plt.plot(1e-5 + cleaned, label="profile")
-    plt.plot(1e-5 + clean_component, label="cc")
-    plt.plot(1e-5 + impulse_response, ls="--", label="inst_resp ^ pbf")
-    plt.plot(1e-5 + subtracted_response, ls="-.", label="component")
-    plt.plot(1e-5 + raw_convolved_response, ls="-.", label="component1")
-    plt.axvline(peak_index, ls="--", color="k")
-    plt.axvline(np.argmax(subtracted_response), ls=":", color="r")
-    plt.axhline(threshold * init_off_rms, ls=":", color="k")
-    plt.ylim(-1.1 * init_off_rms, 1.1 * cleaned.max())
-    plt.xlim(0, len(initial_data))
-    plt.title(
-        f"Iteration={iteration}/{iter_limit}  "
-        f"Current imax={peak_index}  "
-        f"conv.comp idx={np.argmax(raw_convolved_response)}"
-    )
-    plt.legend()
-    plt.show()
-
-
 def plot_figures_of_merit(
     results: list[CleanResult], true_tau=None, best_tau=None, best_tau_err=None
 ):
