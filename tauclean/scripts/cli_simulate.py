@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
-from ..circular import bin_grid
+from ..circular import bin_grid, circ_convolve
 from ..kernels import KernelRegistry, get_kernel
 from ..response import dm_delay, gaussian
 
@@ -56,12 +56,16 @@ def create_scattered_profile(
 ):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
 
+    The profile is treated as cyclic: the scattering tail wraps from the end
+    of the profile back to its start.
+
     :param intrinsic: intrinsic emission profile [array-like]
     :param tau: desired pulse broadening time scale (units: ms) [float]
     :param rest_width: width of the telescope restoring function/impulse response (units: ms) [float]
     :param pbftype: the type of PBF to use [string]
     :param period: pulsar period (units: ms)
     :param snr: nominal desired signal-to-noise ration
+
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
     """
 
@@ -78,25 +82,22 @@ def create_scattered_profile(
         kernel = get_kernel("thin")
     h = kernel(x, tau)
 
-    restoring_function = gaussian(x, x[x.size // 2], rest_width)
+    # Both responses have their zero lag at bin 0 and the profile is cyclic,
+    # so circular convolution neither truncates the scattering tail at the
+    # profile edge nor shifts the profile. The causal kernel therefore moves
+    # the peak later by an amount that depends on tau and the PBF shape.
+    lag = (x + 0.5 * period) % period - 0.5 * period
+    restoring_function = gaussian(lag, 0.0, rest_width)
 
     # The observed pulse shape is the convolution of:
     # - the true signal,
     # - the telescope response function,
     # - the scattering kernel, and
     # - some Gaussian radiometer noise
-    # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
-    # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(
-        intrinsic, restoring_function, mode="full"
-    ) / np.sum(restoring_function)
-    response = response[nbins // 2 : -(nbins // 2) + 1]
-
-    scattered = np.convolve(response, h, mode="full") / np.sum(h)
-
-    offset = np.argmax(intrinsic) - np.argmax(scattered)
-    scattered = np.roll(scattered, offset)[:nbins]
-    scattered = scattered[:nbins]
+    response = circ_convolve(intrinsic, restoring_function) / np.sum(
+        restoring_function
+    )
+    scattered = circ_convolve(response, h) / np.sum(h)
 
     # And do the same for the PBF, then re-normalise it to unit area
     h = h / simps(x=x, y=h)

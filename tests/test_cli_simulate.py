@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import numpy as np
+import pytest
 
 from tauclean.scripts import cli_simulate
 from tauclean.scripts.cli_simulate import (
@@ -74,3 +75,45 @@ def test_simulate_module_help_exits_successfully() -> None:
 
     assert completed.returncode == 0
     assert "scattering time scale" in completed.stdout
+
+
+def _noiseless(intrinsic, tau, period=500.0, **kwargs):
+    _, scattered, _ = create_scattered_profile(
+        intrinsic,
+        tau=tau,
+        rest_width=period / len(intrinsic),
+        period=period,
+        snr=1e12,
+        **kwargs,
+    )
+    return scattered
+
+
+def test_scattering_tail_wraps_past_profile_end() -> None:
+    nbins = 256
+    intrinsic = create_intrinsic_pulse([nbins - 10], [2.0], [1.0], nbins=nbins)
+    scattered = _noiseless(intrinsic, tau=40.0)
+
+    assert np.argmax(scattered) >= nbins - 10
+    # Power from the tail re-emerges at the start of the profile.
+    assert scattered[:20].max() > 0.1 * scattered.max()
+    # Total flux is conserved by the cyclic convolution.
+    assert scattered.sum() == pytest.approx(intrinsic.sum(), rel=1e-6)
+
+
+@pytest.mark.parametrize("shift", [-30, 17, 128, 200])
+def test_scattered_profile_is_shift_equivariant(shift: int) -> None:
+    nbins = 256
+    intrinsic = create_intrinsic_pulse([60], [3.0], [1.0], nbins=nbins)
+    base = _noiseless(intrinsic, tau=30.0)
+    rolled = _noiseless(np.roll(intrinsic, shift), tau=30.0)
+
+    np.testing.assert_allclose(rolled, np.roll(base, shift), atol=1e-9)
+
+
+def test_causal_kernel_does_not_move_peak_earlier() -> None:
+    nbins = 256
+    intrinsic = create_intrinsic_pulse([100], [3.0], [1.0], nbins=nbins)
+    scattered = _noiseless(intrinsic, tau=30.0)
+
+    assert np.argmax(scattered) >= np.argmax(intrinsic)
