@@ -249,6 +249,8 @@ def plot_clean_residuals(
         )
         fig.suptitle(rf"Residuals ($\rm \tau = {t:g}\ ms$)")
 
+        _highlight_offpulse(ax1, results[i].off_bins, nbins, period)
+        _highlight_offpulse(ax2, results[i].off_bins, nbins, period)
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
         ax1.fill_between(
@@ -259,7 +261,7 @@ def plot_clean_residuals(
             label="CLEAN threshold",
         )
         ax1.set_xlabel("Time (ms)")
-        ax1.set_xlim(x.min(), x.max())
+        ax1.set_xlim(0, period)
         ax1.legend()
 
         ax2.plot(x, initial_data, label="initial data")
@@ -285,6 +287,25 @@ def plot_clean_residuals(
     # For the purposes of testing, return whether the figure was closed
     # successfully (implying nothing broke)
     return not plt.fignum_exists(fig.number)
+
+
+def _highlight_offpulse(ax, off_bins: np.ndarray, nbins: int, period: float):
+    off_mask = np.zeros(nbins, dtype=bool)
+    off_mask[off_bins] = True
+    boundaries = np.diff(np.r_[False, off_mask, False].astype(int))
+    starts = np.flatnonzero(boundaries == 1)
+    ends = np.flatnonzero(boundaries == -1)
+    bin_width = period / nbins
+
+    for index, (start, end) in enumerate(zip(starts, ends)):
+        ax.axvspan(
+            start * bin_width,
+            end * bin_width,
+            color="C2",
+            alpha=0.15,
+            label="off-pulse region(s)" if index == 0 else "_nolegend_",
+            zorder=0,
+        )
 
 
 def plot_clean_components(results: list[CleanResult], period=100.0):
