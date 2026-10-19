@@ -220,6 +220,9 @@ class FigureOfMeritEvaluator:
     def skewness(
         self, clean_components: np.ndarray, pulsar_period: float = 100.0
     ) -> float:
+        if not np.any(clean_components):
+            return 0.0
+
         # The profile is cyclic, so measure each component's offset from the
         # circular mean position, wrapped to [-P/2, P/2). This makes the
         # skewness independent of where the pulse sits in the profile, and

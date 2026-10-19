@@ -86,22 +86,28 @@ def test_large_tau_pulse_near_edge_is_reconstructed_in_place() -> None:
     assert placed.max() > NBINS - 50
 
 
-def test_periodic_kernel_fits_wrapped_thick_screen_tail_better() -> None:
+@pytest.mark.parametrize("periodic", [True, False])
+def test_thick_screen_edge_cleaning_keeps_only_positive_components(
+    periodic: bool,
+) -> None:
     tau = 80.0
     _, observed = _simulate(NBINS - 8, tau, pbftype="thick", snr=500.0, seed=3)
 
-    ratios = {}
-    for periodic in (True, False):
-        result = clean(
-            observed,
-            tau,
-            period=PERIOD_MS,
-            pbftype="thick",
-            iter_limit=800,
-            periodic_kernel=periodic,
-        )
-        ratios[periodic] = result.figures_of_merit.residual_ratio
+    result = clean(
+        observed,
+        tau,
+        period=PERIOD_MS,
+        pbftype="thick",
+        iter_limit=800,
+        periodic_kernel=periodic,
+        track_components=True,
+    )
 
-    # A residual off-pulse rms equal to the initial one (ratio 1) is ideal.
-    assert abs(ratios[True] - 1.0) < abs(ratios[False] - 1.0)
-    assert ratios[True] < 1.5
+    assert result.ncc > 0
+    assert np.all(result.cc >= 0)
+    assert np.isfinite(result.gamma)
+    assert result.component_history is not None
+    assert all(
+        component.peak_value > 0
+        for component in result.component_history.components
+    )

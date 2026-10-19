@@ -54,6 +54,34 @@ def test_clean_honors_iteration_limit(thin_profile: np.ndarray) -> None:
     assert result.niter == 1
 
 
+def test_clean_does_not_subtract_below_noise_threshold() -> None:
+    profile = np.zeros(64)
+    profile[:32] = 2.5
+    profile[32:] = np.tile([-1.0, 1.0], 16)
+
+    result = clean(
+        profile,
+        1.0,
+        period=64.0,
+        pbftype="thin",
+        onpulse_estimator="0 32",
+        component_window="onpulse",
+    )
+
+    assert result.niter == 0
+    assert result.ncc == 0
+    assert np.all(result.cc == 0)
+    assert result.gamma == 0.0
+
+
+@pytest.mark.parametrize("gain", [0.0, -0.05, np.nan])
+def test_clean_rejects_nonpositive_or_nonfinite_gain(
+    thin_profile: np.ndarray, gain: float
+) -> None:
+    with pytest.raises(ValueError, match="gain must be a finite positive"):
+        clean(thin_profile, 20.0, period=500.0, gain=gain)
+
+
 def test_clean_tracks_component_history(thin_profile: np.ndarray) -> None:
     result = clean(
         thin_profile,

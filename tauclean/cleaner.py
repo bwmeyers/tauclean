@@ -98,6 +98,9 @@ class Cleaner:
         active_logger = self.logger or logger
         fom_evaluator = FigureOfMeritEvaluator(logger=active_logger)
 
+        if not np.isfinite(self.gain) or self.gain <= 0:
+            raise ValueError("CLEAN gain must be a finite positive number")
+
         if isinstance(data, ProfileData):
             profile_data = data
         else:
@@ -140,8 +143,6 @@ class Cleaner:
             raise ValueError("Profile noise properties are not initialized")
 
         profile = np.copy(profile_data.baseline_corrected)
-        off_pulse = profile_data.off_pulse(profile)
-        on_pulse = profile_data.on_pulse(profile)
         init_off_rms = profile_data.initial_noise.off_rms
         init_on_rms = profile_data.initial_noise.on_rms
 
@@ -186,27 +187,43 @@ class Cleaner:
         )
         preconv = preconv / np.sum(preconv)
 
-        loop = True
         niter = 0
         component_history = (
             ComponentHistory() if self.track_components else None
         )
 
         active_logger.debug("Initiating clean loop for tau=%g ms", tau)
-        while loop:
+        while True:
             if (self.iter_limit is not None) and (niter >= self.iter_limit):
                 active_logger.warning(
                     "Reached iteration limit for tau=%g ms", tau
                 )
                 break
-            niter += 1
 
+            current_noise = profile_data.current_noise
+            if current_noise is None:
+                raise ValueError("Profile noise properties are not initialized")
+            if not _keep_cleaning(
+                profile_data.on_pulse(profile),
+                profile_data.off_pulse(profile),
+                threshold=self.threshold,
+            ):
+                break
+            noise_limit = max(
+                0.0,
+                current_noise.off_mean
+                + self.threshold * current_noise.off_rms,
+            )
+            eligible = profile > noise_limit
             if component_mask is not None:
-                search_profile = np.where(component_mask, profile, -np.inf)
-            else:
-                search_profile = profile
+                eligible &= component_mask
+            if not np.any(eligible):
+                break
+
+            search_profile = np.where(eligible, profile, -np.inf)
             imax = np.argmax(search_profile)
             dmax = profile[imax]
+            niter += 1
             cc_amp = dmax * self.gain
 
             temp_clean_comp = np.zeros_like(clean_components)
@@ -268,18 +285,19 @@ class Cleaner:
             else:
                 profile_data.update_noise(cleaned)
 
-            on_pulse = profile_data.on_pulse(cleaned)
-            off_pulse = profile_data.off_pulse(cleaned)
-            loop = _keep_cleaning(
-                on_pulse, off_pulse, threshold=self.threshold
-            )
             profile = cleaned
 
-        if niter <= 1:
+        if niter == 0:
+            active_logger.debug(
+                "No profile samples exceeded the CLEAN noise threshold "
+                "for tau=%g ms",
+                tau,
+            )
+        elif niter == 1:
             active_logger.warning(
                 "Clean cycle only lasted 1 iteration - something probably went wrong!"
             )
-        elif niter >= self.iter_limit:
+        elif self.iter_limit is not None and niter >= self.iter_limit:
             active_logger.warning(
                 "Clean cycle terminated prematurely for tau=%g ms", tau
             )
