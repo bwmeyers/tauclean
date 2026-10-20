@@ -430,7 +430,7 @@ def execute_tauclean(args):
         fom_set = sorted_results[0].figures_of_merit
         logger.info("f_r ~ positivity: %s", fom_set.positivity)
         logger.info("gamma ~ skewnesss: %s", fom_set.skewness)
-        logger.info("f_c = f_r / gamma: %s", fom_set.combined)
+        logger.info("f_c = (f_r + gamma)/2: %s", fom_set.combined)
         logger.info(
             "nf ~ consistence: %s (%s%%)",
             fom_set.consistence,
