@@ -99,3 +99,39 @@ def test_tau_search_short_grid_falls_back_to_heuristics() -> None:
 
     assert np.isfinite(estimate.best_tau)
     assert estimate.uncertainty >= 1.0
+
+
+def _spread_components(center: int, nbins: int = 256) -> np.ndarray:
+    comps = np.zeros(nbins)
+    for offset, amp in {-3: 0.5, -1: 1.0, 0: 3.0, 1: 1.0, 2: 0.5, 6: 0.8}.items():
+        comps[(center + offset) % nbins] = amp
+    return comps
+
+
+@pytest.mark.parametrize("center", [20, 128, 250, 3])
+def test_skewness_is_independent_of_position_in_cyclic_profile(
+    evaluator: FigureOfMeritEvaluator, center: int
+) -> None:
+    reference = evaluator.skewness(_spread_components(128), pulsar_period=500.0)
+    assert reference > 0
+
+    shifted = evaluator.skewness(
+        _spread_components(center), pulsar_period=500.0
+    )
+
+    assert shifted == pytest.approx(reference, rel=1e-6)
+
+
+def test_skewness_matches_linear_value_away_from_edges(
+    evaluator: FigureOfMeritEvaluator,
+) -> None:
+    comps = _spread_components(128)
+    t = 500.0 * np.arange(comps.size) / comps.size
+    mean = np.average(t, weights=comps)
+    expected = np.average((t - mean) ** 3, weights=comps) / np.average(
+        (t - mean) ** 2, weights=comps
+    ) ** 1.5
+
+    assert evaluator.skewness(comps, pulsar_period=500.0) == pytest.approx(
+        expected, rel=1e-6
+    )

@@ -54,6 +54,34 @@ def test_clean_honors_iteration_limit(thin_profile: np.ndarray) -> None:
     assert result.niter == 1
 
 
+def test_clean_does_not_subtract_below_noise_threshold() -> None:
+    profile = np.zeros(64)
+    profile[:32] = 2.5
+    profile[32:] = np.tile([-1.0, 1.0], 16)
+
+    result = clean(
+        profile,
+        1.0,
+        period=64.0,
+        pbftype="thin",
+        onpulse_estimator="0 32",
+        component_window="onpulse",
+    )
+
+    assert result.niter == 0
+    assert result.ncc == 0
+    assert np.all(result.cc == 0)
+    assert result.gamma == 0.0
+
+
+@pytest.mark.parametrize("gain", [0.0, -0.05, np.nan])
+def test_clean_rejects_nonpositive_or_nonfinite_gain(
+    thin_profile: np.ndarray, gain: float
+) -> None:
+    with pytest.raises(ValueError, match="gain must be a finite positive"):
+        clean(thin_profile, 20.0, period=500.0, gain=gain)
+
+
 def test_clean_tracks_component_history(thin_profile: np.ndarray) -> None:
     result = clean(
         thin_profile,
@@ -84,3 +112,105 @@ def test_explicit_kernel_overrides_pbftype(thin_profile: np.ndarray) -> None:
 def test_clean_rejects_unknown_kernel(thin_profile: np.ndarray) -> None:
     with pytest.raises(ValueError, match="Unknown kernel"):
         clean(thin_profile, 20.0, pbftype="unknown")
+
+
+def _cyclic_scattered_profile(shift: int, nbins: int = 512) -> np.ndarray:
+    from tauclean.circular import bin_grid, circ_convolve
+    from tauclean.response import gaussian
+
+    period = 500.0
+    x = bin_grid(nbins, period)
+    pulse = gaussian(x, 100.0, 6.0)
+    kernel = get_kernel("thin")(x, 25.0)
+    scattered = circ_convolve(pulse, kernel / kernel.sum())
+    scattered = scattered / scattered.max()
+    noise = np.random.default_rng(7).normal(0, 0.01, nbins)
+    return np.roll(scattered + noise, shift)
+
+
+@pytest.mark.parametrize("shift", [-20, 100, 250, 400])
+def test_clean_is_shift_invariant(shift: int) -> None:
+    kwargs = {"period": 500.0, "pbftype": "thin", "iter_limit": 300}
+    base = clean(_cyclic_scattered_profile(0), 25.0, **kwargs)
+    rolled = clean(_cyclic_scattered_profile(shift), 25.0, **kwargs)
+
+    assert rolled.niter == base.niter
+    np.testing.assert_allclose(
+        rolled.recon, np.roll(base.recon, shift), atol=1e-6
+    )
+    np.testing.assert_allclose(rolled.cc, np.roll(base.cc, shift), atol=1e-9)
+
+
+def test_clean_handles_pulse_straddling_profile_edge() -> None:
+    # Pulse at phase ~0.2 with a long tail, rolled so the peak is near bin 0.
+    profile = _cyclic_scattered_profile(-100)
+    result = clean(profile, 25.0, period=500.0, pbftype="thin", iter_limit=300)
+
+    assert result.ncc > 0
+    assert np.all(np.isfinite(result.recon))
+    # The recovered peak sits at the edge and its flanks wrap smoothly.
+    peak = int(np.argmax(result.recon))
+    assert min(peak, 512 - peak) <= 15
+    assert result.recon[-1] > 0.5
+    assert result.recon[0] > 0.5
+
+
+def test_parse_component_window_wraps_and_validates() -> None:
+    from tauclean.cleaner import _parse_component_window
+
+    on = np.arange(10)
+    off = np.arange(10, 20)
+    mask = _parse_component_window("90-10", 100, on, off)
+    assert mask.sum() == 20
+    assert mask[95] and mask[5] and not mask[50]
+
+    mask = _parse_component_window("90-10,40-45", 100, on, off)
+    assert mask.sum() == 25
+
+    for bad in ("10-10", "10-101", "100-5", "-5-10"):
+        with pytest.raises(ValueError):
+            _parse_component_window(bad, 100, on, off)
+
+
+def test_clean_component_window_wrapping_the_profile_edge() -> None:
+    profile = _cyclic_scattered_profile(-100)
+    result = clean(
+        profile,
+        25.0,
+        period=500.0,
+        pbftype="thin",
+        iter_limit=300,
+        component_window="440-60",
+    )
+    allowed = np.zeros(512, dtype=bool)
+    allowed[440:] = True
+    allowed[:60] = True
+    assert result.ncc > 0
+    assert not np.any(result.cc[~allowed])
+
+
+def test_clean_accepts_multiple_onpulse_ranges() -> None:
+    profile = _cyclic_scattered_profile(-100)
+    result = clean(
+        profile,
+        25.0,
+        period=500.0,
+        pbftype="thin",
+        iter_limit=300,
+        onpulse_estimator="440 512,0 120",
+    )
+    assert result.nbins_on == 72 + 120
+    assert result.nbins_off == 512 - result.nbins_on
+
+
+@pytest.mark.parametrize("periodic", [True, False])
+def test_clean_result_records_periodic_kernel_choice(periodic: bool) -> None:
+    result = clean(
+        _cyclic_scattered_profile(0),
+        25.0,
+        period=500.0,
+        iter_limit=20,
+        periodic_kernel=periodic,
+    )
+
+    assert result.periodic_kernel is periodic

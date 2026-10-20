@@ -6,14 +6,19 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.signal import convolve
 
+from .circular import (
+    bin_grid,
+    center_to_origin,
+    circ_convolve,
+    wrap_indices,
+)
 from .components import ComponentHistory, SubtractedComponent
 from .fom import FigureOfMeritEvaluator, FigureOfMeritSet
 from .kernels import Kernel
 from .noise import AutoWindowNoiseEstimator, UserDefinedOnPulseNoiseEstimator
 from .profile import ProfileData
-from .response import gaussian
+from .response import gaussian, reconstruct
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -58,6 +63,7 @@ class CleanResult:
     profile_data: ProfileData
     figures_of_merit: FigureOfMeritSet
     component_history: ComponentHistory | None = None
+    periodic_kernel: bool = True
 
     @property
     def nf(self) -> int:
@@ -92,6 +98,9 @@ class Cleaner:
         active_logger = self.logger or logger
         fom_evaluator = FigureOfMeritEvaluator(logger=active_logger)
 
+        if not np.isfinite(self.gain) or self.gain <= 0:
+            raise ValueError("CLEAN gain must be a finite positive number")
+
         if isinstance(data, ProfileData):
             profile_data = data
         else:
@@ -105,7 +114,7 @@ class Cleaner:
         period = profile_data.period
         nbins = profile_data.nbins
         prof_dt = period / nbins
-        x = np.linspace(0, 1, nbins) * period
+        x = bin_grid(nbins, period)
 
         active_logger.debug("Computing PBF template for tau=%g ms", tau)
         filter_guess = self.kernel(x, tau)
@@ -134,8 +143,6 @@ class Cleaner:
             raise ValueError("Profile noise properties are not initialized")
 
         profile = np.copy(profile_data.baseline_corrected)
-        off_pulse = profile_data.off_pulse(profile)
-        on_pulse = profile_data.on_pulse(profile)
         init_off_rms = profile_data.initial_noise.off_rms
         init_on_rms = profile_data.initial_noise.on_rms
 
@@ -173,39 +180,59 @@ class Cleaner:
             np.trapz(x=x, y=rest_func),
         )
 
-        preconv = convolve(inst_resp_func, filter_guess, mode="full")
-        preconv = preconv[nbins // 2 : -nbins // 2 + 1]
-        preconv = preconv / np.trapz(preconv)
+        # Circular response with zero lag at index 0: the instrumental
+        # response (centred on bin nbins//2) convolved with the kernel.
+        preconv = circ_convolve(
+            center_to_origin(inst_resp_func), filter_guess
+        )
+        preconv = preconv / np.sum(preconv)
 
-        loop = True
         niter = 0
         component_history = (
             ComponentHistory() if self.track_components else None
         )
 
         active_logger.debug("Initiating clean loop for tau=%g ms", tau)
-        while loop:
+        while True:
             if (self.iter_limit is not None) and (niter >= self.iter_limit):
                 active_logger.warning(
                     "Reached iteration limit for tau=%g ms", tau
                 )
                 break
-            niter += 1
 
+            current_noise = profile_data.current_noise
+            if current_noise is None:
+                raise ValueError("Profile noise properties are not initialized")
+            if not _keep_cleaning(
+                profile_data.on_pulse(profile),
+                profile_data.off_pulse(profile),
+                threshold=self.threshold,
+            ):
+                break
+            noise_limit = max(
+                0.0,
+                current_noise.off_mean
+                + self.threshold * current_noise.off_rms,
+            )
+            eligible = profile > noise_limit
             if component_mask is not None:
-                search_profile = np.where(component_mask, profile, -np.inf)
-            else:
-                search_profile = profile
+                eligible &= component_mask
+            if not np.any(eligible):
+                break
+
+            search_profile = np.where(eligible, profile, -np.inf)
             imax = np.argmax(search_profile)
             dmax = profile[imax]
+            niter += 1
             cc_amp = dmax * self.gain
 
             temp_clean_comp = np.zeros_like(clean_components)
             temp_clean_comp[imax] = cc_amp
             clean_components[imax] += cc_amp
 
-            component1 = convolve(temp_clean_comp, preconv, mode="full")
-            component1 = component1[nbins // 2 : -nbins // 2 + 1]
+            # A CLEAN component is the circular response placed at imax; it
+            # is then shifted (cyclically) so its peak sits on imax.
+            component1 = np.roll(preconv, imax)
             didx = imax - np.argmax(component1)
             component = np.roll(component1, didx)
             component_peak = component.max()
@@ -236,38 +263,6 @@ class Cleaner:
 
             cleaned = profile - component
 
-            if np.argmax(component) != imax:
-                active_logger.error(
-                    "Component alignment error - convolved subtraction component "
-                    "position (%d) does not match data maximum (%d)!",
-                    np.argmax(component),
-                    imax,
-                )
-                active_logger.error(
-                    "Error on Iteration number = %d/%d for tau=%g ms",
-                    niter,
-                    self.iter_limit,
-                    tau,
-                )
-                # Imported lazily to avoid a circular import with plotting
-                # (which depends on CleanResult).
-                from . import plotting
-
-                plotting.plot_cleaner_debug_component_alignment(
-                    initial_data=profile_data.samples,
-                    cleaned=cleaned,
-                    clean_component=temp_clean_comp,
-                    impulse_response=preconv,
-                    subtracted_response=component,
-                    raw_convolved_response=component1,
-                    peak_index=imax,
-                    threshold=self.threshold,
-                    init_off_rms=init_off_rms,
-                    iteration=niter,
-                    iter_limit=self.iter_limit,
-                )
-                raise ValueError
-
             if component_history is not None:
                 current_noise = profile_data.update_noise(cleaned)
                 component_history.add(
@@ -290,18 +285,19 @@ class Cleaner:
             else:
                 profile_data.update_noise(cleaned)
 
-            on_pulse = profile_data.on_pulse(cleaned)
-            off_pulse = profile_data.off_pulse(cleaned)
-            loop = _keep_cleaning(
-                on_pulse, off_pulse, threshold=self.threshold
-            )
             profile = cleaned
 
-        if niter <= 1:
+        if niter == 0:
+            active_logger.debug(
+                "No profile samples exceeded the CLEAN noise threshold "
+                "for tau=%g ms",
+                tau,
+            )
+        elif niter == 1:
             active_logger.warning(
                 "Clean cycle only lasted 1 iteration - something probably went wrong!"
             )
-        elif niter >= self.iter_limit:
+        elif self.iter_limit is not None and niter >= self.iter_limit:
             active_logger.warning(
                 "Clean cycle terminated prematurely for tau=%g ms", tau
             )
@@ -327,7 +323,7 @@ class Cleaner:
             off_mean=final_noise.off_mean,
             threshold=self.threshold,
         )
-        recon = _reconstruct(clean_components, rest_func)
+        recon = reconstruct(clean_components, rest_func)
 
         return CleanResult(
             profile=profile,
@@ -356,6 +352,7 @@ class Cleaner:
             profile_data=profile_data,
             figures_of_merit=figures_of_merit,
             component_history=component_history,
+            periodic_kernel=self.kernel.periodic,
         )
 
 
@@ -379,7 +376,9 @@ def _parse_component_window(
 
     ``spec`` may be one of 'onpulse'/'on', 'offpulse'/'off', 'all'/'total',
     or a comma-separated list of 'START-END' bin ranges (end-exclusive).
-    Returns None if no restriction is requested (i.e. all bins allowed).
+    Profiles are cyclic, so a range with START > END wraps through the end of
+    the profile (e.g. '900-100'). Returns None if no restriction is requested 
+    (i.e. all bins allowed).
     """
     if spec is None:
         return None
@@ -415,11 +414,11 @@ def _parse_component_window(
                 f"Invalid range {r!r} in clean component window specification "
                 f"{spec!r}: bounds must be integers."
             )
-        if start < 0 or end > nbins or start >= end:
+        if start < 0 or start >= nbins or end < 0 or end > nbins or start == end:
             raise ValueError(
                 f"Range {r!r} is out of bounds for a profile with {nbins} bins."
             )
-        mask[start:end] = True
+        mask[wrap_indices(start, end, nbins)] = True
 
     if not mask.any():
         raise ValueError(
@@ -437,11 +436,3 @@ def _keep_cleaning(
     datamax = np.max(on)
     limit = mean + threshold * rms
     return datamax > limit
-
-
-def _reconstruct(ccs: np.ndarray, rest_func: np.ndarray) -> np.ndarray:
-    recon = convolve(ccs, rest_func, mode="same")
-    peak = np.max(np.abs(recon))
-    if peak <= 0 or not np.isfinite(peak):
-        return recon
-    return recon / peak

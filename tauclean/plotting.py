@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .circular import bin_grid
 from .cleaner import CleanResult
 from .fom import TauSearchAnalyzer, find_fom_tau_peaks
 from .kernels import get_kernel
@@ -20,40 +21,6 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 tau_search_analyzer = TauSearchAnalyzer(logger=logger)
-
-
-def plot_cleaner_debug_component_alignment(
-    initial_data: np.ndarray,
-    cleaned: np.ndarray,
-    clean_component: np.ndarray,
-    impulse_response: np.ndarray,
-    subtracted_response: np.ndarray,
-    raw_convolved_response: np.ndarray,
-    peak_index: int,
-    threshold: float,
-    init_off_rms: float,
-    iteration: int,
-    iter_limit: int,
-):
-    """Plot cleaner state when a convolved component is misaligned."""
-    plt.plot(1e-5 + initial_data, color="k", alpha=0.2)
-    plt.plot(1e-5 + cleaned, label="profile")
-    plt.plot(1e-5 + clean_component, label="cc")
-    plt.plot(1e-5 + impulse_response, ls="--", label="inst_resp ^ pbf")
-    plt.plot(1e-5 + subtracted_response, ls="-.", label="component")
-    plt.plot(1e-5 + raw_convolved_response, ls="-.", label="component1")
-    plt.axvline(peak_index, ls="--", color="k")
-    plt.axvline(np.argmax(subtracted_response), ls=":", color="r")
-    plt.axhline(threshold * init_off_rms, ls=":", color="k")
-    plt.ylim(-1.1 * init_off_rms, 1.1 * cleaned.max())
-    plt.xlim(0, len(initial_data))
-    plt.title(
-        f"Iteration={iteration}/{iter_limit}  "
-        f"Current imax={peak_index}  "
-        f"conv.comp idx={np.argmax(raw_convolved_response)}"
-    )
-    plt.legend()
-    plt.show()
 
 
 def plot_figures_of_merit(
@@ -263,7 +230,7 @@ def plot_clean_residuals(
     initial_data, results: list[CleanResult], period=100.0
 ):
     nbins = len(initial_data)
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
     dt = period / nbins
     _ = dt
     taus = np.array([a.tau for a in results])
@@ -282,6 +249,8 @@ def plot_clean_residuals(
         )
         fig.suptitle(rf"Residuals ($\rm \tau = {t:g}\ ms$)")
 
+        _highlight_offpulse(ax1, results[i].off_bins, nbins, period)
+        _highlight_offpulse(ax2, results[i].off_bins, nbins, period)
         ax1.plot(x, initial_data, label="initial data")
         ax1.plot(x, residuals[i], label="post-clean residuals")
         ax1.fill_between(
@@ -292,7 +261,7 @@ def plot_clean_residuals(
             label="CLEAN threshold",
         )
         ax1.set_xlabel("Time (ms)")
-        ax1.set_xlim(x.min(), x.max())
+        ax1.set_xlim(0, period)
         ax1.legend()
 
         ax2.plot(x, initial_data, label="initial data")
@@ -320,6 +289,25 @@ def plot_clean_residuals(
     return not plt.fignum_exists(fig.number)
 
 
+def _highlight_offpulse(ax, off_bins: np.ndarray, nbins: int, period: float):
+    off_mask = np.zeros(nbins, dtype=bool)
+    off_mask[off_bins] = True
+    boundaries = np.diff(np.r_[False, off_mask, False].astype(int))
+    starts = np.flatnonzero(boundaries == 1)
+    ends = np.flatnonzero(boundaries == -1)
+    bin_width = period / nbins
+
+    for index, (start, end) in enumerate(zip(starts, ends)):
+        ax.axvspan(
+            start * bin_width,
+            end * bin_width,
+            color="C2",
+            alpha=0.15,
+            label="off-pulse region(s)" if index == 0 else "_nolegend_",
+            zorder=0,
+        )
+
+
 def plot_clean_components(results: list[CleanResult], period=100.0):
     taus = np.array([a.tau for a in results])
     clean_components = np.array([a.cc for a in results])
@@ -328,7 +316,7 @@ def plot_clean_components(results: list[CleanResult], period=100.0):
     pbftype = np.array([a.pbftype for a in results])
 
     nbins = len(clean_components[0])
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     for i, t in enumerate(taus):
         fig, ax = plt.subplots(1, 1, figsize=(20, 8))
@@ -358,20 +346,21 @@ def plot_reconstruction(results: list[CleanResult], original, period=100.0):
     restoring = np.array([a.rest_func for a in results])
     residuals = np.array([a.profile for a in results])
     pbftype = np.array([a.pbftype for a in results])
+    periodic = [a.periodic_kernel for a in results]
 
     nbins = len(recons[0])
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     for i, t in enumerate(taus):
         try:
-            kernel = get_kernel(pbftype[i])
+            kernel = get_kernel(pbftype[i], periodic=periodic[i])
         except ValueError as e:
             logger.error(e)
             logger.warning(
                 "Cannot find pbf function '%s'! Assuming 'thin' model.",
                 pbftype[i],
             )
-            kernel = get_kernel("thin")
+            kernel = get_kernel("thin", periodic=periodic[i])
         rest = np.roll(restoring[i], -np.argmax(restoring[i]) + len(x) // 40)
         pbf = kernel(x, t, x0=x[len(x) // 20])
         pbf_scaled = (pbf / pbf.max()) * 0.3
@@ -453,7 +442,7 @@ def plot_instrumental_response(
         ``restoring_func`` is provided.
     :param filename: path to save the resulting figure to.
     """
-    x = period * np.linspace(0, 1, len(response), endpoint=False)
+    x = bin_grid(len(response), period)
 
     ncols = 2 if restoring_func is not None else 1
     fig, axs = plt.subplots(1, ncols, figsize=(10 * ncols, 6))

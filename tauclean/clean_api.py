@@ -21,6 +21,7 @@ def clean(
     threshold: float = 3.0,
     pbftype: str = "thin",
     kernel: Kernel | None = None,
+    periodic_kernel: bool = True,
     iter_limit: int = 1000,
     onpulse_estimator: str = "auto",
     component_window: str | None = None,
@@ -29,6 +30,8 @@ def clean(
 ) -> CleanResult:
     """Run CLEAN deconvolution using the canonical service implementation.
 
+    :param periodic_kernel: when ``kernel`` is not given, wrap the PBF around
+        the pulse period (default) rather than using a single-period PBF.
     :param component_window: restrict where clean components may be placed.
         One of 'onpulse'/'on', 'offpulse'/'off', 'all'/'total', or a
         comma-separated list of 'START-END' bin ranges (end-exclusive).
@@ -40,7 +43,11 @@ def clean(
         inst_resp_func=inst_resp_func,
         gain=gain,
         threshold=threshold,
-        kernel=kernel if kernel is not None else get_kernel(pbftype),
+        kernel=(
+            kernel
+            if kernel is not None
+            else get_kernel(pbftype, periodic=periodic_kernel)
+        ),
         iter_limit=iter_limit,
         onpulse_estimator=onpulse_estimator,
         component_window=component_window,

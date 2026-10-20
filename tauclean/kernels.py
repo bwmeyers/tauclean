@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
 import numpy as np
 from scipy.integrate import simpson as simps
+
+logger = logging.getLogger(__name__)
+
+# Number of scattering times of tail to include when wrapping a kernel around
+# the pulse period (exp(-14) ~ 1e-6), and a cap on the number of extra periods.
+_TAIL_TAUS = 14.0
+_MAX_WRAPS = 500
 
 
 def _smooth(
@@ -29,15 +37,24 @@ def _smooth(
 
 @dataclass(frozen=True)
 class Kernel(ABC):
-    """Abstract scattering kernel with shared normalization/causality logic."""
+    """Abstract scattering kernel with shared normalization/causality logic.
+
+    Pulsar profiles are cyclic, so by default (``periodic=True``) the kernel
+    is evaluated as the sum over wraps, ``sum_k h(t + k * period)``, which
+    carries scattering tails that run past the end of the profile back to its
+    start. The kernel is then normalized to unit area over one period. The
+    period is inferred from a uniform grid as ``len(x) * dx``. Set
+    ``periodic=False`` for the plain single-period kernel.
+    """
 
     name: str
+    periodic: bool = True
 
     @abstractmethod
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         """Return unnormalized kernel values."""
 
-    def __call__(self, x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+    def _linear(self, x: np.ndarray, tau: float, x0: float) -> np.ndarray:
         t = x - x0
         h = self._evaluate(t, tau, x0)
         h[np.where(np.isnan(h) | np.isinf(h))] = 0
@@ -48,10 +65,44 @@ class Kernel(ABC):
             h = h / integral
         return h
 
+    def _wrapped(self, x: np.ndarray, tau: float, x0: float) -> np.ndarray | None:
+        nbins = len(x)
+        if nbins < 2:
+            return None
+        dx = x[1] - x[0]
+        if dx <= 0 or not np.allclose(np.diff(x), dx, rtol=1e-6, atol=0):
+            return None
+        period = nbins * dx
+
+        n_wraps = int(np.ceil(_TAIL_TAUS * abs(tau) / period)) + 1
+        if n_wraps > _MAX_WRAPS:
+            logger.warning(
+                "tau=%g is very large relative to the period (%g); limiting "
+                "kernel wrapping to %d periods.",
+                tau,
+                period,
+                _MAX_WRAPS,
+            )
+            n_wraps = _MAX_WRAPS
+
+        extended = x[0] + dx * np.arange((n_wraps + 1) * nbins)
+        h = self._linear(extended, tau, x0)
+        # h is normalized to unit area over all wraps, so the folded kernel
+        # has unit area over one period.
+        return h.reshape(n_wraps + 1, nbins).sum(axis=0)
+
+    def __call__(self, x: np.ndarray, tau: float, x0: float = 0) -> np.ndarray:
+        x = np.asarray(x, dtype=float)
+        if self.periodic:
+            folded = self._wrapped(x, tau, x0)
+            if folded is not None:
+                return folded
+        return self._linear(x, tau, x0)
+
 
 class ThinKernel(Kernel):
-    def __init__(self):
-        super().__init__(name="thin")
+    def __init__(self, periodic: bool = True):
+        super().__init__(name="thin", periodic=periodic)
 
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         _ = x0
@@ -59,8 +110,8 @@ class ThinKernel(Kernel):
 
 
 class ThickKernel(Kernel):
-    def __init__(self):
-        super().__init__(name="thick")
+    def __init__(self, periodic: bool = True):
+        super().__init__(name="thick", periodic=periodic)
 
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         _ = x0
@@ -73,8 +124,8 @@ class ThickKernel(Kernel):
 
 
 class UniformKernel(Kernel):
-    def __init__(self):
-        super().__init__(name="uniform")
+    def __init__(self, periodic: bool = True):
+        super().__init__(name="uniform", periodic=periodic)
 
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         _ = x0
@@ -87,8 +138,8 @@ class UniformKernel(Kernel):
 
 
 class ThickExpKernel(Kernel):
-    def __init__(self):
-        super().__init__(name="thick_exp")
+    def __init__(self, periodic: bool = True):
+        super().__init__(name="thick_exp", periodic=periodic)
 
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         expdelay = np.log(4 / np.pi)
@@ -114,8 +165,8 @@ class ThickExpKernel(Kernel):
 
 
 class UniformExpKernel(Kernel):
-    def __init__(self):
-        super().__init__(name="uniform_exp")
+    def __init__(self, periodic: bool = True):
+        super().__init__(name="uniform_exp", periodic=periodic)
 
     def _evaluate(self, t: np.ndarray, tau: float, x0: float) -> np.ndarray:
         expdelay = np.log(2)
@@ -156,9 +207,9 @@ class KernelRegistry:
         return list(cls._registry.keys())
 
     @classmethod
-    def get(cls, name: str) -> Kernel:
+    def get(cls, name: str, periodic: bool = True) -> Kernel:
         try:
-            return cls._registry[name]()
+            return cls._registry[name](periodic=periodic)
         except KeyError as exc:
             options = ", ".join(sorted(cls._registry.keys()))
             raise ValueError(
@@ -166,6 +217,10 @@ class KernelRegistry:
             ) from exc
 
 
-def get_kernel(name: str) -> Kernel:
-    """Convenience kernel resolver."""
-    return KernelRegistry.get(name)
+def get_kernel(name: str, periodic: bool = True) -> Kernel:
+    """Convenience kernel resolver.
+
+    :param periodic: wrap the kernel around the pulse period (default), or
+        use the plain single-period kernel if False.
+    """
+    return KernelRegistry.get(name, periodic=periodic)

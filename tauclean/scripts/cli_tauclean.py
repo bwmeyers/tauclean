@@ -182,14 +182,24 @@ def main():
     )
 
     clean_group.add_argument(
+        "--no-periodic-kernel",
+        action="store_true",
+        help="Use a single-period PBF instead of wrapping it around the "
+        "pulse period (the default, since pulse profiles are cyclic).",
+    )
+
+    clean_group.add_argument(
         "-o",
         "--onpulse",
-        metavar="'START END' or 'auto'",
+        metavar="'START END[,START END...]' or 'auto'",
         type=str,
         default="auto",
         help="""Boundaries of the on-pulse region. Format as 'START END', or 
         if set to 'auto', will automatically compute on- and off-pulse 
-        regions.""",
+        regions. The profile is cyclic, so START may be larger than END
+        to wrap through the end of the profile (e.g. '900 100'). Multiple
+        ranges can be given as a comma-separated list (e.g. 
+        '100 200,400 450').""",
     )
 
     clean_group.add_argument(
@@ -228,7 +238,8 @@ def main():
         help="Restrict where clean components may be placed. One of "
         "'onpulse'/'on', 'offpulse'/'off', 'all'/'total', or a "
         "comma-separated list of 'START-END' bin ranges (end-exclusive), "
-        "e.g. '100-200,400-450'. Defaults to no restriction.",
+        "e.g. '100-200,400-450'. A range with START > END wraps through the "
+        "end of the profile (e.g. '900-100'). Defaults to no restriction.",
     )
 
     clean_group.add_argument(
@@ -356,7 +367,7 @@ def execute_tauclean(args):
     )
     logger.info("Restoring function (Gaussian) width: %g ms", inst_resp_width)
 
-    kernel = get_kernel(args.kernel)
+    kernel = get_kernel(args.kernel, periodic=not args.no_periodic_kernel)
 
     # Setup for the deconvolution (maybe distributed over multiple processes)
     clean_kwargs = {
@@ -419,7 +430,7 @@ def execute_tauclean(args):
         fom_set = sorted_results[0].figures_of_merit
         logger.info("f_r ~ positivity: %s", fom_set.positivity)
         logger.info("gamma ~ skewnesss: %s", fom_set.skewness)
-        logger.info("f_c = f_r / gamma: %s", fom_set.combined)
+        logger.info("f_c = (f_r + gamma)/2: %s", fom_set.combined)
         logger.info(
             "nf ~ consistence: %s (%s%%)",
             fom_set.consistence,

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import find_peaks, savgol_filter
 
+from .circular import bin_grid
+
 
 @dataclass(frozen=True)
 class FigureOfMeritSet:
@@ -218,15 +220,27 @@ class FigureOfMeritEvaluator:
     def skewness(
         self, clean_components: np.ndarray, pulsar_period: float = 100.0
     ) -> float:
-        component_times = pulsar_period * np.linspace(
-            0, 1, len(clean_components)
+        if not np.any(clean_components):
+            return 0.0
+
+        # The profile is cyclic, so measure each component's offset from the
+        # circular mean position, wrapped to [-P/2, P/2). This makes the
+        # skewness independent of where the pulse sits in the profile, and
+        # equal to the usual linear skewness when no wrapping is involved.
+        component_times = bin_grid(len(clean_components), pulsar_period)
+        phase = 2 * np.pi * component_times / pulsar_period
+        circ_mean = np.arctan2(
+            np.sum(clean_components * np.sin(phase)),
+            np.sum(clean_components * np.cos(phase)),
         )
-        moment_1 = np.average(component_times, weights=clean_components)
+        offsets = (phase - circ_mean + np.pi) % (2 * np.pi) - np.pi
+        offsets = offsets * pulsar_period / (2 * np.pi)
+        moment_1 = np.average(offsets, weights=clean_components)
         moment_2 = np.average(
-            (component_times - moment_1) ** 2, weights=clean_components
+            (offsets - moment_1) ** 2, weights=clean_components
         )
         moment_3 = np.average(
-            (component_times - moment_1) ** 3, weights=clean_components
+            (offsets - moment_1) ** 3, weights=clean_components
         )
 
         if np.count_nonzero(clean_components) == 1:

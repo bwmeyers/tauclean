@@ -270,3 +270,68 @@ def test_reconstruct_handles_zero_components_without_nan() -> None:
 
     assert np.all(np.isfinite(reconstruction))
     assert np.allclose(reconstruction, 0.0)
+
+
+@pytest.mark.parametrize("nbins", [255, 256])
+@pytest.mark.parametrize("index", [0, 3, 128, 252])
+def test_reconstruct_places_component_without_shift(
+    nbins: int, index: int
+) -> None:
+    profile = np.zeros(nbins)
+    components = np.zeros(nbins)
+    components[index] = 1.0
+    rest = get_restoring_function(profile, PERIOD_MS, 4 * PERIOD_MS / nbins)
+
+    reconstruction = reconstruct(components, rest)
+
+    assert np.argmax(reconstruction) == index
+
+
+def test_reconstruct_wraps_across_profile_edge() -> None:
+    nbins = 256
+    components = np.zeros(nbins)
+    components[0] = 1.0
+    rest = get_restoring_function(
+        components, PERIOD_MS, 8 * PERIOD_MS / nbins
+    )
+
+    reconstruction = reconstruct(components, rest)
+
+    assert reconstruction[1] == pytest.approx(reconstruction[-1])
+    assert reconstruction[2] == pytest.approx(reconstruction[-2])
+    assert reconstruction[-1] > 0.5
+
+
+def test_reconstruct_rejects_mismatched_lengths() -> None:
+    with pytest.raises(ValueError):
+        reconstruct(np.ones(8), np.ones(9))
+
+
+def test_restoring_function_tails_wrap() -> None:
+    profile = np.zeros(128)
+    rest = get_restoring_function(profile, PERIOD_MS, 0.6 * PERIOD_MS)
+
+    assert np.isclose(np.trapz(y=rest, dx=PERIOD_MS / 128), 1.0, rtol=2e-3)
+    assert rest[0] == pytest.approx(rest[-1], rel=0.1)
+
+
+def test_instrumental_response_boxcar_wraps_and_is_centred() -> None:
+    profile = np.zeros(256)
+    response, _ = get_instrumental_response(
+        profile, PERIOD_MS, 0.0, 20 * PERIOD_MS / 256, 0.0, 0.0
+    )
+    peak_region = np.flatnonzero(response > 0.5 * response.max())
+    # An even-width boxcar is centred half a bin below the middle bin.
+    assert abs(peak_region.mean() - 128) <= 1.5
+    assert np.isclose(np.trapz(y=response, dx=PERIOD_MS / 256), 1.0, rtol=2e-3)
+
+
+def test_instrumental_response_wide_boxcar_is_periodic() -> None:
+    profile = np.zeros(256)
+    response, _ = get_instrumental_response(
+        profile, PERIOD_MS, 0.0, 0.9 * PERIOD_MS, 0.0, 0.0
+    )
+    shifted = np.roll(response, -128)
+    assert shifted[0] > 0
+    assert shifted[-1] > 0
+    assert np.all(np.isfinite(response))

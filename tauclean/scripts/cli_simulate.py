@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simpson as simps
 
+from ..circular import bin_grid, circ_convolve
 from ..kernels import KernelRegistry, get_kernel
 from ..response import dm_delay, gaussian
 
@@ -26,7 +27,7 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
     :return: the intrinsic emission profile [array-like]
     """
 
-    x = np.linspace(0, nbins, nbins)
+    x = bin_grid(nbins, nbins)
 
     f = np.zeros_like(x)
 
@@ -51,9 +52,18 @@ def create_intrinsic_pulse(position, width, amps, nbins=2048):
 
 
 def create_scattered_profile(
-    intrinsic, tau, rest_width, pbftype="thin", period=100.0, snr=500.0
+    intrinsic,
+    tau,
+    rest_width,
+    pbftype="thin",
+    period=100.0,
+    snr=500.0,
+    periodic_kernel=True,
 ):
     """Take the intrinsic emission profile and apply the effects of a scattering screen to it, then add noise
+
+    The profile is treated as cyclic: the scattering tail wraps from the end
+    of the profile back to its start.
 
     :param intrinsic: intrinsic emission profile [array-like]
     :param tau: desired pulse broadening time scale (units: ms) [float]
@@ -61,41 +71,40 @@ def create_scattered_profile(
     :param pbftype: the type of PBF to use [string]
     :param period: pulsar period (units: ms)
     :param snr: nominal desired signal-to-noise ration
+    :param periodic_kernel: wrap the scattering kernel around the pulse period (default) [bool]
+
     :return: pbf [array-like], scattered profile [array-like], scattered profile with noise added [array-like]
     """
 
     nbins = len(intrinsic)
 
-    x = period * np.linspace(0, 1, nbins)
+    x = bin_grid(nbins, period)
 
     # Decide which PBF model to use
     try:
-        kernel = get_kernel(pbftype)
+        kernel = get_kernel(pbftype, periodic=periodic_kernel)
     except ValueError:
         logger.error("Invalid PBF type requested (%s)", pbftype)
         logger.warning("Defaulting to thin screen...")
-        kernel = get_kernel("thin")
+        kernel = get_kernel("thin", periodic=periodic_kernel)
     h = kernel(x, tau)
 
-    restoring_function = gaussian(x, x[x.size // 2], rest_width)
+    # Both responses have their zero lag at bin 0 and the profile is cyclic,
+    # so circular convolution neither truncates the scattering tail at the
+    # profile edge nor shifts the profile. The causal kernel therefore moves
+    # the peak later by an amount that depends on tau and the PBF shape.
+    lag = (x + 0.5 * period) % period - 0.5 * period
+    restoring_function = gaussian(lag, 0.0, rest_width)
 
     # The observed pulse shape is the convolution of:
     # - the true signal,
     # - the telescope response function,
     # - the scattering kernel, and
     # - some Gaussian radiometer noise
-    # Here we do the mode="full" convolution so that the complete shape is convolved and we don't end up with sharp edge
-    # effects in the final profile that depend on where the shapes are defined (as in the case of mode="same")
-    response = np.convolve(
-        intrinsic, restoring_function, mode="full"
-    ) / np.sum(restoring_function)
-    response = response[nbins // 2 : -(nbins // 2) + 1]
-
-    scattered = np.convolve(response, h, mode="full") / np.sum(h)
-
-    offset = np.argmax(intrinsic) - np.argmax(scattered)
-    scattered = np.roll(scattered, offset)[:nbins]
-    scattered = scattered[:nbins]
+    response = circ_convolve(intrinsic, restoring_function) / np.sum(
+        restoring_function
+    )
+    scattered = circ_convolve(response, h) / np.sum(h)
 
     # And do the same for the PBF, then re-normalise it to unit area
     h = h / simps(x=x, y=h)
@@ -144,13 +153,13 @@ def plot_simulated(
     nbins = len(intrinsic)
 
     if xunit == "phase":
-        x = np.linspace(0, 1, nbins)
+        x = bin_grid(nbins)
         xlab = "Phase"
     elif xunit == "time":
-        x = period * np.linspace(0, 1, nbins)
+        x = bin_grid(nbins, period)
         xlab = "Time (ms)"
     elif xunit == "bins":
-        x = np.linspace(0, nbins, nbins).astype(int)
+        x = np.arange(nbins)
         xlab = "Bins"
     else:
         logger.error("Unknown x-unit: %s", xunit)
@@ -311,6 +320,12 @@ def main():
         "A '_exp' suffix implies a modified PBF that asymptotes to a thin-screen approximation at large times.",
     )
     parser.add_argument(
+        "--no-periodic-kernel",
+        action="store_true",
+        help="Use a single-period PBF instead of wrapping it around the "
+        "pulse period (the default, since pulse profiles are cyclic).",
+    )
+    parser.add_argument(
         "-t", type=float, default=5.0, help="scattering time scale (in ms)"
     )
     parser.add_argument(
@@ -409,7 +424,13 @@ def main():
 
     i = create_intrinsic_pulse(args.m, args.w, args.a, nbins=args.n)
     k, s, o = create_scattered_profile(
-        i, args.t, restoring_width, pbftype=args.k, period=args.p, snr=args.s
+        i,
+        args.t,
+        restoring_width,
+        pbftype=args.k,
+        period=args.p,
+        snr=args.s,
+        periodic_kernel=not args.no_periodic_kernel,
     )
 
     plot_simulated(
